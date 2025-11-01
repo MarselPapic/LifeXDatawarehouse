@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Detailansicht</title>
+    <title>Detail View</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .section{margin-top:1.2rem}
-        .section h2{margin:.2rem 0 .6rem 0}
+        .section h2{margin:.2rem 0 .6rem 0;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
         .pill{
             display:inline-block;background:#e9f1ff;border:1px solid #cfe0ff;border-radius:999px;
             padding:.15rem .55rem;margin:.12rem .2rem;cursor:pointer;text-decoration:none;color:inherit
@@ -14,33 +14,110 @@
         .pill:hover{background:#dbeaff}
         .empty{color:#666}
         .sep{margin:0 .35rem;color:#999}
+        .section h2 .count{color:#6b7280;font-size:.9rem;font-weight:400}
+        .add-link{
+            display:inline-flex;align-items:center;justify-content:center;
+            width:1.8rem;height:1.8rem;border-radius:999px;border:1px solid #2c64b5;
+            color:#2c64b5;text-decoration:none;font-weight:600;font-size:1.2rem;line-height:1;
+            transition:background .2s ease,color .2s ease;
+        }
+        .section h2 .add-link{margin-left:auto}
+        .add-link:focus,.add-link:hover{background:#2c64b5;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(44,100,181,.35)}
     </style>
 </head>
 <body>
 
-<a href="#main" class="skip-link">Zum Inhalt springen</a>
+<a href="#main" class="skip-link">Skip to content</a>
 
 <header>
     <img src="/img/LifeXDatawarehouseLogo.png" alt="">
-    <nav aria-label="Hauptnavigation">
+    <nav aria-label="Main navigation">
         <a href="/index.html">Dashboard</a>
-        <a href="/create.html">Daten anlegen</a>
+        <a href="/create.html">Create Data</a>
+        <a href="/reports.html">Reports</a>
     </nav>
 </header>
 
 <main id="main" style="max-width:1000px;margin:2rem auto">
-    <a id="back" href="index.html">← zurück</a>
-    <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">lade …</div>
+    <a id="back" href="index.html">← Back</a>
+    <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">loading …</div>
 
-    <!-- NEU: Eltern-Beziehungen -->
+    <!-- NEW: Parent relationships -->
     <div id="parents"></div>
 
-    <!-- Kinder-Listen -->
+    <!-- Child lists -->
     <div id="children"></div>
 </main>
 
+<script src="/js/form-config.js"></script>
 <script>
     /* -------------------- Helpers -------------------- */
+    const PKS = {
+        Account: 'AccountID',
+        Project: 'ProjectID',
+        Site: 'SiteID',
+        Server: 'ServerID',
+        Clients: 'ClientID',
+        Radio: 'RadioID',
+        AudioDevice: 'AudioDeviceID',
+        PhoneIntegration: 'PhoneIntegrationID',
+        Country: 'CountryCode',
+        City: 'CityID',
+        Address: 'AddressID',
+        DeploymentVariant: 'VariantID',
+        Software: 'SoftwareID',
+        InstalledSoftware: 'InstalledSoftwareID',
+        UpgradePlan: 'UpgradePlanID',
+        ServiceContract: 'ContractID'
+    };
+
+    let currentRow = null;
+    let currentTable = null;
+    let currentId = null;
+    let currentRawType = null;
+    let isEditing = false;
+
+    const detailBox = document.getElementById('view');
+    const parentsBox = document.getElementById('parents');
+    const childrenBox = document.getElementById('children');
+
+    let detailTitleEl;
+    let detailTypeEl;
+    let detailBodyEl;
+    let detailStatusEl;
+    let editButtonEl;
+    const defaultDocumentTitle = document.title || 'Detail View';
+
+    function escapeHtml(value){
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        };
+        return (value ?? '').toString().replace(/[&<>"']/g, c => map[c] ?? c);
+    }
+    function shortId(value){
+        const str = (value ?? '').toString().trim();
+        if(!str) return '';
+        const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        if(uuidPattern.test(str)){
+            const idx = str.lastIndexOf('-');
+            if(idx !== -1 && idx < str.length - 1){
+                const lastSegment = str.slice(idx + 1).replace(/^0+/, '');
+                const compact = lastSegment || '0';
+                return `#${compact}`;
+            }
+        }
+        return str.startsWith('#') ? str : `#${str}`;
+    }
+    function formatIdChip(id){
+        const full = (id ?? '').toString().trim();
+        if(!full) return '';
+        const display = shortId(full);
+        return `<span class="id-chip" title="${escapeHtml(full)}">${escapeHtml(display)}</span>`;
+    }
     function tableForType(t){
         const s=(t||'').toLowerCase();
         switch(s){
@@ -48,12 +125,26 @@
             case 'project': return 'Project';
             case 'site': return 'Site';
             case 'server': return 'Server';
-            case 'client': return 'Clients'; // geändert von WorkingPosition
+            case 'client': return 'Clients'; // changed from WorkingPosition
             case 'radio': return 'Radio';
             case 'audio': return 'AudioDevice';
             case 'phone': return 'PhoneIntegration';
+            case 'country': return 'Country';
+            case 'city': return 'City';
+            case 'address': return 'Address';
+            case 'deploymentvariant': return 'DeploymentVariant';
+            case 'software': return 'Software';
+            case 'installedsoftware': return 'InstalledSoftware';
+            case 'upgradeplan': return 'UpgradePlan';
+            case 'servicecontract': return 'ServiceContract';
             default: return t;
         }
+    }
+    function configKeyForTable(table){
+        const normalized = tableForType(table);
+        if(!normalized) return null;
+        if(normalized === 'Clients') return 'WorkingPosition';
+        return normalized;
     }
     function val(row, ...keys){
         for(const k of keys){
@@ -65,6 +156,383 @@
         }
         return undefined;
     }
+    function formatDateLabel(value){
+        if (value === null || value === undefined) return '';
+        const str = ('' + value).trim();
+        if (!str) return '';
+        const ts = Date.parse(str);
+        if (!Number.isNaN(ts)) {
+            return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        }
+        return str;
+    }
+    function formatDateRange(start, end){
+        const from = formatDateLabel(start);
+        const to = formatDateLabel(end);
+        if (from && to) return `${from} → ${to}`;
+        return from || to || '';
+    }
+    const formConfig = window.FormConfig || {getFields:()=>[], asyncSources:{}};
+    let detailAsyncSelectConfigs = {};
+    let detailFormRef = null;
+
+    const escapeAttr = value => String(value ?? '')
+        .replace(/&/g,'&amp;')
+        .replace(/"/g,'&quot;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;');
+
+    const renderAttributes = attrs => Object.entries(attrs)
+        .map(([key,value])=>{
+            if(value===undefined||value===null||value===false) return '';
+            if(value===true) return ` ${key}`;
+            return ` ${key}="${escapeAttr(value)}"`;
+        }).join('');
+
+    const toChoices = choices => {
+        if(!Array.isArray(choices)) return [];
+        return choices.map(choice => {
+            if(choice && typeof choice === 'object'){
+                return {value: choice.value, label: choice.label ?? choice.value};
+            }
+            return {value: choice, label: choice};
+        });
+    };
+
+    const renderInputField = (id,label,opts={}) => {
+        const config = {...opts};
+        if(config.required === undefined) config.required = true;
+        const attributes = {
+            id,
+            name: config.name || id,
+            type: config.type || 'text',
+            placeholder: config.placeholder,
+            pattern: config.pattern,
+            maxlength: config.maxlength,
+            minlength: config.minlength,
+            min: config.min,
+            max: config.max,
+            step: config.step,
+            autocomplete: config.autocomplete,
+            inputmode: config.inputmode,
+            value: config.value,
+            'data-value-type': config.valueType || undefined,
+        };
+        if(config.required === false) delete attributes.required; else attributes.required = true;
+        if(config.dataset){
+            Object.entries(config.dataset).forEach(([key,value])=>{
+                if(value!==undefined && value!==null){
+                    attributes[`data-${key}`]=value;
+                }
+            });
+        }
+        if(config.className) attributes.class=config.className;
+        const attrs = renderAttributes(attributes);
+        return `<label for="${id}" class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span><input class="detail-input"${attrs}></label>`;
+    };
+
+    const renderSelectField = (id,label,choices,opts={}) => {
+        const config = {...opts};
+        if(config.required === undefined) config.required = true;
+        const placeholder = config.placeholder ?? 'Please select';
+        const selectedValue = config.value ?? '';
+        const values = toChoices(choices);
+        const selectAttrs = renderAttributes({id, name: config.name || id, required: config.required!==false, 'data-value-type': config.valueType || undefined});
+        const optionsHtml = values.map(option=>`<option value="${escapeAttr(option.value)}"${String(option.value)===String(selectedValue)?' selected':''}>${escapeAttr(option.label)}</option>`).join('');
+        return `<label for="${id}" class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span><select class="detail-input"${selectAttrs}><option value="">${escapeAttr(placeholder)}</option>${optionsHtml}</select></label>`;
+    };
+
+    function renderDetailAsyncSelect(id,label,sourceKey,options={}){
+        const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
+        detailAsyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
+        const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter manual value</button>` : '';
+        const manualValue = value ?? '';
+        const manualInput = allowManual ? `<input type="text" id="${id}-manual" class="hidden" placeholder="Enter UUID" value="${escapeAttr(manualValue)}" ${required?'required':''}>` : '';
+        const hiddenName = name ? ` name="${escapeAttr(name)}"` : '';
+        const hiddenValue = value!=null ? ` value="${escapeAttr(value)}"` : '';
+        const valueTypeAttr = ` data-value-type="${escapeAttr(options.valueType || 'text')}"`;
+        return `<label class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span>
+            <div class="async-select" data-field="${id}" data-source="${sourceKey}" data-required="${required}"${dependsOn?` data-depends-on="${dependsOn}"`:''}>
+                <select id="${id}-select" class="detail-input" ${required?'required':''}>
+                    <option value="">${escapeAttr(placeholder)}</option>
+                </select>
+                ${manualInput}
+                <input type="hidden" id="${id}"${hiddenName}${hiddenValue}${valueTypeAttr}>
+                ${manualToggle}
+            </div>
+        </label>`;
+    }
+
+    function renderFieldForDetails(field, overrides={}){
+        if(!field) return '';
+        const config={...field,...overrides};
+        const component=(config.component||'input').toLowerCase();
+        if(component==='select'){
+            if(!config.valueType) config.valueType='text';
+        }else if(component==='asyncselect'){
+            if(!config.valueType) config.valueType='text';
+        }else{
+            const hint=(config.inputType||config.type||'').toLowerCase();
+            if(!config.valueType){
+                if(hint==='number') config.valueType='number';
+                else if(hint==='date') config.valueType='date';
+                else config.valueType='text';
+            }
+        }
+        if(component==='select'){
+            return renderSelectField(config.id, config.label, config.options||[], config);
+        }
+        if(component==='asyncselect'){
+            return renderDetailAsyncSelect(config.id, config.label, config.source, {
+                required: config.required!==false,
+                allowManual: config.allowManual!==false,
+                placeholder: config.placeholder,
+                dependsOn: config.dependsOn||null,
+                emptyText: config.emptyText,
+                name: config.name,
+                value: config.value,
+                valueType: config.valueType
+            });
+        }
+        const inputConfig={
+            required: config.required!==false,
+            type: config.inputType||config.type||'text',
+            placeholder: config.placeholder,
+            pattern: config.pattern,
+            maxlength: config.maxlength,
+            minlength: config.minlength,
+            min: config.min,
+            max: config.max,
+            step: config.step,
+            autocomplete: config.autocomplete,
+            inputmode: config.inputmode,
+            dataset: config.dataset,
+            name: config.name,
+            value: config.value,
+            valueType: config.valueType
+        };
+        return renderInputField(config.id, config.label, inputConfig);
+    }
+
+    function detailPopulateOptions(select,entries,options={}){
+        const {placeholder='Please select', allowEmpty=false}=options;
+        const currentValue = select.value;
+        select.innerHTML='';
+        if(placeholder!==null){
+            const opt=document.createElement('option');
+            opt.value='';
+            opt.textContent=placeholder;
+            select.appendChild(opt);
+        }
+        entries.filter(Boolean).forEach(entry=>{
+            const opt=document.createElement('option');
+            opt.value=entry.value;
+            opt.textContent=entry.label || entry.value;
+            select.appendChild(opt);
+        });
+        if(entries.length>0 && entries.some(e=>e && e.value===currentValue)){
+            select.value=currentValue;
+        }else if(allowEmpty){
+            select.value='';
+        }else{
+            select.value='';
+        }
+    }
+
+    function detailUpdateValueProxy(id,value){
+        const hidden=document.getElementById(id);
+        if(!hidden) return;
+        const newValue=value??'';
+        if(hidden.value===newValue) return;
+        hidden.value=newValue;
+        hidden.dispatchEvent(new CustomEvent('value-changed',{bubbles:true,detail:{value:newValue}}));
+    }
+
+    function detailGetAsyncContainer(id){
+        const form = detailFormRef;
+        if(!form) return null;
+        return form.querySelector(`.async-select[data-field="${id}"]`);
+    }
+
+    function detailSetManualMode(id,mode){
+        const container=detailGetAsyncContainer(id);
+        if(!container) return;
+        const select=container.querySelector('select');
+        const manual=container.querySelector(`#${id}-manual`);
+        const toggle=container.querySelector('.toggle-manual');
+        const required=container.dataset.required==='true';
+        if(!manual){
+            container.dataset.mode='select';
+            select?.classList.remove('hidden');
+            if(select && required) select.setAttribute('required','');
+            return;
+        }
+        if(mode==='manual'){
+            select?.classList.add('hidden');
+            if(select) select.removeAttribute('required');
+            select?.setAttribute('aria-hidden','true');
+            if(select) select.disabled=true;
+            manual.classList.remove('hidden');
+            if(required) manual.setAttribute('required',''); else manual.removeAttribute('required');
+            if(toggle) toggle.textContent='Choose from list';
+            container.dataset.mode='manual';
+            detailUpdateValueProxy(id,manual.value?.trim()||'');
+        }else{
+            manual.classList.add('hidden');
+            manual.removeAttribute('required');
+            select?.classList.remove('hidden');
+            if(select){
+                select.removeAttribute('aria-hidden');
+                if(required) select.setAttribute('required','');
+                select.disabled = select.options.length===0;
+            }
+            if(toggle) toggle.textContent='Enter manual value';
+            container.dataset.mode='select';
+            detailUpdateValueProxy(id,select?select.value:'');
+        }
+    }
+
+    async function detailLoadOptionsForField(id){
+        const config=detailAsyncSelectConfigs[id];
+        if(!config) return;
+        const container=detailGetAsyncContainer(id);
+        if(!container) return;
+        const select=container.querySelector('select');
+        const manual=container.querySelector(`#${id}-manual`);
+        if(!select) return;
+        const dependencyId=config.dependsOn;
+        const dependencyValue=dependencyId?document.getElementById(dependencyId)?.value?.trim():undefined;
+        if(dependencyId && !dependencyValue){
+            select.innerHTML='';
+            detailPopulateOptions(select,[],{placeholder:'Please select the dependent value first',allowEmpty:true});
+            select.disabled=true;
+            if(manual){
+                manual.value='';
+                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,'');
+            }
+            return;
+        }
+
+        const source=formConfig.asyncSources[config.sourceKey];
+        if(!source){
+            select.innerHTML='';
+            select.disabled=true;
+            if(manual){
+                manual.value='';
+                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,'');
+                if(config.allowManual!==false) detailSetManualMode(id,'manual');
+            }
+            return;
+        }
+
+        select.disabled=true;
+        select.innerHTML=`<option value="">Loading data…</option>`;
+        try{
+            const url=typeof source.url==='function'?source.url(dependencyValue):source.url;
+            const data=await fetchJson(url);
+            let entries=(Array.isArray(data)?data:[]).map(source.map).filter(Boolean);
+            if(typeof config.filter==='function'){
+                entries=entries.filter(entry=>config.filter(entry, dependencyValue));
+            }
+            const placeholderText = entries.length===0 ? (config.emptyText||config.placeholder) : config.placeholder;
+            detailPopulateOptions(select,entries,{placeholder:placeholderText,allowEmpty:!config.required});
+            select.disabled=entries.length===0;
+            const initialValue=config.initialValue;
+            if(container.dataset.mode!=='manual'){
+                if(initialValue!=null && entries.some(entry=>entry && String(entry.value)===String(initialValue))){
+                    select.value=initialValue;
+                    detailUpdateValueProxy(id,initialValue);
+                }else{
+                    select.value='';
+                    detailUpdateValueProxy(id,'');
+                }
+            }
+            if(entries.length===0 && config.allowManual!==false){
+                if(manual){
+                    manual.value=initialValue??'';
+                    detailSetManualMode(id,'manual');
+                }
+            }else if(container.dataset.mode!=='manual'){
+                detailSetManualMode(id,'select');
+            }
+            config.initialValue=undefined;
+        }catch(err){
+            console.error(err);
+            detailPopulateOptions(select,[],{placeholder:'Error loading data'});
+            select.disabled=true;
+            if(config.allowManual!==false){
+                detailSetManualMode(id,'manual');
+            }
+        }
+    }
+
+    function detailInitializeAsyncSelects(form){
+        detailFormRef = form;
+        Object.keys(detailAsyncSelectConfigs).forEach(id=>{
+            const container=form.querySelector(`.async-select[data-field="${id}"]`);
+            if(!container) return;
+            const select=container.querySelector('select');
+            const manual=container.querySelector(`#${id}-manual`);
+            const toggle=container.querySelector('.toggle-manual');
+            const hidden=form.querySelector(`#${id}`);
+            const cfg=detailAsyncSelectConfigs[id]||{};
+            if(hidden) hidden.value=cfg.initialValue??'';
+            if(manual && cfg.initialValue!=null){
+                manual.value=cfg.initialValue;
+            }
+            container.dataset.mode='select';
+            if(select){
+                select.addEventListener('change',()=>{
+                    if(container.dataset.mode!=='manual'){
+                        detailUpdateValueProxy(id,select.value);
+                    }
+                });
+            }
+            if(manual){
+                manual.addEventListener('input',()=>{
+                    if(container.dataset.mode==='manual'){
+                        detailUpdateValueProxy(id,manual.value.trim());
+                    }
+                });
+            }
+            if(toggle){
+                toggle.addEventListener('click',()=>{
+                    detailSetManualMode(id,container.dataset.mode==='manual'?'select':'manual');
+                });
+            }
+            if(manual && container.dataset.required==='true'){
+                manual.removeAttribute('required');
+            }
+            detailSetManualMode(id,'select');
+        });
+
+        Object.entries(detailAsyncSelectConfigs).forEach(([id,config])=>{
+            if(config.dependsOn){
+                const dep=document.getElementById(config.dependsOn);
+                if(dep){
+                    dep.addEventListener('value-changed',()=>detailLoadOptionsForField(id));
+                }
+            }
+            detailLoadOptionsForField(id);
+        });
+    }
+
+    function detailApplyInputEnhancements(form){
+        form.querySelectorAll('input[data-uppercase="true"]').forEach(input=>{
+            input.addEventListener('input',()=>{
+                const start=input.selectionStart;
+                const end=input.selectionEnd;
+                const upper=input.value.toUpperCase();
+                if(input.value!==upper){
+                    input.value=upper;
+                    if(start!==null && end!==null){
+                        input.setSelectionRange(start,end);
+                    }
+                }
+            });
+        });
+    }
+
     function labelFor(type, row){
         switch((type||'').toLowerCase()){
             case 'account': return `${val(row,'AccountName') ?? 'Account'}`;
@@ -76,6 +544,14 @@
             case 'radio':   return `${val(row,'RadioBrand') ?? 'Radio'}`;
             case 'audio':   return `${val(row,'AudioDeviceBrand') ?? 'AudioDevice'}`;
             case 'phone':   return `${val(row,'PhoneBrand') ?? 'Phone'}`;
+            case 'country': return `${val(row,'CountryName') ?? val(row,'CountryCode') ?? 'Country'}`;
+            case 'city':    return `${val(row,'CityName') ?? 'City'}`;
+            case 'address': return `${val(row,'Street') ?? 'Address'}`;
+            case 'deploymentvariant': return `${val(row,'VariantName') ?? 'DeploymentVariant'}`;
+            case 'software': return `${val(row,'Name') ?? 'Software'}`;
+            case 'installedsoftware': return `${val(row,'InstalledSoftwareID') ?? 'InstalledSoftware'}`;
+            case 'upgradeplan': return `${val(row,'UpgradePlanID') ?? 'UpgradePlan'}`;
+            case 'servicecontract': return `${val(row,'ContractNumber') ?? 'ServiceContract'}`;
             default:        return '';
         }
     }
@@ -84,48 +560,664 @@
         if(!res.ok) return null;
         return res.json();
     }
-    function pillLink(href, text){
+    function pillLink(href, label, id, description){
         const a = document.createElement('a');
         a.className = 'pill';
         a.href = href;
-        a.textContent = text;
+        const labelHtml = label ? escapeHtml(label) : '';
+        const chipHtml = formatIdChip(id);
+        const descHtml = (description ?? '').toString().trim();
+        const safeDesc = descHtml ? escapeHtml(descHtml) : '';
+        let html = '';
+        if(labelHtml) html += labelHtml;
+        if(chipHtml){
+            html += (html ? ' ' : '') + chipHtml;
+        }
+        if(safeDesc){
+            html += (html ? ' – ' : '') + safeDesc;
+        }
+        if(!html){
+            html = escapeHtml(href);
+        }
+        a.innerHTML = html;
         return a;
     }
-    function addSection(container, title, items, toLink){
+    function buildCreateHref(meta){
+        if(!meta || !meta.entity) return null;
+        const params = new URLSearchParams();
+        params.set('entity', meta.entity);
+        const entries = meta.params && typeof meta.params === 'object' ? Object.entries(meta.params) : [];
+        entries.forEach(([key,value])=>{
+            if(value!==undefined && value!==null && value!==''){
+                params.set(key, value);
+            }
+        });
+        const query = params.toString();
+        return `create.html${query ? `?${query}` : ''}`;
+    }
+    function describeCreateMeta(meta){
+        if(!meta) return '';
+        const label = meta.label || meta.entity || '';
+        const contextParts = [];
+        const ctx = meta.params || {};
+        if(ctx.accountId) contextParts.push(`Account ${shortId(ctx.accountId).replace(/^##/, '#')}`);
+        if(ctx.projectId) contextParts.push(`Project ${shortId(ctx.projectId).replace(/^##/, '#')}`);
+        if(ctx.siteId) contextParts.push(`Site ${shortId(ctx.siteId).replace(/^##/, '#')}`);
+        if(ctx.clientId) contextParts.push(`Client ${shortId(ctx.clientId).replace(/^##/, '#')}`);
+        if(contextParts.length){
+            return `Create new ${label} for ${contextParts.join(' and ')}`;
+        }
+        return `Create new ${label}`;
+    }
+    function addSection(container, title, items, toLink, createMeta){
+        const list = Array.isArray(items) ? items : [];
         const sec = document.createElement('div');
         sec.className = 'section';
-        sec.innerHTML = `<h2>${title} <span class="muted" style="font-size:.9rem">(${items.length})</span></h2>`;
-        if(!items.length){
-            sec.innerHTML += `<div class="empty">(keine Einträge)</div>`;
+        const heading = document.createElement('h2');
+        heading.innerHTML = `${escapeHtml(title)} <span class="count">(${list.length})</span>`;
+        if(createMeta){
+            const href = buildCreateHref(createMeta);
+            if(href){
+                const addLink = document.createElement('a');
+                addLink.className = 'add-link';
+                addLink.href = href;
+                const aria = describeCreateMeta(createMeta);
+                addLink.setAttribute('aria-label', aria);
+                addLink.title = aria;
+                addLink.textContent = '+';
+                heading.appendChild(addLink);
+            }
+        }
+        sec.appendChild(heading);
+        if(!list.length){
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = '(no entries)';
+            sec.appendChild(empty);
             container.appendChild(sec);
             return;
         }
         const wrap = document.createElement('div');
-        items.forEach(it => wrap.appendChild(toLink(it)));
+        list.forEach(it => wrap.appendChild(toLink(it)));
         sec.appendChild(wrap);
         container.appendChild(sec);
     }
 
-    /* -------------------- Eltern laden -------------------- */
+    function resetDetailRefs(){
+        detailTitleEl = null;
+        detailTypeEl = null;
+        detailBodyEl = null;
+        detailStatusEl = null;
+        editButtonEl = null;
+    }
+
+    function ensureDetailLayout(){
+        const hasElements = detailTitleEl?.isConnected && detailBodyEl?.isConnected && detailStatusEl?.isConnected && editButtonEl?.isConnected && detailTypeEl?.isConnected;
+        if(hasElements) return;
+
+        detailBox.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.className = 'detail-header';
+
+        const headerMain = document.createElement('div');
+        headerMain.className = 'detail-header-main';
+
+        detailTitleEl = document.createElement('h1');
+        detailTitleEl.id = 'detail-title';
+        headerMain.appendChild(detailTitleEl);
+
+        detailTypeEl = document.createElement('span');
+        detailTypeEl.className = 'detail-type-badge';
+        detailTypeEl.setAttribute('aria-hidden', 'true');
+        detailTypeEl.hidden = true;
+        headerMain.appendChild(detailTypeEl);
+
+        header.appendChild(headerMain);
+
+        const actions = document.createElement('div');
+        actions.className = 'detail-header-actions';
+
+        editButtonEl = document.createElement('button');
+        editButtonEl.type = 'button';
+        editButtonEl.className = 'detail-edit-button';
+        editButtonEl.setAttribute('aria-label', 'Edit entry');
+        editButtonEl.innerHTML = '<svg class="detail-edit-icon" aria-hidden="true" focusable="false" viewBox="0 0 20 20"><path d="M2.5 13.79 2 17l3.21-.5 9.06-9.06-2.71-2.71-9.06 9.06ZM15.85 3.86c.39-.39.39-1.03 0-1.42l-1.29-1.29a1 1 0 0 0-1.42 0l-1.6 1.59 2.71 2.71 1.6-1.59Z"/></svg>';
+        editButtonEl.addEventListener('click', () => {
+            if(!currentRow) return;
+            if(isEditing){
+                exitEditMode();
+            }else{
+                enterEditMode();
+            }
+        });
+
+        actions.appendChild(editButtonEl);
+        header.appendChild(actions);
+        detailBox.appendChild(header);
+
+        detailStatusEl = document.createElement('div');
+        detailStatusEl.id = 'detail-status';
+        detailStatusEl.className = 'detail-status';
+        detailStatusEl.setAttribute('role', 'status');
+        detailStatusEl.setAttribute('aria-live', 'polite');
+        detailStatusEl.setAttribute('aria-atomic', 'true');
+        detailBox.appendChild(detailStatusEl);
+
+        detailBodyEl = document.createElement('div');
+        detailBodyEl.className = 'detail-body';
+        detailBox.appendChild(detailBodyEl);
+    }
+
+    function updateModeIndicator(){
+        if(!detailBox) return;
+        detailBox.dataset.mode = isEditing ? 'edit' : 'view';
+        if(isEditing){
+            detailBox.classList.add('is-editing');
+        }else{
+            detailBox.classList.remove('is-editing');
+        }
+    }
+
+    function updateEditButton(){
+        ensureDetailLayout();
+        if(!editButtonEl) return;
+        editButtonEl.disabled = !currentRow;
+        editButtonEl.setAttribute('aria-pressed', isEditing ? 'true' : 'false');
+        editButtonEl.classList.toggle('is-active', !!isEditing);
+        editButtonEl.title = isEditing ? 'Editing active' : 'Edit entry';
+    }
+
+    function setStatus(message, variant){
+        ensureDetailLayout();
+        const classes = ['detail-status'];
+        if(message){
+            classes.push('is-visible');
+        }
+        if(variant){
+            classes.push(`detail-status--${variant}`);
+        }
+        detailStatusEl.className = classes.join(' ');
+        detailStatusEl.textContent = message || '';
+    }
+
+    function clearStatus(){
+        setStatus('', '');
+    }
+
+    function updateHeading(){
+        ensureDetailLayout();
+        if(!detailTitleEl) return { baseLabel: '', captionText: '' };
+        const typeLabelRaw = currentRawType || currentTable || '';
+        const typeLabel = typeLabelRaw ? typeLabelRaw.charAt(0).toUpperCase() + typeLabelRaw.slice(1) : 'Entry';
+        const normalizedType = tableForType(typeLabelRaw || currentTable || '') || '';
+        const explicitLabel = (labelFor(currentRawType, currentRow) ?? '').toString().trim();
+        const baseLabel = explicitLabel || typeLabel;
+        const headingLabel = escapeHtml(baseLabel);
+        const idChip = formatIdChip(currentId);
+        detailTitleEl.innerHTML = idChip ? `${headingLabel} ${idChip}` : headingLabel;
+        if(detailTypeEl){
+            const normalized = normalizedType ? normalizedType.toString().trim() : '';
+            if(normalized){
+                detailTypeEl.textContent = normalized;
+                detailTypeEl.hidden = false;
+                detailTypeEl.classList.add('is-visible');
+            }else{
+                detailTypeEl.textContent = '';
+                detailTypeEl.hidden = true;
+                detailTypeEl.classList.remove('is-visible');
+            }
+        }
+        const captionIdRaw = (currentId ?? '').toString().trim();
+        const captionId = captionIdRaw ? (captionIdRaw.startsWith('#') ? captionIdRaw : `#${captionIdRaw}`) : '';
+        const captionText = captionId ? `${baseLabel} ${captionId}` : baseLabel;
+        if(baseLabel){
+            detailBox.setAttribute('aria-label', baseLabel);
+            document.title = `${baseLabel} – ${defaultDocumentTitle}`;
+        }else{
+            detailBox.removeAttribute('aria-label');
+            document.title = defaultDocumentTitle;
+        }
+        return { baseLabel, captionText };
+    }
+
+    function inferValueType(value){
+        if(value === null || value === undefined) return 'text';
+        if(typeof value === 'boolean') return 'boolean';
+        if(typeof value === 'number') return 'number';
+        if(typeof value === 'string'){
+            const trimmed = value.trim();
+            if(!trimmed) return 'text';
+            const lowered = trimmed.toLowerCase();
+            if(lowered === 'true' || lowered === 'false' || lowered === '1' || lowered === '0'){
+                return 'boolean';
+            }
+            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+            const dateTimePattern = /^\d{4}-\d{2}-\d{2}[T\s]/;
+            if((datePattern.test(trimmed) || dateTimePattern.test(trimmed)) && !Number.isNaN(Date.parse(trimmed))){
+                return 'date';
+            }
+        }
+        return 'text';
+    }
+
+    function formatInputValue(value, type){
+        if(value === null || value === undefined) return '';
+        if(type === 'boolean'){
+            if(typeof value === 'boolean') return value ? 'true' : 'false';
+            const normalized = String(value).trim().toLowerCase();
+            if(normalized === 'true' || normalized === '1') return 'true';
+            if(normalized === 'false' || normalized === '0') return 'false';
+            return '';
+        }
+        if(type === 'date'){
+            const str = String(value).trim();
+            const pureDate = /^\d{4}-\d{2}-\d{2}$/;
+            if(pureDate.test(str)) return str;
+            const parsed = Date.parse(str);
+            if(!Number.isNaN(parsed)){
+                const d = new Date(parsed);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+            return str;
+        }
+        return String(value ?? '');
+    }
+
+    function renderViewMode(row){
+        ensureDetailLayout();
+        updateModeIndicator();
+        updateEditButton();
+        const { captionText } = updateHeading();
+        const entries = Object.entries(row || {});
+        const kvRows = entries.map(([k,v]) => {
+            const cellValue = v === null || v === undefined ? '' : escapeHtml(String(v));
+            return `<tr><th scope="row" class="key">${escapeHtml(k)}</th><td>${cellValue}</td></tr>`;
+        }).join('');
+        detailBodyEl.innerHTML = `<table id="kv">
+  <caption class="visually-hidden">Fields for ${escapeHtml(captionText)}</caption>
+  ${kvRows}
+</table>`;
+    }
+
+    function renderEditMode(row){
+        ensureDetailLayout();
+        updateModeIndicator();
+        updateEditButton();
+        updateHeading();
+
+        detailAsyncSelectConfigs = {};
+        detailBodyEl.innerHTML = '';
+
+        const form = document.createElement('form');
+        form.className = 'detail-edit-form';
+        form.setAttribute('aria-label', 'Edit entry');
+
+        const grid = document.createElement('div');
+        grid.className = 'detail-form-grid';
+        const pkName = currentTable ? PKS[currentTable] : null;
+
+        const configKey = configKeyForTable(currentTable);
+        const configFields = formConfig.getFields(configKey) || [];
+        const usedKeys = new Set();
+        let html = '';
+
+        configFields.forEach(field => {
+            const rowKey = field.name || field.rowKey || field.id;
+            if(rowKey) usedKeys.add(rowKey.toLowerCase());
+            const rawValue = rowKey ? val(row, rowKey) : undefined;
+            const overrides = { name: rowKey };
+            if(field.dataset) overrides.dataset = field.dataset;
+            if(rawValue !== undefined && rawValue !== null){
+                const hint = (field.inputType || field.type || '').toLowerCase();
+                let valueType;
+                if(field.component && field.component.toLowerCase()==='select'){
+                    valueType=field.valueType || 'text';
+                }else if(field.component && field.component.toLowerCase()==='asyncselect'){
+                    valueType=field.valueType || 'text';
+                }else if(hint==='number'){
+                    valueType='number';
+                }else if(hint==='date'){
+                    valueType='date';
+                }else{
+                    valueType=inferValueType(rawValue);
+                }
+                overrides.valueType = valueType;
+                overrides.value = formatInputValue(rawValue, valueType);
+            }else if(field.component && field.component.toLowerCase()==='asyncselect'){
+                overrides.valueType = field.valueType || 'text';
+            }
+            html += renderFieldForDetails(field, overrides);
+        });
+
+        grid.innerHTML = html;
+
+        Object.entries(row || {}).forEach(([key, value]) => {
+            if(usedKeys.has(key.toLowerCase())) return;
+            const inputId = `field-${key}`;
+            const label = document.createElement('label');
+            label.className = 'detail-field';
+            label.setAttribute('for', inputId);
+
+            const labelText = document.createElement('span');
+            labelText.className = 'detail-field-label';
+            labelText.textContent = key;
+
+            const valueType = inferValueType(value);
+            const formattedValue = formatInputValue(value, valueType);
+            let input;
+
+            if(valueType === 'boolean'){
+                const select = document.createElement('select');
+                select.id = inputId;
+                select.name = key;
+                select.className = 'detail-input';
+                select.dataset.valueType = 'boolean';
+
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'Not set';
+                select.appendChild(emptyOption);
+
+                const trueOption = document.createElement('option');
+                trueOption.value = 'true';
+                trueOption.textContent = 'Yes';
+                select.appendChild(trueOption);
+
+                const falseOption = document.createElement('option');
+                falseOption.value = 'false';
+                falseOption.textContent = 'No';
+                select.appendChild(falseOption);
+
+                select.value = formattedValue || '';
+                input = select;
+            }else{
+                const textInput = document.createElement('input');
+                textInput.id = inputId;
+                textInput.name = key;
+                textInput.className = 'detail-input';
+                textInput.dataset.valueType = valueType;
+                if(valueType === 'number'){
+                    textInput.type = 'number';
+                    textInput.step = 'any';
+                }else if(valueType === 'date'){
+                    textInput.type = 'date';
+                }else{
+                    textInput.type = 'text';
+                }
+                textInput.value = formattedValue;
+                input = textInput;
+            }
+
+            input.required = false;
+
+            if(pkName && pkName.toLowerCase() === key.toLowerCase()){
+                if(input.tagName === 'INPUT'){
+                    input.readOnly = true;
+                    input.setAttribute('aria-readonly', 'true');
+                }else{
+                    input.disabled = true;
+                    input.setAttribute('aria-disabled', 'true');
+                }
+                input.classList.add('detail-input-readonly');
+            }
+
+            label.appendChild(labelText);
+            label.appendChild(input);
+            grid.appendChild(label);
+        });
+
+        form.appendChild(grid);
+
+        const actions = document.createElement('div');
+        actions.className = 'detail-form-actions';
+
+        const saveButton = document.createElement('button');
+        saveButton.type = 'submit';
+        saveButton.className = 'btn-primary';
+        saveButton.textContent = 'Save';
+
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn-secondary';
+        cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => {
+            exitEditMode();
+        });
+
+        actions.appendChild(saveButton);
+        actions.appendChild(cancelButton);
+        form.appendChild(actions);
+
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            saveForm(form, saveButton);
+        });
+
+        detailBodyEl.appendChild(form);
+
+        detailInitializeAsyncSelects(form);
+        detailApplyInputEnhancements(form);
+
+        const focusTarget = form.querySelector('input:not([readonly]), select, textarea');
+        if(focusTarget){
+            focusTarget.focus();
+        }
+    }
+
+    function renderDetail(){
+        if(!currentRow){
+            updateEditButton();
+            return;
+        }
+        if(isEditing){
+            renderEditMode(currentRow);
+        }else{
+            renderViewMode(currentRow);
+        }
+    }
+
+    function enterEditMode(){
+        if(!currentRow) return;
+        isEditing = true;
+        renderDetail();
+    }
+
+    function exitEditMode(){
+        if(!currentRow) return;
+        isEditing = false;
+        renderDetail();
+    }
+
+    async function saveForm(form, saveButton){
+        if(!currentTable || !currentId) return;
+
+        const payload = {};
+        const elements = Array.from(form.querySelectorAll('input, select, textarea'));
+        for(const el of elements){
+            if(!el.name || el.disabled) continue;
+            const type = el.dataset.valueType;
+            if(type === 'number'){
+                if(el.value === ''){
+                    payload[el.name] = null;
+                }else{
+                    const num = Number(el.value);
+                    if(Number.isNaN(num)){
+                        setStatus(`Field ${el.name} must be a number.`, 'error');
+                        return;
+                    }
+                    payload[el.name] = num;
+                }
+            }else if(type === 'date'){
+                payload[el.name] = el.value === '' ? null : el.value;
+            }else if(type === 'boolean'){
+                if(el.value === ''){
+                    payload[el.name] = null;
+                }else{
+                    const normalized = String(el.value).trim().toLowerCase();
+                    if(normalized === 'true' || normalized === '1'){
+                        payload[el.name] = true;
+                    }else if(normalized === 'false' || normalized === '0'){
+                        payload[el.name] = false;
+                    }else{
+                        setStatus(`Field ${el.name} expects a true/false value.`, 'error');
+                        return;
+                    }
+                }
+            }else{
+                payload[el.name] = el.value;
+            }
+        }
+
+        const entityKey = configKeyForTable(currentTable);
+        const fail = msg => {
+            setStatus(msg, 'error');
+            return true;
+        };
+
+        if(entityKey === 'Country'){
+            if(payload.CountryCode !== undefined && payload.CountryCode !== null){
+                const code = String(payload.CountryCode).trim().toUpperCase();
+                if(code.length !== 2){
+                if(fail('Country code must be exactly 2 characters.')) return;
+                }
+                payload.CountryCode = code;
+            }
+        }else if(entityKey === 'City'){
+            if(payload.CountryCode === undefined || payload.CountryCode === null || payload.CountryCode === ''){
+                if(fail('Please select a country.')) return;
+            }else{
+                payload.CountryCode = String(payload.CountryCode).trim().toUpperCase();
+            }
+            if(payload.CityID !== undefined && payload.CityID !== null){
+                payload.CityID = String(payload.CityID).trim().toUpperCase();
+            }
+        }else if(entityKey === 'Site'){
+            if(Object.prototype.hasOwnProperty.call(payload,'TenantCount') && payload.TenantCount !== null){
+                const num = Number(payload.TenantCount);
+                if(Number.isNaN(num)){
+                    if(fail('TenantCount must be a number.')) return;
+                }
+                payload.TenantCount = num;
+            }
+        }else if(entityKey === 'UpgradePlan'){
+            const start = payload.PlannedWindowStart;
+            const end = payload.PlannedWindowEnd;
+            if(start && end && start > end){
+                if(fail('The planned end must be after the start.')) return;
+            }
+        }else if(entityKey === 'ServiceContract'){
+            const start = payload.StartDate;
+            const end = payload.EndDate;
+            if(start && end && start > end){
+                if(fail('End date cannot be before the start date.')) return;
+            }
+        }
+
+        setStatus('Saving changes …', 'info');
+        saveButton.disabled = true;
+        if(editButtonEl) editButtonEl.disabled = true;
+
+        try{
+            const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if(!res.ok){
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
+            setStatus('Changes saved.', 'success');
+            isEditing = false;
+            await loadData({ preserveStatus: true });
+        }catch(err){
+            setStatus(`Error saving: ${err.message}`, 'error');
+        }finally{
+            saveButton.disabled = false;
+            if(editButtonEl) editButtonEl.disabled = false;
+        }
+    }
+
+    async function loadData(options){
+        if(!currentTable || !currentId) return;
+        const preserveStatus = options && options.preserveStatus;
+
+        detailBox.setAttribute('aria-busy', 'true');
+        try{
+            const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`);
+            if(!res.ok){
+                resetDetailRefs();
+                if(res.status === 404){
+                    detailBox.textContent = 'Entry not found.';
+                }else{
+                    detailBox.textContent = 'Error loading data.';
+                }
+                return;
+            }
+            const row = await res.json();
+            currentRow = row;
+            if(!preserveStatus) clearStatus();
+            renderDetail();
+
+            const typeKey = (currentTable === 'Clients') ? 'Client' : currentTable;
+            await loadParents(typeKey, currentId, row);
+            await loadChildren(typeKey, currentId, row);
+        }catch(e){
+            resetDetailRefs();
+            detailBox.textContent = 'Error: ' + e;
+        }finally{
+            detailBox.removeAttribute('aria-busy');
+        }
+    }
+
+    /* -------------------- Load parents -------------------- */
     async function loadParents(type, id, row){
-        const box = document.getElementById('parents');
+        const box = parentsBox;
         box.innerHTML = '';
 
-        // Hilfsfunktionen für Row-Fetches
-        const rowAccount = async (accountId) => await fetchJson(`/row/Account/${accountId}`);
-        const rowProject = async (projectId) => await fetchJson(`/row/Project/${projectId}`);
-        const rowSite    = async (siteId)    => await fetchJson(`/row/Site/${siteId}`);
-        const rowClient  = async (clientId)  => await fetchJson(`/row/Clients/${clientId}`); // geändert
+        // Helper functions for row fetches
+        const rowAccount           = async (accountId)  => await fetchJson(`/row/Account/${accountId}`);
+        const rowProject           = async (projectId)  => await fetchJson(`/row/Project/${projectId}`);
+        const rowSite              = async (siteId)     => await fetchJson(`/row/Site/${siteId}`);
+        const rowClient            = async (clientId)   => await fetchJson(`/row/Clients/${clientId}`); // changed
+        const rowCity              = async (cityId)     => await fetchJson(`/row/City/${encodeURIComponent(cityId)}`);
+        const rowSoftware          = async (softwareId) => await fetchJson(`/row/Software/${encodeURIComponent(softwareId)}`);
+        const rowDeploymentVariant = async (variantId)  => await fetchJson(`/row/DeploymentVariant/${encodeURIComponent(variantId)}`);
 
         const sections = [];
 
         if (type === 'Project') {
+            const pills = [];
+
             const accId = val(row,'AccountID');
             if (accId != null) {
                 const acc = await rowAccount(accId);
-                if (acc) sections.push({
-                    title: 'Gehört zu',
-                    pills: [ pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`) ]
+                if (acc) {
+                    pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+                }
+            }
+
+            const variantId = val(row,'DeploymentVariantID');
+            if (variantId != null) {
+                const variant = await rowDeploymentVariant(variantId);
+                if (variant) {
+                    pills.push(pillLink(
+                        `/details.html?type=deploymentvariant&id=${encodeURIComponent(variantId)}`,
+                        'Deployment Variant',
+                        variantId,
+                        labelFor('deploymentvariant', variant)
+                    ));
+                }
+            }
+
+            if (pills.length) {
+                sections.push({
+                    title: 'Belongs to',
+                    pills
                 });
             }
         } else if (type === 'Site') {
@@ -134,14 +1226,14 @@
                 const proj = await rowProject(projId);
                 const pills = [];
                 if (proj) {
-                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                     const accId = val(proj,'AccountID');
                     if (accId != null) {
                         const acc = await rowAccount(accId);
-                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                     }
                 }
-                if (pills.length) sections.push({ title: 'Gehört zu', pills });
+                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
         } else if (type === 'Server') {
             const siteId = val(row,'SiteID');
@@ -149,21 +1241,21 @@
                 const site = await rowSite(siteId);
                 const pills = [];
                 if (site) {
-                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, `Site #${siteId} – ${labelFor('site', site)}`));
+                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
                     const projId = val(site,'ProjectID');
                     if (projId != null) {
                         const proj = await rowProject(projId);
                         if (proj) {
-                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                             const accId = val(proj,'AccountID');
                             if (accId != null) {
                                 const acc = await rowAccount(accId);
-                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                             }
                         }
                     }
                 }
-                if (pills.length) sections.push({ title: 'Gehört zu', pills });
+                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
         } else if (type === 'Client') {
             const siteId = val(row,'SiteID');
@@ -171,38 +1263,69 @@
                 const site = await rowSite(siteId);
                 const pills = [];
                 if (site) {
-                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, `Site #${siteId} – ${labelFor('site', site)}`));
+                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
                     const projId = val(site,'ProjectID');
                     if (projId != null) {
                         const proj = await rowProject(projId);
                         if (proj) {
-                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                             const accId = val(proj,'AccountID');
                             if (accId != null) {
                                 const acc = await rowAccount(accId);
-                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                             }
                         }
                     }
                 }
-                if (pills.length) sections.push({ title: 'Gehört zu', pills });
+                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
+        } else if (type === 'City') {
+            const countryCode = val(row, 'CountryCode');
+            if (countryCode != null) {
+                const country = await fetchJson(`/row/Country/${countryCode}`);
+                if (country) {
+                    const pill = pillLink(
+                        `/details.html?type=country&id=${encodeURIComponent(countryCode)}`,
+                        'Country',
+                        countryCode,
+                        labelFor('country', country)
+                    );
+                    sections.push({ title: 'Belongs to', pills: [pill] });
+                }
+            }
+        } else if (type === 'Address') {
+            const cityId = val(row, 'CityID');
+            const pills = [];
+            if (cityId != null) {
+                const city = await rowCity(cityId);
+                if (city) {
+                    pills.push(pillLink(`/details.html?type=city&id=${encodeURIComponent(cityId)}`, 'City', cityId, labelFor('city', city)));
+                    const countryCode = val(city, 'CountryCode') ?? val(row, 'CountryCode');
+                    if (countryCode != null) {
+                        const country = await fetchJson(`/row/Country/${encodeURIComponent(countryCode)}`);
+                        if (country) {
+                            pills.push(pillLink(`/details.html?type=country&id=${encodeURIComponent(countryCode)}`, 'Country', countryCode, labelFor('country', country)));
+                        }
+                    }
+                }
+            }
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
         } else if (type === 'Radio') {
             const pills = [];
             const siteId = val(row,'SiteID');
             if (siteId != null) {
                 const site = await rowSite(siteId);
                 if (site) {
-                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, `Site #${siteId} – ${labelFor('site', site)}`));
+                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
                     const projId = val(site,'ProjectID');
                     if (projId != null) {
                         const proj = await rowProject(projId);
                         if (proj) {
-                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                             const accId = val(proj,'AccountID');
                             if (accId != null) {
                                 const acc = await rowAccount(accId);
-                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                             }
                         }
                     }
@@ -211,37 +1334,37 @@
             const clientId = val(row,'AssignedClientID');
             if (clientId != null) {
                 const client = await rowClient(clientId);
-                if (client) pills.push(pillLink(`/details.html?type=client&id=${clientId}`, `Client #${clientId} – ${labelFor('client', client)}`));
+                if (client) pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
             }
-            if (pills.length) sections.push({ title: 'Gehört zu', pills });
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
         } else if (type === 'Audio') {
             const clientId = val(row,'ClientID');
             if (clientId != null) {
                 const client = await rowClient(clientId);
                 const pills = [];
                 if (client) {
-                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, `Client #${clientId} – ${labelFor('client', client)}`));
+                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
                     const siteId = val(client,'SiteID');
                     if (siteId != null) {
                         const site = await rowSite(siteId);
                         if (site) {
-                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, `Site #${siteId} – ${labelFor('site', site)}`));
+                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
                             const projId = val(site,'ProjectID');
                             if (projId != null) {
                                 const proj = await rowProject(projId);
                                 if (proj) {
-                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                                     const accId = val(proj,'AccountID');
                                     if (accId != null) {
                                         const acc = await rowAccount(accId);
-                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if (pills.length) sections.push({ title: 'Gehört zu', pills });
+                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
         } else if (type === 'Phone') {
             const clientId = val(row,'ClientID');
@@ -249,29 +1372,91 @@
                 const client = await rowClient(clientId);
                 const pills = [];
                 if (client) {
-                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, `Client #${clientId} – ${labelFor('client', client)}`));
+                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
                     const siteId = val(client,'SiteID');
                     if (siteId != null) {
                         const site = await rowSite(siteId);
                         if (site) {
-                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, `Site #${siteId} – ${labelFor('site', site)}`));
+                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
                             const projId = val(site,'ProjectID');
                             if (projId != null) {
                                 const proj = await rowProject(projId);
                                 if (proj) {
-                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, `Project #${projId} – ${labelFor('project', proj)}`));
+                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                                     const accId = val(proj,'AccountID');
                                     if (accId != null) {
                                         const acc = await rowAccount(accId);
-                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, `Account #${accId} – ${labelFor('account', acc)}`));
+                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                                     }
                                 }
                             }
                         }
                     }
                 }
-                if (pills.length) sections.push({ title: 'Gehört zu', pills });
+                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
+        } else if (type === 'ServiceContract') {
+            const pills = [];
+            const accId = val(row,'AccountID');
+            if (accId != null) {
+                const acc = await rowAccount(accId);
+                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+            }
+            const projId = val(row,'ProjectID');
+            if (projId != null) {
+                const proj = await rowProject(projId);
+                if (proj) pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
+            }
+            const siteId = val(row,'SiteID');
+            if (siteId != null) {
+                const site = await rowSite(siteId);
+                if (site) pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
+            }
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
+        } else if (type === 'InstalledSoftware' || type === 'UpgradePlan') {
+            const pills = [];
+
+            const siteId = val(row,'SiteID');
+            let site = null;
+            if (siteId != null) {
+                site = await rowSite(siteId);
+                if (site) {
+                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
+                }
+            }
+
+            let proj = null;
+            let projId = val(row,'ProjectID');
+            if (!projId && site) {
+                projId = val(site,'ProjectID');
+            }
+            if (projId != null) {
+                proj = await rowProject(projId);
+                if (proj) {
+                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project',proj)));
+                }
+            }
+
+            let accId = val(row,'AccountID');
+            if (!accId && proj) {
+                accId = val(proj,'AccountID');
+            }
+            if (accId != null) {
+                const acc = await rowAccount(accId);
+                if (acc) {
+                    pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+                }
+            }
+
+            const softwareId = val(row,'SoftwareID');
+            if (softwareId != null) {
+                const software = await rowSoftware(softwareId);
+                if (software) {
+                    pills.push(pillLink(`/details.html?type=software&id=${encodeURIComponent(softwareId)}`, 'Software', softwareId, labelFor('software', software)));
+                }
+            }
+
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
         }
 
         // Rendern
@@ -288,101 +1473,167 @@
         }
     }
 
-    /* -------------------- Kinder laden -------------------- */
-    async function loadChildren(type, id){
-        const box = document.getElementById('children');
+    /* -------------------- Load children -------------------- */
+    async function loadChildren(type, id, row){
+        row = row || {};
+        const box = childrenBox;
         box.innerHTML = '';
+
+        const loadServiceContracts = async (filterKey, value) => {
+            if (!value) return [];
+            const rows = await fetchJson(`/table/servicecontract?limit=200`);
+            if (!Array.isArray(rows)) return [];
+            return rows.filter(r => (val(r, filterKey) ?? '').toString() === value.toString());
+        };
 
         if(type==='Account'){
             const projects = await fetchJson(`/projects?accountId=${id}`);
             addSection(box, 'Projects', projects, p => {
                 const pid = val(p,'ProjectID');
                 const name = val(p,'ProjectName');
-                return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, `#${pid} – ${name}`);
-            });
+                return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, null, pid, name);
+            }, { entity: 'Project', label: 'Project', params: { accountId: id } });
+
+            const contracts = await loadServiceContracts('AccountID', id);
+            addSection(box, 'Service Contracts', contracts, sc => {
+                const cid = val(sc,'ContractID');
+                const label = val(sc,'ContractNumber');
+                const status = val(sc,'Status');
+                const meta = formatDateRange(val(sc,'StartDate'), val(sc,'EndDate'));
+                const desc = [status, meta].filter(Boolean).join(' · ');
+                return pillLink(`/details.html?type=servicecontract&id=${encodeURIComponent(cid)}`, labelFor('servicecontract', sc), cid, desc);
+            }, { entity: 'ServiceContract', label: 'ServiceContract', params: { accountId: id } });
         }
         else if(type==='Project'){
             const sites = await fetchJson(`/sites?projectId=${id}`);
             addSection(box, 'Sites', sites, s => {
                 const sid = val(s,'SiteID');
                 const name = val(s,'SiteName');
-                return pillLink(`/details.html?type=site&id=${encodeURIComponent(sid)}`, `#${sid} – ${name}`);
-            });
+                return pillLink(`/details.html?type=site&id=${encodeURIComponent(sid)}`, null, sid, name);
+            }, { entity: 'Site', label: 'Site', params: { projectId: id } });
+
+            const contracts = await loadServiceContracts('ProjectID', id);
+            addSection(box, 'Service Contracts', contracts, sc => {
+                const cid = val(sc,'ContractID');
+                const label = val(sc,'ContractNumber');
+                const status = val(sc,'Status');
+                const meta = formatDateRange(val(sc,'StartDate'), val(sc,'EndDate'));
+                const desc = [status, meta].filter(Boolean).join(' · ');
+                return pillLink(`/details.html?type=servicecontract&id=${encodeURIComponent(cid)}`, labelFor('servicecontract', sc), cid, desc);
+            }, { entity: 'ServiceContract', label: 'ServiceContract', params: { accountId: val(row,'AccountID'), projectId: id } });
+        }
+        else if(type==='DeploymentVariant'){
+            const projectRows = await fetchJson(`/table/project?limit=200`);
+            const projects = Array.isArray(projectRows)
+                ? projectRows.filter(p => (val(p,'DeploymentVariantID') ?? '').toString() === (id ?? '').toString())
+                : [];
+            addSection(box, 'Projects', projects, p => {
+                const pid = val(p,'ProjectID');
+                const name = val(p,'ProjectName');
+                return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, null, pid, name);
+            }, { entity: 'Project', label: 'Project', params: { deploymentVariantId: id } });
         }
         else if(type==='Site'){
+            let projectId = val(row,'ProjectID');
+            let accountId = val(row,'AccountID');
+            if(!accountId && projectId){
+                const projectRow = await fetchJson(`/row/Project/${encodeURIComponent(projectId)}`);
+                if(projectRow) accountId = val(projectRow,'AccountID');
+            }
+
             const servers = await fetchJson(`/servers?siteId=${id}`);
             addSection(box, 'Server', servers, s => {
                 const sid = val(s,'ServerID');
                 const name = val(s,'ServerName');
-                return pillLink(`/details.html?type=server&id=${encodeURIComponent(sid)}`, `#${sid} – ${name}`);
-            });
+                return pillLink(`/details.html?type=server&id=${encodeURIComponent(sid)}`, null, sid, name);
+            }, { entity: 'Server', label: 'Server', params: { accountId, projectId, siteId: id } });
 
             const clients = await fetchJson(`/clients?siteId=${id}`);
             addSection(box, 'Clients', clients, c => {
                 const cid = val(c,'ClientID');
                 const name = val(c,'ClientName');
-                return pillLink(`/details.html?type=client&id=${encodeURIComponent(cid)}`, `#${cid} – ${name}`);
-            });
+                return pillLink(`/details.html?type=client&id=${encodeURIComponent(cid)}`, null, cid, name);
+            }, { entity: 'WorkingPosition', label: 'Client', params: { accountId, projectId, siteId: id } });
 
             const radios = await fetchJson(`/radios?siteId=${id}`);
             addSection(box, 'Radios', radios, r => {
                 const rid = val(r,'RadioID');
                 const brand = val(r,'RadioBrand');
-                return pillLink(`/details.html?type=radio&id=${encodeURIComponent(rid)}`, `#${rid} – ${brand}`);
-            });
+                return pillLink(`/details.html?type=radio&id=${encodeURIComponent(rid)}`, null, rid, brand);
+            }, { entity: 'Radio', label: 'Radio', params: { accountId, projectId, siteId: id } });
+
+            const contracts = await loadServiceContracts('SiteID', id);
+            addSection(box, 'Service Contracts', contracts, sc => {
+                const cid = val(sc,'ContractID');
+                const label = val(sc,'ContractNumber');
+                const status = val(sc,'Status');
+                const meta = formatDateRange(val(sc,'StartDate'), val(sc,'EndDate'));
+                const desc = [status, meta].filter(Boolean).join(' · ');
+                return pillLink(`/details.html?type=servicecontract&id=${encodeURIComponent(cid)}`, labelFor('servicecontract', sc), cid, desc);
+            }, { entity: 'ServiceContract', label: 'ServiceContract', params: { accountId, projectId, siteId: id } });
         }
         else if(type==='Client'){
             const aud = await fetchJson(`/audio?clientId=${id}`);
             addSection(box, 'Audio Devices', aud, a => {
                 const aid = val(a,'AudioDeviceID');
                 const brand = val(a,'AudioDeviceBrand');
-                return pillLink(`/details.html?type=audio&id=${encodeURIComponent(aid)}`, `#${aid} – ${brand}`);
-            });
+                return pillLink(`/details.html?type=audio&id=${encodeURIComponent(aid)}`, null, aid, brand);
+            }, { entity: 'AudioDevice', label: 'AudioDevice', params: { clientId: id, siteId: val(row,'SiteID') } });
 
             const ph = await fetchJson(`/phones?clientId=${id}`);
             addSection(box, 'Phone Integrations', ph, p => {
                 const pid = val(p,'PhoneIntegrationID');
                 const brand = val(p,'PhoneBrand');
-                return pillLink(`/details.html?type=phone&id=${encodeURIComponent(pid)}`, `#${pid} – ${brand}`);
+                return pillLink(`/details.html?type=phone&id=${encodeURIComponent(pid)}`, null, pid, brand);
+            }, { entity: 'PhoneIntegration', label: 'PhoneIntegration', params: { clientId: id, siteId: val(row,'SiteID') } });
+        }
+        else if(type==='Software'){
+            const installedRows = await fetchJson(`/table/installedsoftware?limit=200`);
+            const installed = Array.isArray(installedRows)
+                ? installedRows.filter(r => (val(r,'SoftwareID') ?? '').toString() === id.toString())
+                : [];
+            addSection(box, 'Installations', installed, isw => {
+                const installId = val(isw,'InstalledSoftwareID');
+                const label = labelFor('installedsoftware', isw);
+                const siteId = val(isw,'SiteID');
+                const descParts = [];
+                if(siteId){
+                    descParts.push(`Site ${shortId(siteId)}`);
+                }
+                return pillLink(`/details.html?type=installedsoftware&id=${encodeURIComponent(installId)}`, label, installId, descParts.join(' · '));
+            });
+
+            const planRows = await fetchJson(`/table/upgradeplan?limit=200`);
+            const plans = Array.isArray(planRows)
+                ? planRows.filter(r => (val(r,'SoftwareID') ?? '').toString() === id.toString())
+                : [];
+            addSection(box, 'Upgrade Plans', plans, plan => {
+                const planId = val(plan,'UpgradePlanID');
+                const label = labelFor('upgradeplan', plan);
+                const status = val(plan,'Status');
+                const window = formatDateRange(val(plan,'PlannedWindowStart'), val(plan,'PlannedWindowEnd'));
+                const descParts = [status, window].filter(Boolean);
+                return pillLink(`/details.html?type=upgradeplan&id=${encodeURIComponent(planId)}`, label, planId, descParts.join(' · '));
             });
         }
     }
 
     /* -------------------- Boot -------------------- */
     (async () => {
-        const p = new URLSearchParams(location.search);
-        const rawType = p.get('type');
-        const id = p.get('id');
-        const box = document.getElementById('view');
+        const params = new URLSearchParams(location.search);
+        currentRawType = params.get('type');
+        const idParam = params.get('id');
 
-        if(!rawType || !id){ box.textContent = 'Parameter fehlen.'; box.removeAttribute('aria-busy'); return; }
-
-        const table = tableForType(rawType);
-        try{
-            const res = await fetch(`/row/${table}/${id}`);
-            if(!res.ok){ box.textContent = 'Eintrag nicht gefunden.'; box.removeAttribute('aria-busy'); return; }
-            const row = await res.json();
-
-            const kvRows = Object.entries(row)
-                .map(([k,v])=>`<tr><th scope="row" class="key">${k}</th><td>${v}</td></tr>`).join('');
-            const title = `${(rawType||table).charAt(0).toUpperCase() + (rawType||table).slice(1)} #${id}`;
-
-            box.innerHTML = `<h1>${title}</h1>
-<table id="kv">
-  <caption class="visually-hidden">Felder von ${title}</caption>
-  ${kvRows}
-</table>`;
-
-            const typeKey = (table==='Clients') ? 'Client' : table; // geändert
-
-            await loadParents(typeKey, id, row);
-            await loadChildren(typeKey, id);
-
-        }catch(e){
-            box.textContent = 'Fehler: ' + e;
-        } finally {
-            box.removeAttribute('aria-busy');
+        if(!currentRawType || !idParam){
+            detailBox.textContent = 'Missing parameters.';
+            detailBox.removeAttribute('aria-busy');
+            return;
         }
+
+        currentTable = tableForType(currentRawType);
+        currentId = idParam;
+
+        await loadData();
     })();
 </script>
 </body>

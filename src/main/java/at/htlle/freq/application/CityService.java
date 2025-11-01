@@ -86,11 +86,12 @@ public class CityService {
     @Transactional
     public void deleteCity(String id) {
         Objects.requireNonNull(id, "id must not be null");
-        repo.findById(id).ifPresent(c -> {
-            repo.findById(id);
-            log.info("City gelöscht: id={} name='{}'", id, c.getCityName());
-        });
-        // Optional: lucene.delete(id, "City")
+        Optional<City> existing = repo.findById(id);
+        repo.deleteById(id);
+        existing.ifPresentOrElse(
+                c -> log.info("City gelöscht: id={} name='{}'", id, c.getCityName()),
+                () -> log.info("City delete requested: id={} (not found)", id)
+        );
     }
 
     // ---------- Internals ----------

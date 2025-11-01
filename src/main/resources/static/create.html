@@ -1,146 +1,983 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Datensatz anlegen</title>
+    <title>Create Record</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f4f4}
         .container{max-width:900px;margin:2rem auto;background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
         fieldset{border:none;margin:0;padding:0}
-        label{display:block;margin-top:1rem}
+        .form-field{display:grid;grid-template-columns:minmax(220px,max-content) minmax(0,1fr);align-items:start;gap:.75rem;margin-top:1rem}
+        .form-field__label{font-weight:600}
+        .form-field>:not(.form-field__label){grid-column:2}
+        .async-select{display:flex;align-items:center;gap:.6rem;flex-wrap:nowrap}
+        .async-select>.filterable-select{flex:1 1 auto;min-width:0;margin-top:0}
+        .async-select>.manual-input{flex:1 1 220px;min-width:0;margin-top:0}
+        .async-select .toggle-manual{margin-top:0;white-space:nowrap}
+        @media (max-width:720px){
+            .form-field{grid-template-columns:1fr;gap:.5rem}
+            .form-field>:not(.form-field__label){grid-column:1}
+            .async-select{flex-wrap:wrap}
+            .async-select>.manual-input{flex:1 1 100%}
+            .async-select .toggle-manual{margin-top:.3rem}
+        }
         input,select,button{padding:.4rem;font-size:1rem;margin-top:.3rem}
         button{cursor:pointer;margin-top:1.2rem}
         .success{color:green}.error{color:red}
         .hidden{display:none}
+        .entity-context{margin-top:1.5rem;padding:1rem;background:#e8f1ff;border-left:4px solid #2c64b5;border-radius:4px}
+        .entity-hint{margin:0;font-weight:600;color:#1f3d7a}
     </style>
 </head>
 <body>
-<a href="#main" class="skip-link">Zum Inhalt springen</a>
+<a href="#main" class="skip-link">Skip to content</a>
 
 <header>
     <img src="/img/LifeXDatawarehouseLogo.png" alt="">
-    <nav aria-label="Hauptnavigation">
+    <nav aria-label="Main navigation">
         <a href="/index.html">Dashboard</a>
-        <a href="/create.html">Daten anlegen</a>
+        <a href="/create.html" aria-current="page">Create Data</a>
+        <a href="/reports.html">Reports</a>
     </nav>
 </header>
 
 <main id="main" class="container" aria-live="polite">
-    <h1>Datensatz anlegen</h1>
+    <h1>Create Record</h1>
 
     <!-- Schritt 1 -->
     <fieldset id="step1">
-        <label for="entity">Welche Entität möchtest du anlegen?</label>
+        <label for="entity">Which entity would you like to create?</label>
         <select id="entity">
-            <option>Account</option><option>Project</option><option>Site</option>
-            <option>Server</option><option>WorkingPosition</option><option>Radio</option>
-            <option>AudioDevice</option><option>PhoneIntegration</option>
+            <option value="Account">Account</option>
+            <option value="Address">Address</option>
+            <option value="AudioDevice">AudioDevice</option>
+            <option value="City">City</option>
+            <option value="Country">Country</option>
+            <option value="DeploymentVariant">DeploymentVariant</option>
+            <option value="InstalledSoftware">InstalledSoftware</option>
+            <option value="PhoneIntegration">PhoneIntegration</option>
+            <option value="Project">Project</option>
+            <option value="Radio">Radio</option>
+            <option value="Server">Server</option>
+            <option value="ServiceContract">ServiceContract</option>
+            <option value="Site">Site</option>
+            <option value="Software">Software</option>
+            <option value="UpgradePlan">UpgradePlan</option>
+            <option value="WorkingPosition">Client (WorkingPosition)</option>
         </select>
-        <button onclick="next()">Weiter</button>
+        <button onclick="next()">Next</button>
     </fieldset>
 
     <!-- Schritt 2 -->
+    <section id="entityContext" class="entity-context hidden" aria-live="assertive" aria-atomic="true" aria-hidden="true">
+        <p id="entityHint" class="entity-hint"></p>
+    </section>
     <form id="dynamicForm" class="hidden" onsubmit="submitForm(event)"></form>
 
     <div id="result" role="status" aria-live="polite" aria-atomic="true"></div>
 </main>
 
+<script src="/js/form-config.js"></script>
 <script>
     function back(){
         dynamicForm.classList.add('hidden'); step1.classList.remove('hidden');
         dynamicForm.innerHTML=''; result.textContent='';
+        if(window.entityContext){
+            entityContext.classList.add('hidden');
+            entityContext.setAttribute('aria-hidden','true');
+        }
+        if(window.entityHint){
+            entityHint.textContent='';
+        }
     }
     function next(){
         buildForm(entity.value); step1.classList.add('hidden');
         dynamicForm.classList.remove('hidden');
     }
 
-    const add=(id,lbl,req=true)=>`<label for="${id}">${lbl}<input id="${id}" ${req?'required':''}></label>`;
-    const addSel=(id,lbl,opts,req=true)=>{
-        const empty = req ? '' : `<option value=""></option>`;
-        return `<label for="${id}">${lbl}<select id="${id}" ${req?'required':''}>${empty}
-      ${opts.map(o=>`<option value="${o}">${o}</option>`).join('')}
-    </select></label>`;
+    const escapeAttr=value=>String(value)
+        .replace(/&/g,'&amp;')
+        .replace(/"/g,'&quot;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;');
+
+    const renderAttributes=attrs=>Object.entries(attrs)
+        .map(([key,value])=>{
+            if(value===undefined||value===null||value===false) return '';
+            if(value===true) return ` ${key}`;
+            return ` ${key}="${escapeAttr(value)}"`;
+        }).join('');
+
+    const add=(id,lbl,opts=true)=>{
+        let config;
+        if(typeof opts==='boolean'){
+            config={required:opts};
+        }else{
+            config={...opts};
+            if(config.required===undefined) config.required=true;
+        }
+
+        const attributes={
+            id,
+            name:config?.name||id,
+            type:config?.type||'text'
+        };
+
+        const optionalKeys=['placeholder','pattern','maxlength','minlength','min','max','step','autocomplete','inputmode','list'];
+        optionalKeys.forEach(key=>{
+            if(config&&config[key]!==undefined&&config[key]!==null){
+                attributes[key]=config[key];
+            }
+        });
+
+        if(config&&config.disabled) attributes.disabled=true;
+        if(config&&config.readonly) attributes.readonly=true;
+        if(config&&config.className) attributes.class=config.className;
+        if(config&&config.class) attributes.class=config.class;
+        if(config&&config.value!==undefined&&config.value!==null) attributes.value=config.value;
+        if(config&&config.dataset){
+            Object.entries(config.dataset).forEach(([key,value])=>{
+                if(value!==undefined&&value!==null){
+                    attributes[`data-${key}`]=value;
+                }
+            });
+        }
+        if(!config||config.required!==false) attributes.required=true;
+
+        const extra=config&&config.attrs?` ${config.attrs.trim()}`:'';
+        return `<label class="form-field" for="${id}"><span class="form-field__label">${lbl}</span><input${renderAttributes(attributes)}${extra}></label>`;
     };
+
+    const toChoices=choices=>{
+        if(!Array.isArray(choices)) return [];
+        return choices.map(choice=>{
+            if(choice&&typeof choice==='object'){
+                return {value:choice.value, label:choice.label??choice.value};
+            }
+            return {value:choice, label:choice};
+        });
+    };
+
+    const createFilterableSelect=(id,config={})=>{
+        const {
+            options=[],
+            placeholder='Please select',
+            required=true,
+            name=id,
+            value='',
+            emptyText='No matches',
+            className=''
+        }=config||{};
+        const choices=toChoices(options);
+        const normalizedValue=value??'';
+        const selected=choices.find(choice=>choice && String(choice.value)===String(normalizedValue));
+        const displayValue=selected?selected.label:(normalizedValue||'');
+        const componentClasses=['filterable-select'];
+        if(className) componentClasses.push(className);
+        if(required) componentClasses.push('is-required');
+        const safeOptions=escapeAttr(JSON.stringify(choices));
+        const safePlaceholder=escapeAttr(placeholder);
+        const safeEmptyText=escapeAttr(emptyText);
+        const hiddenValue=escapeAttr(normalizedValue);
+        const textValue=escapeAttr(displayValue);
+        return `
+            <div class="${componentClasses.join(' ')}" data-component="filterable-select" data-field="${escapeAttr(id)}" data-placeholder="${safePlaceholder}" data-empty-text="${safeEmptyText}" data-required="${required?'true':'false'}" data-initial-value="${hiddenValue}" data-options="${safeOptions}">
+                <div class="filterable-select-control">
+                    <input type="text" id="${escapeAttr(id)}-input" class="filterable-select-input" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="${escapeAttr(id)}-list" autocomplete="off" placeholder="${safePlaceholder}" value="${textValue}" ${required?'required':''}>
+                    <button type="button" class="filterable-select-toggle" aria-label="Select from list" aria-expanded="false" tabindex="-1"></button>
+                </div>
+                <div class="filterable-select-dropdown" id="${escapeAttr(id)}-list" role="listbox" aria-live="polite"></div>
+                <input type="hidden" id="${escapeAttr(id)}" name="${escapeAttr(name)}" value="${hiddenValue}">
+            </div>
+        `;
+    };
+
+    const filterableSelectState=new WeakMap();
+
+    const getFilterableSelectState=container=>{
+        if(!filterableSelectState.has(container)){
+            filterableSelectState.set(container,{options:[],filtered:[],activeIndex:-1});
+        }
+        return filterableSelectState.get(container);
+    };
+
+    const getFilterableElements=container=>({
+        input:container.querySelector('.filterable-select-input'),
+        dropdown:container.querySelector('.filterable-select-dropdown'),
+        toggle:container.querySelector('.filterable-select-toggle')
+    });
+
+    const updateFilterableSelectPlaceholder=(container,text)=>{
+        if(!container) return;
+        container.dataset.placeholder=text??'';
+        const {input}=getFilterableElements(container);
+        if(input){
+            input.placeholder=text??'';
+        }
+    };
+
+    const setFilterableSelectDisabled=(container,disabled)=>{
+        const {input,toggle}=getFilterableElements(container);
+        if(disabled){
+            container.classList.add('is-disabled');
+            if(input){
+                input.setAttribute('disabled','');
+                input.setAttribute('aria-disabled','true');
+            }
+            toggle?.setAttribute('disabled','');
+        }else{
+            container.classList.remove('is-disabled');
+            if(input){
+                input.removeAttribute('disabled');
+                input.removeAttribute('aria-disabled');
+            }
+            toggle?.removeAttribute('disabled');
+        }
+    };
+
+    const renderFilterableOptions=container=>{
+        const state=getFilterableSelectState(container);
+        const {dropdown,input}=getFilterableElements(container);
+        if(!dropdown) return;
+        dropdown.innerHTML='';
+        const currentValue=container.dataset.currentValue??'';
+        if(!state.filtered.length){
+            const empty=document.createElement('div');
+            empty.className='filterable-select-empty';
+            empty.textContent=container.dataset.emptyText||'No matches';
+            dropdown.appendChild(empty);
+            state.activeIndex=-1;
+            input?.removeAttribute('aria-activedescendant');
+            return;
+        }
+        state.filtered.forEach((option,index)=>{
+            const item=document.createElement('div');
+            item.className='filterable-select-option';
+            item.setAttribute('role','option');
+            item.dataset.optionIndex=String(index);
+            item.dataset.value=option.value;
+            item.id=`${container.dataset.field}-option-${index}`;
+            item.textContent=option.label;
+            if(String(option.value)===String(currentValue)){
+                item.setAttribute('aria-selected','true');
+            }
+            if(index===state.activeIndex){
+                item.classList.add('is-active');
+                input?.setAttribute('aria-activedescendant',item.id);
+            }
+            dropdown.appendChild(item);
+        });
+    };
+
+    const markFilterableSelection=(container,selected)=>{
+        const required=container.dataset.required==='true';
+        container.dataset.hasSelection=selected?'true':'false';
+        const {input}=getFilterableElements(container);
+        if(!input) return;
+        if(selected){
+            input.setCustomValidity('');
+        }else if(required){
+            input.setCustomValidity('Please choose an item from the list.');
+        }else{
+            input.setCustomValidity('');
+        }
+    };
+
+    const closeFilterableSelect=container=>{
+        const {input,toggle,dropdown}=getFilterableElements(container);
+        container.classList.remove('is-open');
+        input?.setAttribute('aria-expanded','false');
+        toggle?.setAttribute('aria-expanded','false');
+        dropdown?.setAttribute('aria-hidden','true');
+    };
+
+    const openFilterableSelect=container=>{
+        const {input,toggle,dropdown}=getFilterableElements(container);
+        container.classList.add('is-open');
+        input?.setAttribute('aria-expanded','true');
+        toggle?.setAttribute('aria-expanded','true');
+        dropdown?.removeAttribute('aria-hidden');
+    };
+
+    const clearFilterableSelection=(container,{notify=true}={})=>{
+        const fieldId=container.dataset.field;
+        const {input}=getFilterableElements(container);
+        container.dataset.currentValue='';
+        if(input){
+            input.value='';
+        }
+        markFilterableSelection(container,false);
+        if(notify){
+            updateValueProxy(fieldId,'');
+        }else{
+            const hidden=document.getElementById(fieldId);
+            if(hidden) hidden.value='';
+        }
+    };
+
+    const commitFilterableSelection=(container,option,{silent=false}={})=>{
+        if(!option){
+            clearFilterableSelection(container,{notify:!silent});
+            return;
+        }
+        const fieldId=container.dataset.field;
+        const {input}=getFilterableElements(container);
+        container.dataset.currentValue=option.value;
+        if(input){
+            input.value=option.label;
+            input.dataset.userEdited='true';
+        }
+        markFilterableSelection(container,true);
+        if(silent){
+            const hidden=document.getElementById(fieldId);
+            if(hidden) hidden.value=option.value;
+        }else{
+            updateValueProxy(fieldId,option.value);
+        }
+        closeFilterableSelect(container);
+    };
+
+    const syncFilterableSelectionDisplay=container=>{
+        const state=getFilterableSelectState(container);
+        const currentValue=container.dataset.currentValue??'';
+        const {input}=getFilterableElements(container);
+        const match=state.options.find(opt=>String(opt.value)===String(currentValue));
+        if(match){
+            if(input) input.value=match.label;
+            markFilterableSelection(container,true);
+        }else{
+            if(input) input.value=currentValue||'';
+            if(currentValue){
+                markFilterableSelection(container,true);
+            }else{
+                markFilterableSelection(container,false);
+            }
+        }
+    };
+
+    const filterFilterableOptions=(container,term='')=>{
+        const state=getFilterableSelectState(container);
+        const normalized=term.trim().toLowerCase();
+        if(!normalized){
+            state.filtered=[...state.options];
+        }else{
+            state.filtered=state.options.filter(opt=>{
+                const label=(opt.label||'').toLowerCase();
+                const value=String(opt.value||'').toLowerCase();
+                return label.includes(normalized)||value.includes(normalized);
+            });
+        }
+        state.activeIndex=state.filtered.length?0:-1;
+        renderFilterableOptions(container);
+    };
+
+    const moveFilterableHighlight=(container,delta)=>{
+        const state=getFilterableSelectState(container);
+        if(!state.filtered.length) return;
+        state.activeIndex=Math.max(0,Math.min(state.filtered.length-1,state.activeIndex+delta));
+        const {dropdown,input}=getFilterableElements(container);
+        const options=dropdown?.querySelectorAll('.filterable-select-option')||[];
+        options.forEach((optionEl,index)=>{
+            if(index===state.activeIndex){
+                optionEl.classList.add('is-active');
+                input?.setAttribute('aria-activedescendant',optionEl.id);
+                optionEl.scrollIntoView({block:'nearest'});
+            }else{
+                optionEl.classList.remove('is-active');
+            }
+        });
+    };
+
+    const setFilterableSelectOptions=(container,options=[])=>{
+        const state=getFilterableSelectState(container);
+        state.options=toChoices(options);
+        state.filtered=[...state.options];
+        state.activeIndex=state.filtered.length?0:-1;
+        renderFilterableOptions(container);
+        syncFilterableSelectionDisplay(container);
+    };
+
+    const applyFilterableValue=(container,value,{silent=false}={})=>{
+        const state=getFilterableSelectState(container);
+        if(!value){
+            clearFilterableSelection(container,{notify:!silent});
+            return false;
+        }
+        const match=state.options.find(opt=>String(opt.value)===String(value));
+        if(match){
+            commitFilterableSelection(container,match,{silent});
+            return true;
+        }
+        container.dataset.currentValue=value;
+        syncFilterableSelectionDisplay(container);
+        if(!silent){
+            const hidden=document.getElementById(container.dataset.field);
+            if(hidden) hidden.value=value;
+        }
+        return false;
+    };
+
+    const initializeFilterableSelect=container=>{
+        if(!container || container.dataset.enhanced==='true') return;
+        container.dataset.enhanced='true';
+        const state=getFilterableSelectState(container);
+        let initialOptions=[];
+        try{
+            initialOptions=JSON.parse(container.dataset.options||'[]');
+        }catch{
+            initialOptions=[];
+        }
+        state.options=toChoices(initialOptions);
+        state.filtered=[...state.options];
+        state.activeIndex=state.filtered.length?0:-1;
+        const fieldId=container.dataset.field;
+        const {input,dropdown,toggle}=getFilterableElements(container);
+        const hidden=document.getElementById(fieldId);
+        const initialValue=hidden?.value||container.dataset.initialValue||'';
+        container.dataset.currentValue=initialValue;
+        if(input){
+            input.dataset.userEdited='';
+            input.placeholder=container.dataset.placeholder||input.placeholder||'';
+        }
+        renderFilterableOptions(container);
+        syncFilterableSelectionDisplay(container);
+        closeFilterableSelect(container);
+
+        const handleInput=()=>{
+            const current=input?.value||'';
+            input.dataset.userEdited='true';
+            filterFilterableOptions(container,current);
+            openFilterableSelect(container);
+            markFilterableSelection(container,false);
+            updateValueProxy(fieldId,'');
+        };
+
+        input?.addEventListener('input',handleInput);
+        input?.addEventListener('focus',()=>{
+            filterFilterableOptions(container,input.value||'');
+            openFilterableSelect(container);
+        });
+        input?.addEventListener('keydown',event=>{
+            const stateNow=getFilterableSelectState(container);
+            switch(event.key){
+                case 'ArrowDown':
+                    event.preventDefault();
+                    if(container.classList.contains('is-open')===false){
+                        filterFilterableOptions(container,input.value||'');
+                        openFilterableSelect(container);
+                    }else{
+                        moveFilterableHighlight(container,1);
+                    }
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    if(container.classList.contains('is-open')===false){
+                        filterFilterableOptions(container,input.value||'');
+                        openFilterableSelect(container);
+                        moveFilterableHighlight(container,-1);
+                    }else{
+                        moveFilterableHighlight(container,-1);
+                    }
+                    break;
+                case 'Enter':
+                    if(container.classList.contains('is-open') && stateNow.activeIndex>=0){
+                        event.preventDefault();
+                        commitFilterableSelection(container,stateNow.filtered[stateNow.activeIndex]);
+                    }
+                    break;
+                case 'Escape':
+                    if(container.classList.contains('is-open')){
+                        event.preventDefault();
+                        closeFilterableSelect(container);
+                    }else{
+                        clearFilterableSelection(container);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        });
+        input?.addEventListener('blur',()=>{
+            setTimeout(()=>{
+                if(container.contains(document.activeElement)) return;
+                closeFilterableSelect(container);
+                if(container.dataset.hasSelection==='true') return;
+                const currentValue=(input?.value||'').trim();
+                if(!currentValue){
+                    clearFilterableSelection(container);
+                    return;
+                }
+                const lower=currentValue.toLowerCase();
+                const stateNow=getFilterableSelectState(container);
+                const match=stateNow.options.find(opt=>opt.label.toLowerCase()===lower||String(opt.value).toLowerCase()===lower);
+                if(match){
+                    commitFilterableSelection(container,match);
+                }
+            },120);
+        });
+
+        dropdown?.addEventListener('mousedown',event=>event.preventDefault());
+        dropdown?.addEventListener('click',event=>{
+            const optionEl=event.target.closest('.filterable-select-option');
+            if(!optionEl) return;
+            const index=Number(optionEl.dataset.optionIndex);
+            const stateNow=getFilterableSelectState(container);
+            const option=stateNow.filtered[index];
+            if(option){
+                commitFilterableSelection(container,option);
+            }
+        });
+
+        toggle?.addEventListener('mousedown',event=>event.preventDefault());
+        toggle?.addEventListener('click',()=>{
+            if(container.classList.contains('is-open')){
+                closeFilterableSelect(container);
+            }else{
+                filterFilterableOptions(container,input?.value||'');
+                openFilterableSelect(container);
+                input?.focus();
+            }
+        });
+    };
+
+    let globalFilterableHandlerAttached=false;
+
+    const initializeFilterableSelects=(root=document)=>{
+        (root.querySelectorAll?.('[data-component="filterable-select"]')||[]).forEach(container=>initializeFilterableSelect(container));
+        if(!globalFilterableHandlerAttached){
+            document.addEventListener('click',event=>{
+                document.querySelectorAll('[data-component="filterable-select"].is-open').forEach(container=>{
+                    if(!container.contains(event.target)){
+                        closeFilterableSelect(container);
+                    }
+                });
+            });
+            globalFilterableHandlerAttached=true;
+        }
+    };
+
+    const addSel=(id,lbl,choices,opts=true)=>{
+        const config=(opts&&typeof opts==='object'&&!Array.isArray(opts))?{...opts}:{required:opts};
+        if(config.required===undefined) config.required=true;
+        const placeholder=config.placeholder??'Please select';
+        const values=Array.isArray(choices)?toChoices(choices):toChoices([]);
+        const selectedValue=config.value??'';
+        const comboHtml=createFilterableSelect(id,{
+            options:values,
+            placeholder,
+            required:config.required!==false,
+            name:config.name||id,
+            value:selectedValue,
+            emptyText:config.emptyText||'No matches'
+        });
+        return `<label class="form-field" for="${escapeAttr(id)}-input"><span class="form-field__label">${lbl}</span>${comboHtml}</label>`;
+    };
+
+    const formConfig = window.FormConfig || {getFields:()=>[], asyncSources:{}, getMessage:()=>undefined};
+
+    let asyncSelectConfigs = {};
+
+    function resolveDefaultValue(def){
+        if(def.defaultValue===undefined) return undefined;
+        if(typeof def.defaultValue==='function'){
+            try{
+                return def.defaultValue();
+            }catch(err){
+                console.error('Default value error', err);
+                return undefined;
+            }
+        }
+        return def.defaultValue;
+    }
+
+    function renderFieldFromConfig(def, overrides={}){
+        if(!def) return '';
+        const config={...def,...overrides};
+        const component=(config.component||'input').toLowerCase();
+        if(component==='select'){
+            const opts={
+                required: config.required!==false,
+                placeholder: config.placeholder,
+                name: config.name,
+                value: config.value
+            };
+            return addSel(config.id, config.label, config.options||[], opts);
+        }
+        if(component==='asyncselect'){
+            return renderAsyncSelect(config.id, config.label, config.source, {
+                required: config.required!==false,
+                allowManual: config.allowManual!==false,
+                placeholder: config.placeholder,
+                dependsOn: config.dependsOn||null,
+                emptyText: config.emptyText,
+                name: config.name,
+                value: config.value
+            });
+        }
+        const inputConfig={
+            required: config.required!==false,
+            type: config.inputType||config.type||'text',
+            placeholder: config.placeholder,
+            pattern: config.pattern,
+            maxlength: config.maxlength,
+            minlength: config.minlength,
+            min: config.min,
+            max: config.max,
+            step: config.step,
+            autocomplete: config.autocomplete,
+            inputmode: config.inputmode,
+            dataset: config.dataset,
+            name: config.name,
+            value: config.value
+        };
+        return add(config.id, config.label, inputConfig);
+    }
+
+    function shortContextId(value){
+        if(value===undefined || value===null) return '';
+        const str=String(value).trim();
+        if(!str) return '';
+        const uuidPattern=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        if(uuidPattern.test(str)){
+            const idx=str.lastIndexOf('-');
+            if(idx!==-1 && idx<str.length-1){
+                const last=str.slice(idx+1).replace(/^0+/,'');
+                return `#${last||'0'}`;
+            }
+        }
+        return str.startsWith('#')?str:`#${str}`;
+    }
+
+    function showEntityMessage(entityKey, context={}){
+        if(!window.entityHint || !window.entityContext) return;
+        const base=formConfig.getMessage(entityKey)||`You are currently creating a record for entity ${entityKey}.`;
+        const parts=[];
+        if(context.accountId) parts.push(`Account ${shortContextId(context.accountId)}`);
+        if(context.projectId) parts.push(`Project ${shortContextId(context.projectId)}`);
+        if(context.siteId) parts.push(`Site ${shortContextId(context.siteId)}`);
+        if(context.clientId) parts.push(`Client ${shortContextId(context.clientId)}`);
+        let message=base;
+        if(parts.length){
+            const trimmed=base.endsWith('.')?base.slice(0,-1):base;
+            message=`${trimmed} for ${parts.join(' and ')}.`;
+        }
+        entityHint.textContent=message;
+        entityContext.classList.remove('hidden');
+        entityContext.removeAttribute('aria-hidden');
+    }
+
+    function renderAsyncSelect(id,label,sourceKey,options={}){
+        const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
+        asyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
+        const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter free text</button>` : '';
+        const manualValue = value ?? '';
+        const manualInput = allowManual ? `<input type="text" id="${id}-manual" class="manual-input hidden" placeholder="Enter UUID" value="${escapeAttr(manualValue)}" ${required?'required':''}>` : '';
+        const comboHtml=createFilterableSelect(id,{
+            options:[],
+            placeholder,
+            required,
+            name:name||id,
+            value:value??'',
+            emptyText
+        });
+        return `<label class="form-field" for="${escapeAttr(id)}-input"><span class="form-field__label">${label}</span>
+            <div class="async-select" data-field="${id}" data-source="${sourceKey}" data-required="${required}"${dependsOn?` data-depends-on="${dependsOn}"`:''}>
+                ${comboHtml}
+                ${manualInput}
+                ${manualToggle}
+            </div>
+        </label>`;
+    }
+
+    async function fetchJson(url){
+        if(!url) return [];
+        const res = await fetch(url);
+        if(res.status===204) return [];
+        if(!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+        try{
+            return await res.json();
+        }catch{
+            return [];
+        }
+    }
+
+    function updateValueProxy(id,value){
+        const hidden=document.getElementById(id);
+        if(!hidden) return;
+        const newValue=value??'';
+        if(hidden.value===newValue) return;
+        hidden.value=newValue;
+        hidden.dispatchEvent(new CustomEvent('value-changed',{bubbles:true,detail:{value:newValue}}));
+    }
+
+    function getAsyncContainer(id){
+        return dynamicForm.querySelector(`.async-select[data-field="${id}"]`);
+    }
+
+    function setManualMode(id,mode){
+        const container=getAsyncContainer(id);
+        if(!container) return;
+        const combo=container.querySelector('[data-component="filterable-select"]');
+        const manual=container.querySelector(`#${id}-manual`);
+        const toggle=container.querySelector('.toggle-manual');
+        const required=container.dataset.required==='true';
+        if(!manual){
+            container.dataset.mode='select';
+            if(combo){
+                combo.classList.remove('hidden');
+                setFilterableSelectDisabled(combo,false);
+            }
+            return;
+        }
+        if(mode==='manual'){
+            if(combo){
+                closeFilterableSelect(combo);
+                combo.classList.add('hidden');
+                setFilterableSelectDisabled(combo,true);
+            }
+            manual.classList.remove('hidden');
+            if(required) manual.setAttribute('required',''); else manual.removeAttribute('required');
+            if(toggle) toggle.textContent='Choose from list';
+            container.dataset.mode='manual';
+            updateValueProxy(id,manual.value?.trim()||'');
+        }else{
+            manual.classList.add('hidden');
+            manual.removeAttribute('required');
+            if(combo){
+                combo.classList.remove('hidden');
+                setFilterableSelectDisabled(combo,false);
+                const hidden=document.getElementById(id);
+                const current=hidden?.value||'';
+                if(current){
+                    applyFilterableValue(combo,current,{silent:true});
+                }else{
+                    clearFilterableSelection(combo,{notify:false});
+                }
+            }
+            if(toggle) toggle.textContent='Enter free text';
+            container.dataset.mode='select';
+            const hidden=document.getElementById(id);
+            updateValueProxy(id,hidden?hidden.value:'');
+        }
+    }
+
+    async function loadOptionsForField(id){
+        const config=asyncSelectConfigs[id];
+        if(!config) return;
+        const container=getAsyncContainer(id);
+        if(!container) return;
+        const combo=container.querySelector('[data-component="filterable-select"]');
+        const manual=container.querySelector(`#${id}-manual`);
+        if(!combo) return;
+        const dependencyId=config.dependsOn;
+        const dependencyValue=dependencyId?document.getElementById(dependencyId)?.value?.trim():undefined;
+        if(dependencyId && !dependencyValue){
+            setFilterableSelectOptions(combo,[]);
+            updateFilterableSelectPlaceholder(combo,'Please select the dependent option first');
+            setFilterableSelectDisabled(combo,true);
+            if(manual){
+                manual.value='';
+                if(container.dataset.mode!=='manual') updateValueProxy(id,'');
+            }
+            return;
+        }
+
+        const source=formConfig.asyncSources[config.sourceKey];
+        if(!source){
+            setFilterableSelectOptions(combo,[]);
+            updateFilterableSelectPlaceholder(combo,'No source available');
+            setFilterableSelectDisabled(combo,true);
+            if(manual){
+                manual.value='';
+                if(container.dataset.mode!=='manual') updateValueProxy(id,'');
+                if(config.allowManual!==false) setManualMode(id,'manual');
+            }
+            return;
+        }
+
+        setFilterableSelectDisabled(combo,true);
+        updateFilterableSelectPlaceholder(combo,'Loading data…');
+        try{
+            const url=typeof source.url==='function'?source.url(dependencyValue):source.url;
+            const data=await fetchJson(url);
+            let entries=(Array.isArray(data)?data:[]).map(source.map).filter(Boolean);
+            if(typeof config.filter==='function'){
+                entries=entries.filter(entry=>config.filter(entry, dependencyValue));
+            }
+            setFilterableSelectOptions(combo,entries);
+            const placeholderText = entries.length===0 ? (config.emptyText||config.placeholder) : (config.placeholder||'Please select');
+            updateFilterableSelectPlaceholder(combo,placeholderText);
+            setFilterableSelectDisabled(combo,false);
+            const initialValue=config.initialValue;
+            if(container.dataset.mode!=='manual'){
+                const hidden=document.getElementById(id);
+                const desiredValue=initialValue!=null?initialValue:(hidden?.value||'');
+                if(desiredValue){
+                    const matched=applyFilterableValue(combo,desiredValue,{silent:true});
+                    if(matched){
+                        updateValueProxy(id,desiredValue);
+                    }else{
+                        clearFilterableSelection(combo,{notify:true});
+                    }
+                }else{
+                    clearFilterableSelection(combo,{notify:true});
+                }
+            }
+            if(entries.length===0 && config.allowManual!==false){
+                if(manual){
+                    manual.value=initialValue??'';
+                    setManualMode(id,'manual');
+                }
+            }else if(container.dataset.mode!=='manual'){
+                setManualMode(id,'select');
+            }
+            config.initialValue=undefined;
+        }catch(err){
+            console.error(err);
+            setFilterableSelectOptions(combo,[]);
+            updateFilterableSelectPlaceholder(combo,'Error loading data');
+            setFilterableSelectDisabled(combo,true);
+            if(config.allowManual!==false){
+                setManualMode(id,'manual');
+            }
+        }
+    }
+
+    function initializeAsyncSelects(form){
+        Object.keys(asyncSelectConfigs).forEach(id=>{
+            const container=form.querySelector(`.async-select[data-field="${id}"]`);
+            if(!container) return;
+            const combo=container.querySelector('[data-component="filterable-select"]');
+            const manual=container.querySelector(`#${id}-manual`);
+            const toggle=container.querySelector('.toggle-manual');
+            const hidden=form.querySelector(`#${id}`);
+            const cfg=asyncSelectConfigs[id]||{};
+            if(hidden && cfg.initialValue!=null) hidden.value=cfg.initialValue;
+            if(combo && cfg.initialValue!=null){
+                applyFilterableValue(combo,cfg.initialValue,{silent:true});
+            }
+            if(manual && cfg.initialValue!=null){
+                manual.value=cfg.initialValue;
+            }
+            container.dataset.mode='select';
+            if(manual){
+                manual.addEventListener('input',()=>{
+                    if(container.dataset.mode==='manual'){
+                        updateValueProxy(id,manual.value.trim());
+                    }
+                });
+            }
+            if(toggle){
+                toggle.addEventListener('click',()=>{
+                    setManualMode(id,container.dataset.mode==='manual'?'select':'manual');
+                });
+            }
+            if(manual && container.dataset.required==='true'){
+                manual.removeAttribute('required');
+            }
+            setManualMode(id,'select');
+        });
+
+        Object.entries(asyncSelectConfigs).forEach(([id,config])=>{
+            if(config.dependsOn){
+                const dep=document.getElementById(config.dependsOn);
+                if(dep){
+                    dep.addEventListener('value-changed',()=>loadOptionsForField(id));
+                }
+            }
+            loadOptionsForField(id);
+        });
+    }
+
+    async function ensureAsyncValue(fieldId,value,options={}){
+        if(value===undefined || value===null) return;
+        const normalized=String(value);
+        if(!normalized) return;
+        const container=getAsyncContainer(fieldId);
+        if(container){
+            if(container.dataset.mode==='manual'){
+                setManualMode(fieldId,'select');
+            }
+            const combo=container.querySelector('[data-component="filterable-select"]');
+            const manual=container.querySelector(`#${fieldId}-manual`);
+            const toggle=container.querySelector('.toggle-manual');
+            await loadOptionsForField(fieldId);
+            let applied=false;
+            if(combo){
+                applied=applyFilterableValue(combo,normalized);
+            }
+            if(!applied && manual){
+                setManualMode(fieldId,'manual');
+                manual.value=normalized;
+                manual.dispatchEvent(new Event('input',{bubbles:true}));
+                applied=true;
+            }
+            if(!applied){
+                updateValueProxy(fieldId,normalized);
+            }
+            if(options.lock){
+                if(combo){
+                    setFilterableSelectDisabled(combo,true);
+                }
+                if(manual){
+                    manual.disabled=true;
+                    manual.setAttribute('aria-disabled','true');
+                }
+                if(toggle){
+                    toggle.disabled=true;
+                    toggle.setAttribute('aria-disabled','true');
+                    toggle.setAttribute('tabindex','-1');
+                }
+            }
+            return;
+        }
+        const input=document.getElementById(fieldId);
+        if(!input) return;
+        input.value=normalized;
+        if(options.lock){
+            input.readOnly=true;
+            input.setAttribute('aria-readonly','true');
+        }
+    }
+
+    function applyInputEnhancements(form){
+        form.querySelectorAll('input[data-uppercase="true"]').forEach(input=>{
+            input.addEventListener('input',()=>{
+                const start=input.selectionStart;
+                const end=input.selectionEnd;
+                const upper=input.value.toUpperCase();
+                if(input.value!==upper){
+                    input.value=upper;
+                    if(start!==null && end!==null){
+                        input.setSelectionRange(start,end);
+                    }
+                }
+            });
+        });
+    }
 
     function buildForm(t){
         const f=dynamicForm; f.dataset.type=t; let h='';
-        switch(t){
-            case 'Account':
-                h+= add('name','Name')
-                    + add('contact','Kontaktperson')
-                    + add('email','E-Mail')
-                    + add('phone','Telefon')
-                    + add('vat','USt-ID')
-                    + add('country','Land');
-                break;
-
-            case 'Project':
-                h+= add('sap','SAP-ID')
-                    + add('pname','Projektname')
-                    + add('variantId','DeploymentVariantID (UUID)')
-                    + add('bundle','Bundle-Type',false)
-                    + add('accId','Account-ID (UUID)')
-                    + add('addrId','Address-ID (UUID)');
-                break;
-
-            case 'Site':
-                h+= add('pId','Project-ID (UUID)')
-                    + add('name','Site-Name')
-                    + add('addr','Address-ID (UUID)')
-                    + add('zone','FireZone')
-                    + add('tenant','TenantCount');
-                break;
-
-            case 'Server':
-                h+= add('siteId','Site-ID (UUID)')
-                    + add('name','Servername')
-                    + add('brand','Marke')
-                    + add('serial','Serien-Nr.')
-                    + add('os','Betriebssystem')
-                    + add('patch','Patch-Level')
-                    + addSel('vplat','Virtual-Platform',['BareMetal','HyperV','vSphere'])
-                    + add('vver','Virtual-Version',false)
-                    + addSel('ha','HighAvailability',['true','false']);
-                break;
-
-            case 'WorkingPosition':
-                h+= add('siteId','Site-ID (UUID)')
-                    + add('name','Client-Name')
-                    + add('brand','Marke')
-                    + add('serial','Serien-Nr.')
-                    + add('os','OS')
-                    + add('patch','Patch-Level')
-                    + addSel('install','InstallType',['LOCAL','BROWSER']);
-                break;
-
-            case 'Radio':
-                h+= add('siteId','Site-ID (UUID)')
-                    + add('brand','Marke')
-                    + add('serial','Serien-Nr.')
-                    + addSel('mode','Mode',['Analog','Digital'])
-                    + addSel('standard','Digital-Standard',['Airbus','Motorola','ESN','P25','Polycom','Teltronics'],false)
-                    + add('client','AssignedClientID (UUID)',false);
-                break;
-
-            case 'AudioDevice':
-                h+= add('client','Client-ID (UUID)')
-                    + add('brand','Marke')
-                    + add('serial','Serien-Nr.')
-                    + add('fw','Firmware')
-                    + addSel('dtype','DeviceType',['HEADSET','SPEAKER','MIC']);
-                break;
-
-            case 'PhoneIntegration':
-                h+= add('client','Client-ID (UUID)')
-                    + addSel('type','PhoneType',['Emergency','NonEmergency','Both'])
-                    + add('brand','Marke')
-                    + add('serial','Serien-Nr.')
-                    + add('fw','Firmware');
-                break;
+        asyncSelectConfigs = {};
+        const fields=formConfig.getFields(t) || [];
+        fields.forEach(field=>{
+            const defaultValue = resolveDefaultValue(field);
+            const overrides = {};
+            if(defaultValue!==undefined){
+                overrides.value=defaultValue;
+            }
+            h+= renderFieldFromConfig(field, overrides);
+        });
+        if(!fields.length){
+            h+= `<p class="form-hint">No field configuration is available for ${escapeAttr(t)}.</p>`;
         }
-        f.innerHTML = h + `<button>Speichern</button> <button type="button" onclick="back()">Zurück</button>`;
+        h+= `<button>Save</button> <button type="button" onclick="back()">Back</button>`;
+        f.innerHTML = h;
+        initializeFilterableSelects(f);
+        initializeAsyncSelects(f);
+        applyInputEnhancements(f);
+        showEntityMessage(t, {});
         if(t==='Radio') wireRadioLogic();
     }
 
@@ -158,9 +995,88 @@
     }
 
     const v=id=>document.getElementById(id)?.value?.trim();
+    const toNull=value=>value && value.length>0 ? value : null;
+
+    async function initializeFromQuery(){
+        const params=new URLSearchParams(window.location.search);
+        const rawEntity=params.get('entity');
+        if(!rawEntity) return;
+        const entitySelect=document.getElementById('entity');
+        if(!entitySelect) return;
+        const option=Array.from(entitySelect.options).find(opt=>opt.value.toLowerCase()===rawEntity.toLowerCase());
+        if(!option) return;
+        entitySelect.value=option.value;
+        buildForm(option.value);
+        step1.classList.add('hidden');
+        dynamicForm.classList.remove('hidden');
+
+        const context={};
+        const accountId=params.get('accountId');
+        const projectId=params.get('projectId');
+        const siteId=params.get('siteId');
+        const clientId=params.get('clientId');
+
+        switch(option.value){
+            case 'Project':
+                if(accountId){
+                    await ensureAsyncValue('accId', accountId, {lock:true});
+                    context.accountId=accountId;
+                }
+                break;
+            case 'Site':
+                if(accountId) context.accountId=accountId;
+                if(projectId){
+                    await ensureAsyncValue('pId', projectId, {lock:true});
+                    context.projectId=projectId;
+                }
+                break;
+            case 'Server':
+            case 'WorkingPosition':
+            case 'Radio':
+                if(accountId) context.accountId=accountId;
+                if(projectId) context.projectId=projectId;
+                if(siteId){
+                    await ensureAsyncValue('siteId', siteId, {lock:true});
+                    context.siteId=siteId;
+                }
+                break;
+            case 'AudioDevice':
+            case 'PhoneIntegration':
+                if(accountId) context.accountId=accountId;
+                if(projectId) context.projectId=projectId;
+                if(siteId) context.siteId=siteId;
+                if(clientId){
+                    await ensureAsyncValue('client', clientId, {lock:true});
+                    context.clientId=clientId;
+                }
+                break;
+            case 'ServiceContract':
+                if(accountId){
+                    await ensureAsyncValue('accountID', accountId, {lock:true});
+                    context.accountId=accountId;
+                }
+                if(projectId){
+                    await ensureAsyncValue('projectID', projectId, {lock:true});
+                    context.projectId=projectId;
+                }
+                if(siteId){
+                    await ensureAsyncValue('siteID', siteId, {lock:true});
+                    context.siteId=siteId;
+                }
+                break;
+        }
+
+        showEntityMessage(option.value, context);
+    }
+
     async function submitForm(e){
         e.preventDefault();
         const t=e.target.dataset.type; result.textContent=''; result.setAttribute('aria-busy','true');
+        const fail=msg=>{
+            result.innerHTML=`<p class="error" role="alert">${msg}</p>`;
+            result.removeAttribute('aria-busy');
+            return true;
+        };
         let url='',p={};
 
         switch(t){
@@ -168,21 +1084,29 @@
                 url='/accounts';
                 p={
                     accountName: v('name'),
-                    contactName: v('contact'),
-                    contactEmail: v('email'),
-                    contactPhone: v('phone'),
-                    vatNumber: v('vat'),
-                    country: v('country')
+                    contactName: toNull(v('contact')),
+                    contactEmail: toNull(v('email')),
+                    contactPhone: toNull(v('phone')),
+                    vatNumber: toNull(v('vat')),
+                    country: toNull(v('country'))
+                };
+                break;
+
+            case 'Address':
+                url='/addresses';
+                p={
+                    street: v('street'),
+                    cityID: v('cityID')
                 };
                 break;
 
             case 'Project':
                 url='/projects';
                 p={
-                    projectSAPID: v('sap'),
+                    projectSAPID: toNull(v('sap')),
                     projectName: v('pname'),
                     deploymentVariantID: v('variantId'),
-                    bundleType: v('bundle') || null,
+                    bundleType: toNull(v('bundle')),
                     accountID: v('accId'),
                     addressID: v('addrId')
                 };
@@ -190,12 +1114,18 @@
 
             case 'Site':
                 url='/sites';
+                const tenantRaw=v('tenant');
+                const tenantCount=tenantRaw ? Number(tenantRaw) : null;
+                if(tenantRaw && Number.isNaN(tenantCount)){
+                    fail('TenantCount must be a number.');
+                    return;
+                }
                 p={
                     projectID: v('pId'),
                     siteName: v('name'),
-                    addressID: v('addr'),
-                    fireZone: v('zone'),
-                    tenantCount: v('tenant') ? Number(v('tenant')) : null
+                    addressID: v('addrId'),
+                    fireZone: toNull(v('zone')),
+                    tenantCount
                 };
                 break;
 
@@ -204,12 +1134,12 @@
                 p={
                     siteID: v('siteId'),
                     serverName: v('name'),
-                    serverBrand: v('brand'),
-                    serverSerialNr: v('serial'),
-                    serverOS: v('os'),
-                    patchLevel: v('patch'),
+                    serverBrand: toNull(v('brand')),
+                    serverSerialNr: toNull(v('serial')),
+                    serverOS: toNull(v('os')),
+                    patchLevel: toNull(v('patch')),
                     virtualPlatform: v('vplat'),
-                    virtualVersion: v('vver') || null,
+                    virtualVersion: toNull(v('vver')),
                     highAvailability: v('ha') === 'true'
                 };
                 break;
@@ -219,10 +1149,10 @@
                 p={
                     siteID: v('siteId'),
                     clientName: v('name'),
-                    clientBrand: v('brand'),
-                    clientSerialNr: v('serial'),
-                    clientOS: v('os'),
-                    patchLevel: v('patch'),
+                    clientBrand: toNull(v('brand')),
+                    clientSerialNr: toNull(v('serial')),
+                    clientOS: toNull(v('os')),
+                    patchLevel: toNull(v('patch')),
                     installType: v('install')
                 };
                 break;
@@ -231,11 +1161,11 @@
                 url='/radios';
                 p={
                     siteID: v('siteId'),
-                    radioBrand: v('brand'),
-                    radioSerialNr: v('serial'),
+                    radioBrand: toNull(v('brand')),
+                    radioSerialNr: toNull(v('serial')),
                     mode: v('mode'),
-                    digitalStandard: v('standard') || null,
-                    assignedClientID: v('client') || null
+                    digitalStandard: toNull(v('standard')),
+                    assignedClientID: toNull(v('client'))
                 };
                 break;
 
@@ -243,9 +1173,9 @@
                 url='/audio';
                 p={
                     clientID: v('client'),
-                    audioDeviceBrand: v('brand'),
-                    deviceSerialNr: v('serial'),
-                    audioDeviceFirmware: v('fw'),
+                    audioDeviceBrand: toNull(v('brand')),
+                    deviceSerialNr: toNull(v('serial')),
+                    audioDeviceFirmware: toNull(v('fw')),
                     deviceType: v('dtype')
                 };
                 break;
@@ -255,23 +1185,135 @@
                 p={
                     clientID: v('client'),
                     phoneType: v('type'),
-                    phoneBrand: v('brand'),
-                    phoneSerialNr: v('serial'),
-                    phoneFirmware: v('fw')
+                    phoneBrand: toNull(v('brand')),
+                    phoneSerialNr: toNull(v('serial')),
+                    phoneFirmware: toNull(v('fw'))
+                };
+                break;
+
+            case 'DeploymentVariant':
+                url='/deployment-variants';
+                p={
+                    variantCode: v('variantCode'),
+                    variantName: v('variantName'),
+                    description: toNull(v('description')),
+                    active: v('active') === 'true'
+                };
+                break;
+
+            case 'Country':
+                url='/row/country';
+                const countryCode=(v('countryCode')||'').toUpperCase();
+                if(countryCode.length!==2){
+                    fail('Country code must be exactly 2 characters.');
+                    return;
+                }
+                p={
+                    CountryCode: countryCode,
+                    CountryName: v('countryName')
+                };
+                break;
+
+            case 'City':
+                url='/row/city';
+                const cityId=(v('cityId')||'').toUpperCase();
+                const country=v('countryCode');
+                if(!country){
+                    fail('Please select a country.');
+                    return;
+                }
+                p={
+                    CityID: cityId,
+                    CityName: v('cityName'),
+                    CountryCode: country
+                };
+                break;
+
+            case 'InstalledSoftware':
+                url='/row/installedsoftware';
+                p={
+                    SiteID: v('siteID'),
+                    SoftwareID: v('softwareID')
+                };
+                break;
+
+            case 'Software':
+                url='/row/software';
+                p={
+                    Name: v('swName'),
+                    Release: v('swRelease'),
+                    Revision: v('swRevision'),
+                    SupportPhase: v('swPhase'),
+                    LicenseModel: toNull(v('swLicense')),
+                    EndOfSalesDate: toNull(v('swEos')),
+                    SupportStartDate: toNull(v('swSupportStart')),
+                    SupportEndDate: toNull(v('swSupportEnd'))
+                };
+                break;
+
+            case 'UpgradePlan':
+                url='/row/upgradeplan';
+                const plannedStart=v('plannedStart');
+                const plannedEnd=v('plannedEnd');
+                if(plannedStart && plannedEnd && plannedStart>plannedEnd){
+                    fail('The planned end must be after the start.');
+                    return;
+                }
+                p={
+                    SiteID: v('siteID'),
+                    SoftwareID: v('softwareID'),
+                    PlannedWindowStart: plannedStart,
+                    PlannedWindowEnd: plannedEnd,
+                    Status: v('status'),
+                    CreatedAt: v('createdAt'),
+                    CreatedBy: v('createdBy')
+                };
+                break;
+
+            case 'ServiceContract':
+                url='/row/servicecontract';
+                const startDate=v('startDate');
+                const endDate=v('endDate');
+                if(startDate && endDate && startDate>endDate){
+                    fail('The end date cannot be before the start date.');
+                    return;
+                }
+                p={
+                    AccountID: v('accountID'),
+                    ProjectID: v('projectID'),
+                    SiteID: v('siteID'),
+                    ContractNumber: v('contractNumber'),
+                    Status: v('status'),
+                    StartDate: startDate,
+                    EndDate: endDate
                 };
                 break;
         }
 
+        if(!url){
+            fail('Unknown entity or missing URL.');
+            return;
+        }
+
         try{
             const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
-            if(r.ok){result.innerHTML=`<p class="success">✔ ${t} angelegt.</p>`;e.target.reset();}
+            if(r.ok){
+                result.innerHTML=`<p class="success">✔ ${t} created.</p>`;
+                e.target.reset();
+                const ids=Object.keys(asyncSelectConfigs);
+                for(const id of ids){
+                    await loadOptionsForField(id);
+                }
+            }
             else   {result.innerHTML=`<p class="error" role="alert">${await r.text()}</p>`;}
         }catch{
-            result.innerHTML=`<p class="error" role="alert">Netzwerkfehler.</p>`;
+            result.innerHTML=`<p class="error" role="alert">Network error.</p>`;
         }finally{
             result.removeAttribute('aria-busy');
         }
     }
+
+    initializeFromQuery().catch(err=>console.error(err));
 </script>
 </body>
 </html>

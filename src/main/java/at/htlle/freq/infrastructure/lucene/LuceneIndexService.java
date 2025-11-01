@@ -3,11 +3,17 @@ package at.htlle.freq.infrastructure.lucene;
 
 import at.htlle.freq.infrastructure.search.SearchHit;
 import org.apache.lucene.search.Query;
+
+import java.nio.file.Path;
 import java.util.List;
 
 public interface LuceneIndexService {
 
     String INDEX_PATH = "target/lifex-index";
+
+    Path getIndexPath();
+
+    void setIndexPath(Path indexPath);
 
     // ========= Suche =========
     List<SearchHit> search(String queryText);

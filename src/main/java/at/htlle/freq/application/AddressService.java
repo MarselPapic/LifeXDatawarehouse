@@ -90,10 +90,8 @@ public class AddressService {
     @Transactional
     public void deleteAddress(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
-        // Falls du eine deleteById im Repo hast:
-        // repo.deleteById(id);
+        repo.deleteById(id);
         log.info("Address gelöscht: id={}", id);
-        // Optional: auch aus Lucene löschen → lucene.deleteAddress(id)
     }
 
     // ---------- Internals ----------

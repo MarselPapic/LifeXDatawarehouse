@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>LifeX – Dashboard</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<a href="#main" class="skip-link">Zum Inhalt springen</a>
+<a href="#main" class="skip-link">Skip to content</a>
 
 <header>
-    <!-- Logo als dekorative Grafik -->
+    <!-- Logo as decorative graphic -->
     <img src="/img/LifeXDatawarehouseLogo.png" alt="">
-    <nav aria-label="Hauptnavigation">
-        <a href="/index.html">Dashboard</a>
-        <a href="/create.html">Daten anlegen</a>
+    <nav aria-label="Main navigation">
+        <a href="/index.html" aria-current="page">Dashboard</a>
+        <a href="/create.html">Create Data</a>
+        <a href="/reports.html">Reports</a>
     </nav>
 </header>
 
@@ -23,66 +24,68 @@
         <section>
             <h2>Shortcuts</h2>
 
-            <!-- 0  Alle Accounts -->
+            <!-- 0  Accounts – Gesamtbestand -->
             <div class="shortcut" data-id="sc0" data-default="type:account">
                 <button class="head">
                     <span class="rename">✏️</span>
-                    <span class="label">Alle Accounts</span>
+                    <span class="label">Accounts – Full list</span>
                     <span class="chev">▶</span>
                 </button>
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 1  Große Projekte -->
+            <!-- 1  Projects – active -->
             <div class="shortcut" data-id="sc1"
-                 data-default='type:project AND (CustomL OR CustomXL)'>
+                 data-default='type:project AND statusactive'>
                 <button class="head">
                     <span class="rename">✏️</span>
-                    <span class="label">Große Projekte</span>
+                    <span class="label">Projects – active</span>
                     <span class="chev">▶</span>
                 </button>
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 2  Accounts 🇩🇪 -->
+            <!-- 2  Service contracts – In Progress -->
             <div class="shortcut" data-id="sc2"
-                 data-default='type:account AND country:germany'>
+                 data-default='type:servicecontract AND statusinprogress'>
                 <button class="head">
                     <span class="rename">✏️</span>
-                    <span class="label">Accounts 🇩🇪</span>
+                    <span class="label">Service contracts – in progress</span>
+                    <span class="chev">▶</span>
+                </button>
+                <div class="panel"><input placeholder="Lucene query (e.g. type:servicecontract AND statusinprogress)"></div>
+            </div>
+
+            <!-- 3  Sites – FireZone Bravo -->
+            <div class="shortcut" data-id="sc3"
+                 data-default='type:site AND zonebravo'>
+                <button class="head">
+                    <span class="rename">✏️</span>
+                    <span class="label">Sites – FireZone Bravo</span>
                     <span class="chev">▶</span>
                 </button>
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 3  Showcase: Sites mit Lenovo-Servern -->
-            <div class="shortcut" data-id="sc3"
-                 data-default='type:site AND serverBrand:lenovo'>
+            <!-- 4  Server – Lenovo -->
+            <div class="shortcut" data-id="sc4"
+                 data-default='type:server AND Lenovo'>
                 <button class="head">
                     <span class="rename">✏️</span>
-                    <span class="label">Sites – Lenovo-Server</span>
+                    <span class="label">Servers – Lenovo</span>
                     <span class="chev">▶</span>
                 </button>
-                <div class="panel">
-                    <input placeholder="Lucene-Query (z. B. type:site AND serverBrand:lenovo)">
-                </div>
-            </div>
-
-            <!-- 4  frei 1 (umbenannt) -->
-            <div class="shortcut" data-id="sc4" data-default="">
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">(frei 1)</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input placeholder="Lucene-Query"></div>
+                <div class="panel"><input placeholder="Lucene query (e.g. type:server AND Lenovo)"></div>
             </div>
         </section>
 
-        <!-- Tabellenübersicht -->
+        <!-- Table overview -->
         <section class="tables">
-            <h2>Tabellen</h2>
+            <h2>Tables</h2>
             <ul>
+                <li onclick="showTable('Country')">Country</li>
+                <li onclick="showTable('City')">City</li>
+                <li onclick="showTable('Address')">Address</li>
                 <li onclick="showTable('Account')">Account</li>
                 <li onclick="showTable('Project')">Project</li>
                 <li onclick="showTable('Site')">Site</li>
@@ -91,13 +94,18 @@
                 <li onclick="showTable('Radio')">Radio</li>
                 <li onclick="showTable('AudioDevice')">AudioDevice</li>
                 <li onclick="showTable('PhoneIntegration')">PhoneIntegration</li>
+                <li onclick="showTable('DeploymentVariant')">DeploymentVariant</li>
+                <li onclick="showTable('Software')">Software</li>
+                <li onclick="showTable('InstalledSoftware')">InstalledSoftware</li>
+                <li onclick="showTable('UpgradePlan')">UpgradePlan</li>
+                <li onclick="showTable('ServiceContract')">ServiceContract</li>
             </ul>
         </section>
     </aside>
 
     <!-- ─────────── Content ─────────── -->
     <main id="main" class="content">
-        <!-- Fortschritt-Balken -->
+        <!-- Progress bar -->
         <div id="idx-box" aria-live="polite">
             <div id="idx-bar">
                 <span role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
@@ -106,33 +114,33 @@
         </div>
 
         <div id="search-bar">
-            <label for="search-input" class="visually-hidden">Globale Suche</label>
-            <!-- datalist bleibt für Autocomplete, Icon wird via CSS versteckt -->
-            <input id="search-input" placeholder="Global-Suche (Lucene oder normal)" list="sug" autocomplete="off">
+            <label for="search-input" class="visually-hidden">Global search</label>
+            <!-- datalist remains for autocomplete, icon hidden via CSS -->
+            <input id="search-input" placeholder="Global search (Lucene or plain)" list="sug" autocomplete="off">
             <datalist id="sug"></datalist>
-            <button id="search-btn">Suchen</button>
+            <button id="search-btn">Search</button>
         </div>
 
         <div id="resultArea" role="status" aria-live="polite" aria-atomic="true">
-            <p>Nutze die Suchleiste oder die Bedienelemente links.</p>
+            <p>Use the search bar or the controls on the left.</p>
         </div>
     </main>
 
-    <!-- ─────────── Hilfe ─────────── -->
+    <!-- ─────────── Help ─────────── -->
     <aside class="help">
-        <h2>Lucene Syntax</h2>
+        <h2>Lucene syntax</h2>
         <ul>
             <li><code>tech*</code> Wildcard</li>
             <li><code>"green valley"</code> Phrase</li>
-            <li><code>+foo -bar</code> Muss / Nicht</li>
+            <li><code>+foo -bar</code> Must / Must not</li>
             <li><code>date:[2025-01-01 TO 2025-12-31]</code></li>
-            <li>Projektsuche: <code>type:project AND CustomL</code></li>
+            <li>Project search: <code>type:project AND statusactive</code></li>
         </ul>
 
         <hr>
-        <h3>Index-Verwaltung</h3>
-        <button id="idx-reindex-side" class="btn-primary">Neu indexieren</button>
-        <p style="font-size:.9rem;color:#555">Startet einen kompletten Reindex; der Fortschritt erscheint oben als Balken.</p>
+        <h3>Index management</h3>
+        <button id="idx-reindex-side" class="btn-primary">Reindex</button>
+        <p style="font-size:.9rem;color:#555">Starts a full reindex; progress appears above as a bar.</p>
     </aside>
 </div>
 

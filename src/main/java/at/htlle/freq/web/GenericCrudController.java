@@ -1,5 +1,7 @@
 package at.htlle.freq.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -10,6 +12,8 @@ import java.util.*;
 
 @RestController
 public class GenericCrudController {
+
+    private static final Logger log = LoggerFactory.getLogger(GenericCrudController.class);
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -112,6 +116,17 @@ public class GenericCrudController {
 
         String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + values + ")";
         jdbc.update(sql, new MapSqlParameterSource(body));
+
+        String pk = PKS.get(table);
+        Object recordId = null;
+        if (pk != null) {
+            recordId = body.get(pk);
+        }
+        if (recordId == null) {
+            recordId = body.getOrDefault("id", body.getOrDefault("ID", "(unknown)"));
+        }
+
+        log.info("Inserted {} {} with fields {}", table, recordId, body.keySet());
     }
 
     // -------- UPDATE --------
@@ -133,6 +148,8 @@ public class GenericCrudController {
         int count = jdbc.update(sql, params);
         if (count == 0)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no record updated");
+
+        log.info("Updated {} {} with fields {}", table, id, body.keySet());
     }
 
     // -------- DELETE --------
@@ -145,7 +162,11 @@ public class GenericCrudController {
 
         String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
         int count = jdbc.update(sql, new MapSqlParameterSource("id", id));
-        if (count == 0)
+        if (count == 0) {
+            log.warn("Attempted to delete {} {} but no record was found", table, id);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no record deleted");
+        }
+
+        log.info("Deleted {} {} with fields {}", table, id, Collections.singleton(pk));
     }
 }

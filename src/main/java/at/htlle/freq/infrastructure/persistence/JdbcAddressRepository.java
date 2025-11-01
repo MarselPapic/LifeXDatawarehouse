@@ -35,6 +35,12 @@ public class JdbcAddressRepository implements AddressRepository {
     }
 
     @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM Address WHERE AddressID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
+    @Override
     public Address save(Address a) {
         boolean isNew = a.getAddressID() == null;
         if (isNew) {

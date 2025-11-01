@@ -1,5 +1,7 @@
 package at.htlle.freq.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -14,6 +16,8 @@ import java.util.*;
 public class PhoneController {
 
     private final NamedParameterJdbcTemplate jdbc;
+    private static final Logger log = LoggerFactory.getLogger(PhoneController.class);
+    private static final String TABLE = "PhoneIntegration";
 
     public PhoneController(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -49,8 +53,9 @@ public class PhoneController {
             WHERE PhoneIntegrationID = :id
             """, new MapSqlParameterSource("id", id));
 
-        if (rows.isEmpty())
+        if (rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PhoneIntegration not found");
+        }
         return rows.get(0);
     }
 
@@ -60,16 +65,18 @@ public class PhoneController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        if (body.isEmpty())
+        if (body.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+        }
 
         String sql = """
-            INSERT INTO PhoneIntegration 
+            INSERT INTO PhoneIntegration
             (ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware)
             VALUES (:clientID, :phoneType, :phoneBrand, :phoneSerialNr, :phoneFirmware)
             """;
 
         jdbc.update(sql, new MapSqlParameterSource(body));
+        log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
     // ----------------------------
@@ -77,8 +84,9 @@ public class PhoneController {
     // ----------------------------
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        if (body.isEmpty())
+        if (body.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+        }
 
         var setClauses = new ArrayList<String>();
         for (String key : body.keySet()) {
@@ -91,8 +99,11 @@ public class PhoneController {
         var params = new MapSqlParameterSource(body).addValue("id", id);
         int updated = jdbc.update(sql, params);
 
-        if (updated == 0)
+        if (updated == 0) {
+            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("PhoneIntegrationID", id), body.keySet());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration updated");
+        }
+        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("PhoneIntegrationID", id), body.keySet());
     }
 
     // ----------------------------
@@ -104,7 +115,20 @@ public class PhoneController {
         int count = jdbc.update("DELETE FROM PhoneIntegration WHERE PhoneIntegrationID = :id",
                 new MapSqlParameterSource("id", id));
 
-        if (count == 0)
+        if (count == 0) {
+            log.warn("[{}] delete failed: identifiers={}", TABLE, Map.of("PhoneIntegrationID", id));
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration deleted");
+        }
+        log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("PhoneIntegrationID", id));
+    }
+
+    private Map<String, Object> extractIdentifiers(Map<String, Object> body) {
+        Map<String, Object> ids = new LinkedHashMap<>();
+        body.forEach((key, value) -> {
+            if (key != null && key.toLowerCase(Locale.ROOT).endsWith("id")) {
+                ids.put(key, value);
+            }
+        });
+        return ids;
     }
 }

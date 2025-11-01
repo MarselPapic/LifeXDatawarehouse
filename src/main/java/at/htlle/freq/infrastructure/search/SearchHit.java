@@ -1,18 +1,21 @@
 
 package at.htlle.freq.infrastructure.search;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class SearchHit {
     private String id;
     private String type;
-    private String name;
+    private String text;
     private String snippet;
 
     public SearchHit() {}
 
-    public SearchHit(String id, String type, String name, String snippet) {
+    public SearchHit(String id, String type, String text, String snippet) {
         this.id = id;
         this.type = type;
-        this.name = name;
+        this.text = text;
         this.snippet = snippet;
     }
 
@@ -32,12 +35,12 @@ public class SearchHit {
         this.type = type;
     }
 
-    public String getName() {
-        return name;
+    public String getText() {
+        return text;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setText(String text) {
+        this.text = text;
     }
 
     public String getSnippet() {
@@ -53,7 +56,7 @@ public class SearchHit {
         return "SearchHit{" +
                 "id='" + id + '\'' +
                 ", type='" + type + '\'' +
-                ", name='" + name + '\'' +
+                ", text='" + text + '\'' +
                 ", snippet='" + snippet + '\'' +
                 '}';
     }

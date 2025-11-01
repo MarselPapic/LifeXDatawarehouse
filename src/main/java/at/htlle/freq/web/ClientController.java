@@ -22,7 +22,10 @@ public class ClientController {
 
     // GET /clients?siteId={uuid}
     @GetMapping
-    public List<Clients> findBySite(@RequestParam UUID siteId) {
+    public List<Clients> findBySite(@RequestParam(required = false) UUID siteId) {
+        if (siteId == null) {
+            return service.findAll();
+        }
         return service.findBySite(siteId);
     }
 

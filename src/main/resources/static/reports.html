@@ -1,326 +1,113 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>LifeX – Reports (Mockup)</title>
-    <link rel="stylesheet" href="/css/style.css" />
-    <style>
-        /* ====== Zusätzliche, seitenlokale Styles für den Mockup ====== */
-        .toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.5rem 0 1rem}
-        .toolbar .spacer{flex:1 1 auto}
-        .filters{background:#f7f9ff;border:1px solid #cfe0ff;border-radius:8px;padding:1rem;margin-bottom:1rem}
-        .filters form{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:.8rem}
-        .filters label{display:block;font-weight:600}
-        .filters select,.filters input{width:100%;padding:.45rem}
-        .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:.6rem 0 1rem}
-        .kpi{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:.9rem;text-align:center}
-        .kpi .label{font-size:.9rem;color:#666}
-        .kpi .value{font-size:1.6rem;font-weight:700;margin-top:.2rem}
-        .tabnav{display:flex;gap:.2rem;border-bottom:2px solid #e5e7eb;margin-bottom:1rem}
-        .tabbtn{background:none;border:none;cursor:pointer;padding:.6rem .9rem;font-weight:600;border-bottom:3px solid transparent}
-        .tabbtn[aria-selected="true"]{border-color:#0067c2;color:#003a70}
-        .tabpanel{display:none}
-        .tabpanel.active{display:block}
-        .chart-placeholder{
-            border:2px dashed #bbb;border-radius:8px;height:200px;
-            display:flex;align-items:center;justify-content:center;
-            font-style:italic;color:#666;margin-bottom:1rem
-        }
-        .badge{display:inline-block;background:#e9f1ff;border:1px solid #cfe0ff;border-radius:999px;padding:.15rem .55rem;font-size:.85rem}
-        @media (max-width:1280px){
-            .filters form{grid-template-columns:repeat(2,minmax(180px,1fr))}
-            .kpis{grid-template-columns:repeat(2,1fr)}
-        }
-        @media (max-width:768px){
-            .filters form{grid-template-columns:1fr}
-            .kpis{grid-template-columns:1fr}
-        }
-    </style>
+    <meta charset="UTF-8">
+    <title>LifeX – Reports</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<a href="#main" class="skip-link">Zum Inhalt springen</a>
+<a href="#main" class="skip-link">Skip to main content</a>
 
 <header>
     <img src="/img/LifeXDatawarehouseLogo.png" alt="">
-    <nav aria-label="Hauptnavigation">
+    <nav aria-label="Primary navigation">
         <a href="/index.html">Dashboard</a>
-        <a href="/create.html">Daten anlegen</a>
+        <a href="/create.html">Create Data</a>
         <a href="/reports.html" aria-current="page">Reports</a>
     </nav>
 </header>
 
 <div class="layout">
-    <!-- Sidebar -->
     <aside class="sidebar">
         <section>
-            <h2>Report-Typen</h2>
-            <ul style="list-style:none;margin:0;padding:0">
-                <li class="badge">Difference</li>
-                <li class="badge">Maintenance</li>
-                <li class="badge">Configuration</li>
-                <li class="badge">Inventory</li>
-            </ul>
-            <p style="font-size:.9rem;color:#555;margin-top:.6rem">
-                Diese Liste ist nur zur Orientierung. Oben im Content wechselst du die Tabs.
-            </p>
+            <h2>Report Types</h2>
+            <ul id="type-list" class="report-type-list" role="list"></ul>
         </section>
 
         <section class="tables">
-            <h2>Quick-Links</h2>
+            <h2>Quick Links</h2>
             <ul>
-                <li>Letzte Ausführungen</li>
-                <li>Geplante Berichte</li>
-                <li>Export-Historie</li>
+                <li><button class="quick-link" data-type="DIFFERENCE" data-period="last30">Variances (30 days)</button></li>
+                <li><button class="quick-link" data-type="MAINTENANCE" data-period="quarter">Maintenance current quarter</button></li>
+                <li><button class="quick-link" data-type="INVENTORY" data-period="quarter">Inventory overview</button></li>
             </ul>
         </section>
     </aside>
 
-    <!-- Content -->
     <main id="main" class="content" aria-live="polite">
-        <h1 style="margin-top:0">Reports</h1>
+        <h1>Reports</h1>
 
-        <!-- Filtersektion -->
-        <section class="filters" aria-labelledby="flt-title">
-            <h2 id="flt-title" style="margin:.2rem 0 .8rem 0">Filter</h2>
-            <form onsubmit="return false">
-                <div>
-                    <label for="repType">Report-Typ</label>
-                    <select id="repType" aria-label="Report-Typ">
-                        <option>Difference</option>
-                        <option>Maintenance</option>
-                        <option>Configuration</option>
-                        <option>Inventory</option>
+        <section class="filters" aria-labelledby="filters-title">
+            <h2 id="filters-title">Filters</h2>
+            <form id="filter-form">
+                <div class="field">
+                    <label for="period">Period</label>
+                    <select id="period" name="period"></select>
+                </div>
+                <div class="field">
+                    <label for="query">Project / Site</label>
+                    <input id="query" name="query" placeholder="e.g. project name, SAP ID or site">
+                </div>
+                <div class="field">
+                    <label for="variant">Deployment variant</label>
+                    <select id="variant" name="variant">
+                        <option value="">All</option>
                     </select>
                 </div>
-                <div>
-                    <label for="period">Zeitraum</label>
-                    <select id="period" aria-label="Zeitraum">
-                        <option>Letzte 7 Tage</option>
-                        <option>Letzte 30 Tage</option>
-                        <option>Dieses Quartal</option>
-                        <option>Benutzerdefiniert …</option>
-                    </select>
+                <div class="field field--custom" id="custom-range" hidden>
+                    <label for="from">From</label>
+                    <input type="date" id="from" name="from">
+                    <label for="to">To</label>
+                    <input type="date" id="to" name="to">
                 </div>
-                <div>
-                    <label for="project">Projekt / Site</label>
-                    <input id="project" placeholder="z. B. Project-SAP-ID oder Site-Name" />
-                </div>
-                <div>
-                    <label for="variant">Deployment-Variante</label>
-                    <select id="variant">
-                        <option value="">Alle</option>
-                        <option>MediumBundle</option>
-                        <option>CustomS</option>
-                        <option>CustomM</option>
-                        <option>CustomL</option>
-                        <option>CustomXL</option>
-                    </select>
+                <div class="filter-actions">
+                    <button type="submit" class="btn-primary">Apply</button>
+                    <button type="button" id="reset-filter">Reset</button>
                 </div>
             </form>
-            <div class="toolbar">
-                <span class="badge" aria-label="Hinweis">Mockup – nicht interaktiv</span>
-                <span class="spacer"></span>
-                <button class="btn-primary">Anwenden</button>
-                <button>Zurücksetzen</button>
-            </div>
+            <div id="filter-info" class="filter-info" role="status" aria-live="polite"></div>
         </section>
 
-        <!-- KPIs / Zusammenfassung -->
-        <section aria-labelledby="kpi-title">
-            <h2 id="kpi-title" class="visually-hidden">KPI-Übersicht</h2>
-            <div class="kpis">
-                <div class="kpi" aria-label="Anzahl Datensätze">
-                    <div class="label">Datensätze</div>
-                    <div class="value">1 248</div>
+        <section aria-labelledby="kpi-title" id="kpi-section">
+            <h2 id="kpi-title" class="visually-hidden">Key metrics</h2>
+            <div id="kpi-grid" class="kpi-grid"></div>
+        </section>
+
+        <div class="tabnav" role="tablist" aria-label="Report views" id="tabbar"></div>
+
+        <section id="report-panel" class="report-panel" role="tabpanel" aria-labelledby="" aria-busy="false">
+            <div id="chart" class="report-chart" aria-live="polite"></div>
+            <div class="toolbar">
+                <div class="report-meta">
+                    <span id="chart-title" class="chart-title"></span>
+                    <span id="generated-at" class="generated-at"></span>
                 </div>
-                <div class="kpi" aria-label="Fehler">
-                    <div class="label">Fehler</div>
-                    <div class="value">32</div>
-                </div>
-                <div class="kpi" aria-label="Warnungen">
-                    <div class="label">Warnungen</div>
-                    <div class="value">87</div>
-                </div>
-                <div class="kpi" aria-label="Durchschnittliche Laufzeit">
-                    <div class="label">Ø Laufzeit</div>
-                    <div class="value">3.2 s</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Tabs -->
-        <div class="tabnav" role="tablist" aria-label="Report-Ansichten">
-            <button class="tabbtn" role="tab" aria-selected="true" aria-controls="tab-diff" id="t-diff">Difference</button>
-            <button class="tabbtn" role="tab" aria-selected="false" aria-controls="tab-maint" id="t-maint">Maintenance</button>
-            <button class="tabbtn" role="tab" aria-selected="false" aria-controls="tab-conf" id="t-conf">Configuration</button>
-            <button class="tabbtn" role="tab" aria-selected="false" aria-controls="tab-inv" id="t-inv">Inventory</button>
-        </div>
-
-        <!-- Tabpanel: Difference -->
-        <section id="tab-diff" class="tabpanel active" role="tabpanel" aria-labelledby="t-diff">
-            <div class="chart-placeholder">Diagramm-Platzhalter (z. B. Balken-/Donut-Chart)</div>
-
-            <div class="toolbar">
-                <span class="badge">View: Tabelle</span>
                 <span class="spacer"></span>
-                <button>Export CSV</button>
-                <button>Export PDF</button>
+                <a id="export-csv" class="btn" href="#">Export CSV</a>
             </div>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                    <tr>
-                        <th scope="col">Projekt</th>
-                        <th scope="col">Site</th>
-                        <th scope="col">Soll</th>
-                        <th scope="col">Ist</th>
-                        <th scope="col">Abweichung</th>
-                        <th scope="col">Severity</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td>PX-1021</td>
-                        <td>HQ-Wien</td>
-                        <td>CustomL</td>
-                        <td>CustomM</td>
-                        <td>-1 Stufe</td>
-                        <td><span class="badge">High</span></td>
-                    </tr>
-                    <tr>
-                        <td>PX-1021</td>
-                        <td>HQ-Wien</td>
-                        <td>Lenovo SR650</td>
-                        <td>Lenovo SR650</td>
-                        <td>OK</td>
-                        <td><span class="badge">Info</span></td>
-                    </tr>
-                    <tr>
-                        <td>PX-2044</td>
-                        <td>Site-03</td>
-                        <td>vSphere 8</td>
-                        <td>vSphere 7</td>
-                        <td>-1 Major</td>
-                        <td><span class="badge">Medium</span></td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Tabpanel: Maintenance -->
-        <section id="tab-maint" class="tabpanel" role="tabpanel" aria-labelledby="t-maint">
-            <div class="chart-placeholder">Zeitstrahl/Trend Platzhalter</div>
-            <div class="toolbar">
-                <span class="badge">Wartungsfenster: Nächste 30 Tage</span>
-                <span class="spacer"></span>
-                <button>Export CSV</button>
-                <button>Export PDF</button>
-            </div>
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                    <tr>
-                        <th scope="col">Server</th>
-                        <th scope="col">Patch-Level</th>
-                        <th scope="col">Fällig bis</th>
-                        <th scope="col">Status</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr><td>SRV-01</td><td>2025.08</td><td>2025-09-01</td><td><span class="badge">Offen</span></td></tr>
-                    <tr><td>SRV-02</td><td>2025.07</td><td>2025-08-20</td><td><span class="badge">Geplant</span></td></tr>
-                    <tr><td>SRV-05</td><td>2025.05</td><td>Überfällig</td><td><span class="badge">Kritisch</span></td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Tabpanel: Configuration -->
-        <section id="tab-conf" class="tabpanel" role="tabpanel" aria-labelledby="t-conf">
-            <div class="chart-placeholder">Konfigurationsmatrix – Platzhalter</div>
-            <div class="toolbar">
-                <span class="badge">Scope: Server + Clients</span>
-                <span class="spacer"></span>
-                <button>Export CSV</button>
-                <button>Export PDF</button>
-            </div>
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                    <tr>
-                        <th scope="col">Entität</th>
-                        <th scope="col">Merkmal</th>
-                        <th scope="col">Wert</th>
-                        <th scope="col">Quelle</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr><td>Server</td><td>OS</td><td>Windows Server 2022</td><td>Inventory</td></tr>
-                    <tr><td>Client</td><td>LocallyInstalled</td><td>true</td><td>SDD</td></tr>
-                    <tr><td>Phone</td><td>Firmware</td><td>1.4.2</td><td>Inventory</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Tabpanel: Inventory -->
-        <section id="tab-inv" class="tabpanel" role="tabpanel" aria-labelledby="t-inv">
-            <div class="chart-placeholder">Inventar-Verteilung (Pie/Bar) – Platzhalter</div>
-            <div class="toolbar">
-                <span class="badge">Gruppierung: Marke</span>
-                <span class="spacer"></span>
-                <button>Export CSV</button>
-                <button>Export PDF</button>
-            </div>
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                    <tr>
-                        <th scope="col">Typ</th>
-                        <th scope="col">Marke</th>
-                        <th scope="col">Anzahl</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr><td>Server</td><td>Lenovo</td><td>24</td></tr>
-                    <tr><td>Client</td><td>Dell</td><td>58</td></tr>
-                    <tr><td>Radio</td><td>Motorola</td><td>17</td></tr>
-                    </tbody>
-                </table>
-            </div>
+            <div id="table-wrapper" class="table-scroll"></div>
+            <div id="report-status" role="status" aria-live="polite"></div>
         </section>
     </main>
 
-    <!-- Hilfe-Spalte -->
     <aside class="help">
-        <h2>Hinweise</h2>
-        <ul>
-            <li>Das ist ein <strong>statischer Mockup</strong> (keine echten Daten).</li>
-            <li>Filter, Tabs und Exporte sind nur visualisiert.</li>
-            <li>Diagramm-Flächen sind als <em>Platzhalter</em> markiert.</li>
+        <h2>Guidance</h2>
+        <ul id="help-hints">
+            <li>Apply filters to restrict data sources to the relevant period.</li>
+            <li>Exports provide the currently filtered view as CSV.</li>
+            <li>Address configuration variances early to reduce service windows.</li>
         </ul>
         <hr>
-        <h3>Als nächstes</h3>
+        <h3>Next steps</h3>
         <ol>
-            <li>Finale Felder/Spalten je Report fixieren.</li>
-            <li>CSV/PDF-Export-Endpoints definieren.</li>
-            <li>Tab-Inhalte an REST anbinden.</li>
+            <li>Review and confirm maintenance plans regularly.</li>
+            <li>Export the inventory overview for audits.</li>
+            <li>Escalate high-priority variances.</li>
         </ol>
+        <p id="refresh-info" class="help-note"></p>
     </aside>
 </div>
 
-<script>
-    // Mini-Skript nur für die Tab-Demo (Mockup)
-    const tabs = document.querySelectorAll('.tabbtn');
-    const panels = document.querySelectorAll('.tabpanel');
-    tabs.forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-            tabs.forEach(b=>b.setAttribute('aria-selected', String(b===btn)));
-            panels.forEach(p=>p.classList.toggle('active', p.id === btn.getAttribute('aria-controls')));
-        });
-    });
-</script>
+<script src="/js/reports.js"></script>
 </body>
 </html>

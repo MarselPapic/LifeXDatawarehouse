@@ -1,7 +1,6 @@
 package at.htlle.freq.infrastructure.search;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 import org.springframework.stereotype.Component;
@@ -10,15 +9,7 @@ import org.springframework.stereotype.Component;
 public class SmartQueryBuilder {
 
     private static final StandardAnalyzer ANALYZER = new StandardAnalyzer();
-
-    // MUSS zu LuceneIndexService passen
-    private static final String[] SEARCH_FIELDS = {
-            "txt","type","country","variant","fireZone","os","brand","vplat",
-            "sap","email","mode","digitalStandard","direction","phoneType",
-            // NEU: Relations & Rollups
-            "accountId","projectId","siteId","clientId",
-            "serverBrand","serverOS","serverVplat","hasServer"
-    };
+    private static final String DEFAULT_FIELD = "content";
 
     /** Heuristik: sieht der String nach Lucene-Syntax aus? */
     public static boolean looksLikeLucene(String q) {
@@ -31,11 +22,11 @@ public class SmartQueryBuilder {
     /** Baut aus einer normalen Nutzereingabe eine Multi-Field-Lucene-Query. */
     public Query build(String userInput) {
         try {
-            if (userInput == null || userInput.isBlank()) {
-                return new QueryParser("txt", ANALYZER).parse("*:*");
-            }
-            MultiFieldQueryParser p = new MultiFieldQueryParser(SEARCH_FIELDS, ANALYZER);
+            QueryParser p = new QueryParser(DEFAULT_FIELD, ANALYZER);
             p.setDefaultOperator(QueryParser.Operator.AND);
+            if (userInput == null || userInput.isBlank()) {
+                return p.parse("*:*");
+            }
             return p.parse(userInput.trim());
         } catch (Exception e) {
             throw new IllegalArgumentException("Ungültige Suchanfrage: " + userInput, e);

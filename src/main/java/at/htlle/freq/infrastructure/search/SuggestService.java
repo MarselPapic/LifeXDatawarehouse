@@ -11,7 +11,7 @@ import org.apache.lucene.util.BytesRef;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,11 +23,16 @@ import java.util.stream.Collectors;
 @Service
 public class SuggestService {
 
+    private final LuceneIndexService lucene;
+
+    public SuggestService(LuceneIndexService lucene) {
+        this.lucene = lucene;
+    }
+
     // Felder, aus denen Vorschläge kommen sollen
     private static final List<String> FIELDS = List.of(
-            "txt", "brand", "country", "variant", "fireZone", "os", "vplat", "sap", "email",
-            // Rollup-Felder
-            "serverBrand", "serverOS", "serverVplat"
+            // The aggregated search content is stored in the "content" field when indexing
+            "content"
     );
 
     /** Liefert bis zu {@code max} Vorschläge für das Präfix {@code prefix}. */
@@ -39,7 +44,9 @@ public class SuggestService {
 
         Set<String> out = new LinkedHashSet<>();
 
-        try (Directory dir = FSDirectory.open(Paths.get(LuceneIndexService.INDEX_PATH));
+        Path indexPath = lucene.getIndexPath();
+
+        try (Directory dir = FSDirectory.open(indexPath);
              DirectoryReader rd = DirectoryReader.open(dir)) {
 
             outer:

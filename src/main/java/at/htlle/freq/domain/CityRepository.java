@@ -8,4 +8,5 @@ public interface CityRepository {
     List<City> findByCountry(String countryCode);
     City save(City city);
     List<City> findAll();
+    void deleteById(String id);
 }

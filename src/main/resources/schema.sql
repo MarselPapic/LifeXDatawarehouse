@@ -187,7 +187,7 @@ CREATE TABLE Radio (
                        CONSTRAINT ck_radio_mode
                            CHECK (Mode IN ('Analog','Digital')),
                        CONSTRAINT ck_radio_digitalstandard
-                           CHECK (DigitalStandard IS NULL OR DigitalStandard IN ('Airbus','Motorola','ESN','P25','Polycom','Teltronics'))
+                           CHECK (DigitalStandard IS NULL OR DigitalStandard IN ('Airbus','Motorola','ESN','P25','Polycom','Teltronics','Tetra'))
 );
 
 -- =========================================================

@@ -7,6 +7,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * - try-with-resources + Fehlerhandling innerhalb des LuceneService vorausgesetzt
  */
 @Component("LuceneIndexingHubRoute")
+@ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
 public class LuceneIndexingHubRoute extends RouteBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(LuceneIndexingHubRoute.class);

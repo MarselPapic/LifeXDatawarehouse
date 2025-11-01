@@ -1,7 +1,8 @@
 package at.htlle.freq.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,8 @@ import java.util.*;
 public class ProjectController {
 
     private final NamedParameterJdbcTemplate jdbc;
+    private static final Logger log = LoggerFactory.getLogger(ProjectController.class);
+    private static final String TABLE = "Project";
 
     public ProjectController(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -73,6 +76,7 @@ public class ProjectController {
             """;
 
         jdbc.update(sql, new MapSqlParameterSource(body));
+        log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
     // ----------------------------
@@ -96,8 +100,10 @@ public class ProjectController {
         int updated = jdbc.update(sql.toString(), params);
 
         if (updated == 0) {
+            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("ProjectID", id), body.keySet());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project updated");
         }
+        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("ProjectID", id), body.keySet());
     }
 
     // ----------------------------
@@ -111,7 +117,19 @@ public class ProjectController {
                 new MapSqlParameterSource("id", id));
 
         if (count == 0) {
+            log.warn("[{}] delete failed: identifiers={}", TABLE, Map.of("ProjectID", id));
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
         }
+        log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("ProjectID", id));
+    }
+
+    private Map<String, Object> extractIdentifiers(Map<String, Object> body) {
+        Map<String, Object> ids = new LinkedHashMap<>();
+        body.forEach((key, value) -> {
+            if (key != null && key.toLowerCase(Locale.ROOT).endsWith("id")) {
+                ids.put(key, value);
+            }
+        });
+        return ids;
     }
 }

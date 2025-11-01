@@ -73,12 +73,20 @@ public final class IndexProgress {
         this.active = false;
     }
 
+    /** Gibt an, ob aktuell ein Lauf aktiv ist. */
+    public boolean isActive() {
+        return active;
+    }
+
     /** Liefert eine Momentaufnahme für die UI/REST. */
     public Status status() {
         // Done-Snapshot in gleicher Reihenfolge wie totals
         LinkedHashMap<String, Integer> doneSnap = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> e : totals.entrySet()) {
             doneSnap.put(e.getKey(), done.getOrDefault(e.getKey(), new AtomicInteger()).get());
+        }
+        for (Map.Entry<String, AtomicInteger> entry : done.entrySet()) {
+            doneSnap.putIfAbsent(entry.getKey(), entry.getValue().get());
         }
         int gt = grandTotal();
         int td = totalDone();
