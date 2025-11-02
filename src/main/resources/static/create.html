@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Record</title>
+    <title>Create data entry</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f4f4}
@@ -43,7 +43,7 @@
 </header>
 
 <main id="main" class="container" aria-live="polite">
-    <h1>Create Record</h1>
+    <h1 id="createHeading">Create data entry</h1>
 
     <!-- Schritt 1 -->
     <fieldset id="step1">
@@ -53,6 +53,7 @@
             <option value="Address">Address</option>
             <option value="AudioDevice">AudioDevice</option>
             <option value="City">City</option>
+            <option value="WorkingPosition">Client (WorkingPosition)</option>
             <option value="Country">Country</option>
             <option value="DeploymentVariant">DeploymentVariant</option>
             <option value="InstalledSoftware">InstalledSoftware</option>
@@ -64,7 +65,6 @@
             <option value="Site">Site</option>
             <option value="Software">Software</option>
             <option value="UpgradePlan">UpgradePlan</option>
-            <option value="WorkingPosition">Client (WorkingPosition)</option>
         </select>
         <button onclick="next()">Next</button>
     </fieldset>
@@ -80,6 +80,36 @@
 
 <script src="/js/form-config.js"></script>
 <script>
+    const defaultCreateHeading='Create data entry';
+    const entityTitles={
+        Account:'Create account',
+        Address:'Create address',
+        AudioDevice:'Create audio device',
+        City:'Create city',
+        WorkingPosition:'Create client',
+        Country:'Create country',
+        DeploymentVariant:'Create deployment variant',
+        InstalledSoftware:'Create installed software',
+        PhoneIntegration:'Create phone integration',
+        Project:'Create project',
+        Radio:'Create radio',
+        Server:'Create server',
+        ServiceContract:'Create service contract',
+        Site:'Create site',
+        Software:'Create software',
+        UpgradePlan:'Create upgrade plan'
+    };
+
+    function updateCreateHeading(entityKey){
+        const heading=document.getElementById('createHeading');
+        if(!heading) return;
+        const normalized=entityKey?String(entityKey).trim():'';
+        const matchedTitle=normalized?entityTitles[normalized]||`Create ${normalized}`:defaultCreateHeading;
+        const titleValue=normalized?matchedTitle:defaultCreateHeading;
+        heading.textContent=titleValue;
+        document.title=titleValue;
+    }
+
     function back(){
         dynamicForm.classList.add('hidden'); step1.classList.remove('hidden');
         dynamicForm.innerHTML=''; result.textContent='';
@@ -90,6 +120,7 @@
         if(window.entityHint){
             entityHint.textContent='';
         }
+        updateCreateHeading();
     }
     function next(){
         buildForm(entity.value); step1.classList.add('hidden');
@@ -607,7 +638,7 @@
         if(component==='asyncselect'){
             return renderAsyncSelect(config.id, config.label, config.source, {
                 required: config.required!==false,
-                allowManual: config.allowManual!==false,
+                allowManual: config.allowManual===true,
                 placeholder: config.placeholder,
                 dependsOn: config.dependsOn||null,
                 emptyText: config.emptyText,
@@ -651,12 +682,13 @@
 
     function showEntityMessage(entityKey, context={}){
         if(!window.entityHint || !window.entityContext) return;
-        const base=formConfig.getMessage(entityKey)||`You are currently creating a record for entity ${entityKey}.`;
+        const base=formConfig.getMessage(entityKey)||`You are currently creating an entry for entity ${entityKey}.`;
         const parts=[];
         if(context.accountId) parts.push(`Account ${shortContextId(context.accountId)}`);
         if(context.projectId) parts.push(`Project ${shortContextId(context.projectId)}`);
         if(context.siteId) parts.push(`Site ${shortContextId(context.siteId)}`);
         if(context.clientId) parts.push(`Client ${shortContextId(context.clientId)}`);
+        if(context.cityId) parts.push(`City ${shortContextId(context.cityId)}`);
         let message=base;
         if(parts.length){
             const trimmed=base.endsWith('.')?base.slice(0,-1):base;
@@ -668,7 +700,7 @@
     }
 
     function renderAsyncSelect(id,label,sourceKey,options={}){
-        const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
+        const {required=true, allowManual=false, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
         asyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
         const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter free text</button>` : '';
         const manualValue = value ?? '';
@@ -957,8 +989,59 @@
         });
     }
 
+    function applyValidationMessages(form){
+        const relevantInputs=form.querySelectorAll('input');
+        relevantInputs.forEach(input=>{
+            const patternAttr=input.getAttribute('pattern');
+            let matchesCountryPattern=false;
+            if(patternAttr){
+                try{
+                    const tester=new RegExp(patternAttr);
+                    matchesCountryPattern=tester.test('AA') && !tester.test('AAA');
+                }catch(_){
+                    matchesCountryPattern=false;
+                }
+            }
+
+            const shouldHandle=(()=>{
+                if(input.required) return true;
+                if(['email','tel'].includes(input.type)) return true;
+                if(['email','phone','countryCode'].includes(input.id)) return true;
+                if(matchesCountryPattern) return true;
+                return false;
+            })();
+            if(!shouldHandle) return;
+
+            const getMessage=()=>{
+                const {validity}=input;
+                if(!validity) return '';
+                if(validity.valueMissing){
+                    return 'Please fill out this field.';
+                }
+                if((validity.typeMismatch||validity.patternMismatch)&& (input.type==='email'||input.id==='email')){
+                    return 'Please enter a valid email address.';
+                }
+                if((validity.typeMismatch||validity.patternMismatch) && (input.type==='tel'||input.id==='phone')){
+                    return 'Please enter a valid phone number (digits, spaces, and common separators are allowed).';
+                }
+                if(validity.patternMismatch && (input.id==='countryCode'||matchesCountryPattern)){
+                    return 'Please enter a two-letter country code.';
+                }
+                return '';
+            };
+
+            input.addEventListener('invalid',()=>{
+                input.setCustomValidity(getMessage());
+            });
+            input.addEventListener('input',()=>{
+                input.setCustomValidity('');
+            });
+        });
+    }
+
     function buildForm(t){
         const f=dynamicForm; f.dataset.type=t; let h='';
+        updateCreateHeading(t);
         asyncSelectConfigs = {};
         const fields=formConfig.getFields(t) || [];
         fields.forEach(field=>{
@@ -977,6 +1060,7 @@
         initializeFilterableSelects(f);
         initializeAsyncSelects(f);
         applyInputEnhancements(f);
+        applyValidationMessages(f);
         showEntityMessage(t, {});
         if(t==='Radio') wireRadioLogic();
     }
@@ -1006,6 +1090,7 @@
         const option=Array.from(entitySelect.options).find(opt=>opt.value.toLowerCase()===rawEntity.toLowerCase());
         if(!option) return;
         entitySelect.value=option.value;
+        updateCreateHeading(option.value);
         buildForm(option.value);
         step1.classList.add('hidden');
         dynamicForm.classList.remove('hidden');
@@ -1015,8 +1100,15 @@
         const projectId=params.get('projectId');
         const siteId=params.get('siteId');
         const clientId=params.get('clientId');
+        const cityId=params.get('cityId');
 
         switch(option.value){
+            case 'Address':
+                if(cityId){
+                    await ensureAsyncValue('cityID', cityId, {lock:true});
+                    context.cityId=cityId;
+                }
+                break;
             case 'Project':
                 if(accountId){
                     await ensureAsyncValue('accId', accountId, {lock:true});

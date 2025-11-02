@@ -711,7 +711,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
 
     @Override
     public void indexClient(String clientId, String siteId, String clientName, String clientBrand, String clientOS, String installType) {
-        indexDocument(clientId, TYPE_CLIENT, siteId, clientName, clientBrand, clientOS, installType);
+        indexDocument(clientId, TYPE_CLIENT, clientName, clientBrand, clientOS, installType, siteId);
     }
 
     @Override
@@ -721,12 +721,12 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
 
     @Override
     public void indexAudioDevice(String audioDeviceId, String clientId, String brand, String serialNr, String firmware, String deviceType) {
-        indexDocument(audioDeviceId, TYPE_AUDIO_DEVICE, clientId, brand, serialNr, firmware, deviceType);
+        indexDocument(audioDeviceId, TYPE_AUDIO_DEVICE, brand, serialNr, firmware, deviceType, clientId);
     }
 
     @Override
     public void indexDeploymentVariant(String variantId, String variantCode, String variantName, String description, boolean active) {
-        indexDocument(variantId, TYPE_DEPLOYMENT_VARIANT, variantCode, variantName, description, String.valueOf(active));
+        indexDocument(variantId, TYPE_DEPLOYMENT_VARIANT, variantName, variantCode, description, String.valueOf(active));
     }
 
     @Override
@@ -736,7 +736,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
 
     @Override
     public void indexPhoneIntegration(String phoneIntegrationId, String clientId, String phoneType, String phoneBrand, String phoneSerialNr, String phoneFirmware) {
-        indexDocument(phoneIntegrationId, TYPE_PHONE_INTEGRATION, clientId, phoneType, phoneBrand, phoneSerialNr, phoneFirmware);
+        indexDocument(phoneIntegrationId, TYPE_PHONE_INTEGRATION, phoneType, phoneBrand, phoneSerialNr, phoneFirmware, clientId);
     }
 
     @Override
@@ -744,33 +744,33 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                              String accountId, String addressId) {
         String activeWord  = stillActive ? "active" : "inactive";
         String activeToken = stillActive ? "statusactive" : "statusinactive";
-        indexDocument(projectId, TYPE_PROJECT, projectSAPId, projectName, deploymentVariantId, bundleType,
-                String.valueOf(stillActive), activeWord, activeToken, accountId, addressId);
+        indexDocument(projectId, TYPE_PROJECT, projectName, bundleType,
+                String.valueOf(stillActive), activeWord, activeToken, projectSAPId, deploymentVariantId, accountId, addressId);
     }
 
     @Override
     public void indexRadio(String radioId, String siteId, String assignedClientId, String radioBrand, String radioSerialNr, String mode, String digitalStandard) {
-        indexDocument(radioId, TYPE_RADIO, siteId, assignedClientId, radioBrand, radioSerialNr, mode, digitalStandard);
+        indexDocument(radioId, TYPE_RADIO, radioBrand, radioSerialNr, mode, digitalStandard, siteId, assignedClientId);
     }
 
     @Override
     public void indexServer(String serverId, String siteId, String serverName, String serverBrand, String serverSerialNr, String serverOS,
                             String patchLevel, String virtualPlatform, String virtualVersion, boolean highAvailability) {
-        indexDocument(serverId, TYPE_SERVER, siteId, serverName, serverBrand, serverSerialNr, serverOS, patchLevel, virtualPlatform, virtualVersion, String.valueOf(highAvailability));
+        indexDocument(serverId, TYPE_SERVER, serverName, serverBrand, serverSerialNr, serverOS, patchLevel, virtualPlatform, virtualVersion, String.valueOf(highAvailability), siteId);
     }
 
     @Override
     public void indexServiceContract(String contractId, String accountId, String projectId, String siteId, String contractNumber, String status,
                                      String startDate, String endDate) {
         String statusToken = tokenWithPrefix("status", status);
-        indexDocument(contractId, TYPE_SERVICE_CONTRACT, accountId, projectId, siteId, contractNumber, status, statusToken, startDate, endDate);
+        indexDocument(contractId, TYPE_SERVICE_CONTRACT, contractNumber, status, statusToken, startDate, endDate, accountId, projectId, siteId);
     }
 
     @Override
     public void indexSite(String siteId, String projectId, String addressId, String siteName, String fireZone, Integer tenantCount) {
         String tenants = tenantCount != null ? tenantCount.toString() : "";
         String zoneToken = tokenWithPrefix("zone", fireZone);
-        indexDocument(siteId, TYPE_SITE, projectId, addressId, siteName, fireZone, zoneToken, tenants);
+        indexDocument(siteId, TYPE_SITE, siteName, fireZone, zoneToken, tenants, projectId, addressId);
     }
 
     @Override
@@ -782,7 +782,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     @Override
     public void indexUpgradePlan(String upgradePlanId, String siteId, String softwareId, String plannedWindowStart, String plannedWindowEnd,
                                  String status, String createdAt, String createdBy) {
-        indexDocument(upgradePlanId, TYPE_UPGRADE_PLAN, siteId, softwareId, plannedWindowStart, plannedWindowEnd, status, createdAt, createdBy);
+        indexDocument(upgradePlanId, TYPE_UPGRADE_PLAN, status, plannedWindowStart, plannedWindowEnd, createdAt, createdBy, siteId, softwareId);
     }
 
     private static class LicenseReadingException extends RuntimeException {

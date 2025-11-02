@@ -23,6 +23,14 @@
         }
         .section h2 .add-link{margin-left:auto}
         .add-link:focus,.add-link:hover{background:#2c64b5;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(44,100,181,.35)}
+        .nav-buttons{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+        .nav-buttons a{
+            display:inline-flex;align-items:center;gap:.4rem;padding:.48rem 1.05rem;border-radius:.55rem;
+            text-decoration:none;font-weight:600;font-size:.95rem;border:none;color:#fff;background:#0067c2;
+            transition:background .2s ease,color .2s ease,box-shadow .2s ease;
+            box-shadow:0 2px 4px rgba(15,23,42,.12);
+        }
+        .nav-buttons a:focus,.nav-buttons a:hover{background:#0054a6;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(0,103,194,.2)}
     </style>
 </head>
 <body>
@@ -39,7 +47,10 @@
 </header>
 
 <main id="main" style="max-width:1000px;margin:2rem auto">
-    <a id="back" href="index.html">← Back</a>
+    <div class="nav-buttons">
+        <a id="back-history" href="index.html">← Zurück</a>
+        <a id="back-dashboard" href="/index.html">Dashboard</a>
+    </div>
     <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">loading …</div>
 
     <!-- NEW: Parent relationships -->
@@ -87,6 +98,66 @@
     let detailStatusEl;
     let editButtonEl;
     const defaultDocumentTitle = document.title || 'Detail View';
+    const defaultDashboardHref = 'index.html';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const historyButton = document.getElementById('back-history');
+        if(!historyButton) return;
+
+        const dashboardButton = document.getElementById('back-dashboard');
+        const fallbackHref = dashboardButton?.getAttribute('href') || defaultDashboardHref;
+        historyButton.setAttribute('href', fallbackHref);
+
+        const referrer = document.referrer;
+        let shouldUseHistory = false;
+
+        if(referrer){
+            try{
+                const refUrl = new URL(referrer, window.location.href);
+                const pathMatches = refUrl.pathname.endsWith('/details.html');
+                const searchParams = refUrl.searchParams;
+                if(pathMatches && searchParams.has('type') && searchParams.has('id')){
+                    shouldUseHistory = true;
+                    historyButton.setAttribute('href', refUrl.href);
+                }
+            }catch(err){
+                shouldUseHistory = false;
+            }
+        }
+
+        if(shouldUseHistory){
+            historyButton.addEventListener('click', event => {
+                if(!shouldUseHistory){
+                    historyButton.setAttribute('href', fallbackHref);
+                    return;
+                }
+                if(window.history.length <= 1){
+                    historyButton.setAttribute('href', fallbackHref);
+                    shouldUseHistory = false;
+                    return;
+                }
+
+                event.preventDefault();
+
+                let fallbackTimer;
+                const cleanup = () => {
+                    if(fallbackTimer !== undefined){
+                        window.clearTimeout(fallbackTimer);
+                    }
+                    window.removeEventListener('popstate', cleanup);
+                };
+
+                fallbackTimer = window.setTimeout(() => {
+                    cleanup();
+                    window.location.href = fallbackHref;
+                }, 600);
+
+                window.addEventListener('popstate', cleanup);
+
+                window.history.back();
+            });
+        }
+    });
 
     function escapeHtml(value){
         const map = {
@@ -147,11 +218,20 @@
         return normalized;
     }
     function val(row, ...keys){
+        if(!row || typeof row !== 'object') return undefined;
         for(const k of keys){
-            if (row[k] !== undefined) return row[k];
-            const u = k.toUpperCase(), l = k.toLowerCase();
-            for (const kk in row) {
-                if (kk === u || kk === l) return row[kk];
+            if(k === undefined || k === null) continue;
+            const keyStr = String(k);
+            if(keyStr && Object.prototype.hasOwnProperty.call(row, keyStr) && row[keyStr] !== undefined){
+                return row[keyStr];
+            }
+            const upper = keyStr.toUpperCase();
+            const lower = keyStr.toLowerCase();
+            for(const kk in row){
+                if(kk === keyStr || kk === upper || kk === lower || kk.toLowerCase() === lower){
+                    const value = row[kk];
+                    if(value !== undefined) return value;
+                }
             }
         }
         return undefined;
@@ -604,6 +684,7 @@
         if(ctx.projectId) contextParts.push(`Project ${shortId(ctx.projectId).replace(/^##/, '#')}`);
         if(ctx.siteId) contextParts.push(`Site ${shortId(ctx.siteId).replace(/^##/, '#')}`);
         if(ctx.clientId) contextParts.push(`Client ${shortId(ctx.clientId).replace(/^##/, '#')}`);
+        if(ctx.cityId) contextParts.push(`City ${shortId(ctx.cityId).replace(/^##/, '#')}`);
         if(contextParts.length){
             return `Create new ${label} for ${contextParts.join(' and ')}`;
         }
@@ -1279,6 +1360,68 @@
                 }
                 if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
+        } else if (type === 'PhoneIntegration') {
+            const pills = [];
+            const clientId = val(row,'ClientID');
+            if (clientId != null) {
+                const client = await rowClient(clientId);
+                if (client) {
+                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
+                    const siteId = val(client,'SiteID');
+                    if (siteId != null) {
+                        const site = await rowSite(siteId);
+                        if (site) {
+                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
+                            const projId = val(site,'ProjectID');
+                            if (projId != null) {
+                                const proj = await rowProject(projId);
+                                if (proj) {
+                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
+                                    const accId = val(proj,'AccountID');
+                                    if (accId != null) {
+                                        const acc = await rowAccount(accId);
+                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
+        } else if (type === 'Country') {
+            const codeRaw = val(row, 'CountryCode') ?? id;
+            const normalizedCode = codeRaw ? String(codeRaw).toUpperCase() : '';
+            if (normalizedCode) {
+                const cityRows = await fetchJson(`/table/city?limit=200`);
+                if (Array.isArray(cityRows) && cityRows.length) {
+                    const pills = [];
+                    cityRows
+                        .filter(city => {
+                            const cityCountry = val(city, 'CountryCode');
+                            if (!cityCountry) return false;
+                            return String(cityCountry).toUpperCase() === normalizedCode;
+                        })
+                        .sort((a, b) => {
+                            const aName = val(a, 'CityName') ?? '';
+                            const bName = val(b, 'CityName') ?? '';
+                            return aName.toString().localeCompare(bName.toString(), undefined, { sensitivity: 'base' });
+                        })
+                        .forEach(city => {
+                            const cityId = val(city, 'CityID');
+                            if (!cityId) return;
+                            pills.push(pillLink(
+                                `/details.html?type=city&id=${encodeURIComponent(cityId)}`,
+                                'City',
+                                cityId,
+                                labelFor('city', city)
+                            ));
+                        });
+                    if (pills.length) {
+                        sections.push({ title: 'Belongs to', pills });
+                    }
+                }
+            }
         } else if (type === 'City') {
             const countryCode = val(row, 'CountryCode');
             if (countryCode != null) {
@@ -1533,6 +1676,18 @@
                 return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, null, pid, name);
             }, { entity: 'Project', label: 'Project', params: { deploymentVariantId: id } });
         }
+        else if(type==='City'){
+            const addressRows = await fetchJson(`/table/address?limit=200`);
+            const addresses = Array.isArray(addressRows)
+                ? addressRows.filter(a => (val(a,'CityID') ?? '').toString() === (id ?? '').toString())
+                    .filter(a => val(a,'AddressID') != null)
+                : [];
+            addSection(box, 'Addresses', addresses, address => {
+                const addressId = val(address,'AddressID');
+                const label = labelFor('address', address);
+                return pillLink(`/details.html?type=address&id=${encodeURIComponent(addressId)}`, label, addressId, null);
+            }, { entity: 'Address', label: 'Address', params: { cityId: id } });
+        }
         else if(type==='Site'){
             let projectId = val(row,'ProjectID');
             let accountId = val(row,'AccountID');
@@ -1550,9 +1705,9 @@
 
             const clients = await fetchJson(`/clients?siteId=${id}`);
             addSection(box, 'Clients', clients, c => {
-                const cid = val(c,'ClientID');
-                const name = val(c,'ClientName');
-                return pillLink(`/details.html?type=client&id=${encodeURIComponent(cid)}`, null, cid, name);
+                const cid = val(c,'ClientID','clientID','ClientId','WorkingPositionID');
+                const label = labelFor('client', c);
+                return pillLink(`/details.html?type=client&id=${encodeURIComponent(cid ?? '')}`, label, cid, null);
             }, { entity: 'WorkingPosition', label: 'Client', params: { accountId, projectId, siteId: id } });
 
             const radios = await fetchJson(`/radios?siteId=${id}`);

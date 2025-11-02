@@ -138,8 +138,8 @@
         Account: [
             { id: 'name', label: 'Name', component: 'input', name: 'AccountName' },
             { id: 'contact', label: 'Contact Person', component: 'input', name: 'ContactName', required: false },
-            { id: 'email', label: 'Email', component: 'input', name: 'ContactEmail', required: false },
-            { id: 'phone', label: 'Phone', component: 'input', name: 'ContactPhone', required: false },
+            { id: 'email', label: 'Email', component: 'input', name: 'ContactEmail', required: false, inputType: 'email', autocomplete: 'email', inputmode: 'email' },
+            { id: 'phone', label: 'Phone', component: 'input', name: 'ContactPhone', required: false, inputType: 'tel', pattern: '^[+0-9()\s-]{5,}$', inputmode: 'tel' },
             { id: 'vat', label: 'VAT ID', component: 'input', name: 'VatNumber', required: false },
             { id: 'country', label: 'Country', component: 'input', name: 'Country', required: false }
         ],
@@ -148,7 +148,7 @@
             { id: 'cityID', label: 'Select city', component: 'asyncSelect', source: 'cities', allowManual: false, placeholder: 'Select city', name: 'CityID' }
         ],
         AudioDevice: [
-            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', name: 'ClientID' },
+            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'AudioDeviceBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'DeviceSerialNr', required: false },
             { id: 'fw', label: 'Firmware', component: 'input', name: 'AudioDeviceFirmware', required: false },
@@ -174,7 +174,7 @@
             { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID' }
         ],
         PhoneIntegration: [
-            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', name: 'ClientID' },
+            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID' },
             { id: 'type', label: 'PhoneType', component: 'select', options: ['Emergency','NonEmergency','Both'], name: 'PhoneType' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'PhoneBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'PhoneSerialNr', required: false },
@@ -183,21 +183,21 @@
         Project: [
             { id: 'sap', label: 'SAP ID', component: 'input', name: 'ProjectSAPID', required: false },
             { id: 'pname', label: 'Project Name', component: 'input', name: 'ProjectName' },
-            { id: 'variantId', label: 'Select deployment variant', component: 'asyncSelect', source: 'deploymentVariants', placeholder: 'Select deployment variant', name: 'DeploymentVariantID' },
+            { id: 'variantId', label: 'Select deployment variant', component: 'asyncSelect', source: 'deploymentVariants', placeholder: 'Select deployment variant', allowManual: false, name: 'DeploymentVariantID' },
             { id: 'bundle', label: 'Bundle Type', component: 'input', name: 'BundleType', required: false },
-            { id: 'accId', label: 'Select account', component: 'asyncSelect', source: 'accounts', name: 'AccountID' },
+            { id: 'accId', label: 'Select account', component: 'asyncSelect', source: 'accounts', allowManual: false, name: 'AccountID' },
             { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' }
         ],
         Radio: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', name: 'SiteID' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'RadioBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'RadioSerialNr', required: false },
             { id: 'mode', label: 'Mode', component: 'select', options: ['Analog','Digital'], name: 'Mode' },
             { id: 'standard', label: 'Digital Standard', component: 'select', options: ['Airbus','Motorola','ESN','P25','Polycom','Teltronics'], name: 'DigitalStandard', required: false },
-            { id: 'client', label: 'AssignedClientID (UUID)', component: 'asyncSelect', source: 'clients', name: 'AssignedClientID', required: false, placeholder: 'Select client (optional)', dependsOn: 'siteId' }
+            { id: 'client', label: 'AssignedClientID (UUID)', component: 'asyncSelect', source: 'clients', allowManual: false, name: 'AssignedClientID', required: false, placeholder: 'Select client (optional)', dependsOn: 'siteId' }
         ],
         Server: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', name: 'SiteID' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
             { id: 'name', label: 'Server Name', component: 'input', name: 'ServerName' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'ServerBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ServerSerialNr', required: false },
@@ -217,7 +217,7 @@
             { id: 'endDate', label: 'End Date', component: 'input', inputType: 'date', name: 'EndDate' }
         ],
         Site: [
-            { id: 'pId', label: 'Select project', component: 'asyncSelect', source: 'projects', name: 'ProjectID' },
+            { id: 'pId', label: 'Select project', component: 'asyncSelect', source: 'projects', allowManual: false, name: 'ProjectID' },
             { id: 'name', label: 'Site Name', component: 'input', name: 'SiteName' },
             { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' },
             { id: 'zone', label: 'FireZone', component: 'input', name: 'FireZone', required: false },
@@ -243,7 +243,7 @@
             { id: 'createdBy', label: 'Created By', component: 'input', name: 'CreatedBy' }
         ],
         WorkingPosition: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', name: 'SiteID' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
             { id: 'name', label: 'Client Name', component: 'input', name: 'ClientName' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'ClientBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ClientSerialNr', required: false },
