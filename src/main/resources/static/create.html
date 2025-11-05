@@ -27,7 +27,15 @@
         .success{color:green}.error{color:red}
         .hidden{display:none}
         .entity-context{margin-top:1.5rem;padding:1rem;background:#e8f1ff;border-left:4px solid #2c64b5;border-radius:4px}
-        .entity-hint{margin:0;font-weight:600;color:#1f3d7a}
+        .entity-hint{margin:0;color:#1f3d7a}
+        .entity-context p{margin:.2rem 0 .6rem;line-height:1.45;font-weight:400}
+        .entity-context ul{margin:.3rem 0 .6rem 1.25rem;padding:0 0 0 1.25rem}
+        .entity-context li{margin-bottom:.35rem}
+        .entity-guidance__section-title{font-weight:600;color:#1f3d7a;margin:.6rem 0 .25rem}
+        .entity-guidance__field-label{font-weight:600;color:#1f3d7a}
+        .entity-guidance__hint{color:#2c64b5;display:inline-block;margin-left:.25rem}
+        .entity-guidance__notes{list-style:disc}
+        .entity-guidance__fields{list-style:disc}
     </style>
 </head>
 <body>
@@ -132,6 +140,13 @@
         .replace(/"/g,'&quot;')
         .replace(/</g,'&lt;')
         .replace(/>/g,'&gt;');
+
+    const escapeHtml=value=>String(value??'')
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
 
     const renderAttributes=attrs=>Object.entries(attrs)
         .map(([key,value])=>{
@@ -605,7 +620,7 @@
         return `<label class="form-field" for="${escapeAttr(id)}-input"><span class="form-field__label">${lbl}</span>${comboHtml}</label>`;
     };
 
-    const formConfig = window.FormConfig || {getFields:()=>[], asyncSources:{}, getMessage:()=>undefined};
+    const formConfig = window.FormConfig || {getFields:()=>[], getGuidance:()=>undefined, asyncSources:{}, getMessage:()=>undefined};
 
     let asyncSelectConfigs = {};
 
@@ -682,19 +697,78 @@
 
     function showEntityMessage(entityKey, context={}){
         if(!window.entityHint || !window.entityContext) return;
-        const base=formConfig.getMessage(entityKey)||`You are currently creating an entry for entity ${entityKey}.`;
-        const parts=[];
-        if(context.accountId) parts.push(`Account ${shortContextId(context.accountId)}`);
-        if(context.projectId) parts.push(`Project ${shortContextId(context.projectId)}`);
-        if(context.siteId) parts.push(`Site ${shortContextId(context.siteId)}`);
-        if(context.clientId) parts.push(`Client ${shortContextId(context.clientId)}`);
-        if(context.cityId) parts.push(`City ${shortContextId(context.cityId)}`);
-        let message=base;
-        if(parts.length){
-            const trimmed=base.endsWith('.')?base.slice(0,-1):base;
-            message=`${trimmed} for ${parts.join(' and ')}.`;
+        const guidance=formConfig.getGuidance?formConfig.getGuidance(entityKey):undefined;
+        const fields=(formConfig.getFields(entityKey)||[]).filter(Boolean);
+        const requiredFields=fields.filter(field=>field.required!==false);
+        const optionalFields=fields.filter(field=>field.required===false);
+        const dependentFields=fields.filter(field=>field.dependsOn);
+        const fieldHints=guidance?.fieldHints||{};
+
+        const formatField=field=>{
+            const label=field.label||field.id||field.name||'Field';
+            const keys=[field.id, field.name].filter(Boolean);
+            const hints=[];
+            if(field.hint) hints.push(field.hint);
+            keys.forEach(key=>{
+                if(key && fieldHints[key]) hints.push(fieldHints[key]);
+            });
+            const uniqueHints=[...new Set(hints.filter(Boolean))];
+            const hintMarkup=uniqueHints.length?`<span class="entity-guidance__hint">${uniqueHints.map(escapeHtml).join(' ')}</span>`:'';
+            return `<li><span class="entity-guidance__field-label">${escapeHtml(label)}</span>${hintMarkup}</li>`;
+        };
+
+        const htmlParts=[];
+        const summaryText=guidance?.summary||`You are currently creating an entry for entity ${entityKey}.`;
+        htmlParts.push(`<p>${escapeHtml(summaryText)}</p>`);
+
+        if(Array.isArray(guidance?.notes) && guidance.notes.length){
+            htmlParts.push('<ul class="entity-guidance__notes">');
+            guidance.notes.forEach(note=>{
+                htmlParts.push(`<li>${escapeHtml(note)}</li>`);
+            });
+            htmlParts.push('</ul>');
         }
-        entityHint.textContent=message;
+
+        const appendFieldList=(title, items)=>{
+            if(!items || !items.length) return;
+            htmlParts.push(`<p class="entity-guidance__section-title">${escapeHtml(title)}</p>`);
+            htmlParts.push('<ul class="entity-guidance__fields">');
+            items.forEach(item=>{
+                htmlParts.push(formatField(item));
+            });
+            htmlParts.push('</ul>');
+        };
+
+        appendFieldList('Required fields', requiredFields);
+        appendFieldList('Optional fields', optionalFields);
+
+        if(dependentFields.length){
+            htmlParts.push('<p class="entity-guidance__section-title">Field dependencies</p>');
+            htmlParts.push('<ul class="entity-guidance__fields">');
+            const dependencyDescriptions=dependentFields.map(field=>{
+                const dependentLabel=field.label||field.id||field.name||'Field';
+                const dependsOnKey=field.dependsOn;
+                const target=dependsOnKey?fields.find(item=>item.id===dependsOnKey||item.name===dependsOnKey):null;
+                const targetLabel=target?(target.label||target.id||target.name||dependsOnKey):dependsOnKey;
+                return targetLabel?`${dependentLabel} depends on ${targetLabel}`:`${dependentLabel} has dependencies`;
+            });
+            dependencyDescriptions.forEach(description=>{
+                htmlParts.push(`<li>${escapeHtml(description)}</li>`);
+            });
+            htmlParts.push('</ul>');
+        }
+
+        const contextParts=[];
+        if(context.accountId) contextParts.push(`Account ${shortContextId(context.accountId)}`);
+        if(context.projectId) contextParts.push(`Project ${shortContextId(context.projectId)}`);
+        if(context.siteId) contextParts.push(`Site ${shortContextId(context.siteId)}`);
+        if(context.clientId) contextParts.push(`Client ${shortContextId(context.clientId)}`);
+        if(context.cityId) contextParts.push(`City ${shortContextId(context.cityId)}`);
+        if(contextParts.length){
+            htmlParts.push(`<p>${escapeHtml(`Context: ${contextParts.join(' › ')}`)}</p>`);
+        }
+
+        entityHint.innerHTML=htmlParts.join('');
         entityContext.classList.remove('hidden');
         entityContext.removeAttribute('aria-hidden');
     }

@@ -1,6 +1,7 @@
 package at.htlle.freq.infrastructure.persistence;
 
 import at.htlle.freq.domain.Project;
+import at.htlle.freq.domain.ProjectLifecycleStatus;
 import at.htlle.freq.domain.ProjectRepository;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.*;
@@ -22,7 +23,7 @@ public class JdbcProjectRepository implements ProjectRepository {
             rs.getObject("DeploymentVariantID", UUID.class),
             rs.getString("BundleType"),
             rs.getString("CreateDateTime"),
-            rs.getBoolean("StillActive"),
+            ProjectLifecycleStatus.fromString(rs.getString("LifecycleStatus")),
             rs.getObject("AccountID", UUID.class),
             rs.getObject("AddressID", UUID.class)
     );
@@ -31,7 +32,7 @@ public class JdbcProjectRepository implements ProjectRepository {
     public Optional<Project> findById(UUID id) {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, StillActive, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID
             FROM Project WHERE ProjectID = :id
             """;
         try {
@@ -43,7 +44,7 @@ public class JdbcProjectRepository implements ProjectRepository {
     public Optional<Project> findBySapId(String sapId) {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, StillActive, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID
             FROM Project WHERE ProjectSAPID = :sap
             """;
         try {
@@ -55,7 +56,7 @@ public class JdbcProjectRepository implements ProjectRepository {
     public List<Project> findAll() {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, StillActive, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID
             FROM Project
             """;
         return jdbc.query(sql, mapper);
@@ -67,8 +68,8 @@ public class JdbcProjectRepository implements ProjectRepository {
         if (isNew) {
             String sql = """
                 INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                                     CreateDateTime, StillActive, AccountID, AddressID)
-                VALUES (:sap, :name, :dv, :bundle, :created, :active, :account, :address)
+                                     CreateDateTime, LifecycleStatus, AccountID, AddressID)
+                VALUES (:sap, :name, :dv, :bundle, :created, :status, :account, :address)
                 RETURNING ProjectID
                 """;
             var params = new MapSqlParameterSource()
@@ -77,7 +78,7 @@ public class JdbcProjectRepository implements ProjectRepository {
                     .addValue("dv",      p.getDeploymentVariantID())
                     .addValue("bundle",  p.getBundleType())
                     .addValue("created", p.getCreateDateTime())
-                    .addValue("active",  p.isStillActive())
+                    .addValue("status",  p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null)
                     .addValue("account", p.getAccountID())
                     .addValue("address", p.getAddressID());
             UUID id = jdbc.queryForObject(sql, params, UUID.class);
@@ -90,7 +91,7 @@ public class JdbcProjectRepository implements ProjectRepository {
                     DeploymentVariantID = :dv,
                     BundleType = :bundle,
                     CreateDateTime = :created,
-                    StillActive = :active,
+                    LifecycleStatus = :status,
                     AccountID = :account,
                     AddressID = :address
                 WHERE ProjectID = :id
@@ -102,7 +103,7 @@ public class JdbcProjectRepository implements ProjectRepository {
                     .addValue("dv",      p.getDeploymentVariantID())
                     .addValue("bundle",  p.getBundleType())
                     .addValue("created", p.getCreateDateTime())
-                    .addValue("active",  p.isStillActive())
+                    .addValue("status",  p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null)
                     .addValue("account", p.getAccountID())
                     .addValue("address", p.getAddressID());
             jdbc.update(sql, params);

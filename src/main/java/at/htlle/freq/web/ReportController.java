@@ -43,8 +43,9 @@ public class ReportController {
                                         @RequestParam(name = "from", required = false) String from,
                                         @RequestParam(name = "to", required = false) String to,
                                         @RequestParam(name = "query", required = false) String query,
-                                        @RequestParam(name = "variant", required = false) String variant) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant);
+                                        @RequestParam(name = "variant", required = false) String variant,
+                                        @RequestParam(name = "installStatus", required = false) String installStatus) {
+        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
         return reportService.getReport(filter);
     }
 
@@ -54,8 +55,9 @@ public class ReportController {
                                                        @RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
                                                        @RequestParam(name = "query", required = false) String query,
-                                                       @RequestParam(name = "variant", required = false) String variant) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant);
+                                                       @RequestParam(name = "variant", required = false) String variant,
+                                                       @RequestParam(name = "installStatus", required = false) String installStatus) {
+        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
         ReportResponse response = reportService.getReport(filter);
         String csv = reportService.renderCsv(response);
         byte[] data = csv.getBytes(StandardCharsets.UTF_8);
@@ -73,8 +75,9 @@ public class ReportController {
                                                        @RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
                                                        @RequestParam(name = "query", required = false) String query,
-                                                       @RequestParam(name = "variant", required = false) String variant) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant);
+                                                       @RequestParam(name = "variant", required = false) String variant,
+                                                       @RequestParam(name = "installStatus", required = false) String installStatus) {
+        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
         ReportResponse response = reportService.getReport(filter);
         byte[] pdf = reportService.renderPdf(response);
         ByteArrayResource resource = new ByteArrayResource(pdf);
@@ -86,7 +89,7 @@ public class ReportController {
     }
 
     private ReportFilter buildFilter(String typeParam, String periodParam, String from, String to,
-                                     String query, String variant) {
+                                     String query, String variant, String installStatus) {
         ReportType type;
         try {
             type = ReportType.fromParameter(typeParam);
@@ -105,7 +108,8 @@ public class ReportController {
                 range.from,
                 range.to,
                 sanitize(query),
-                sanitize(variant)
+                sanitize(variant),
+                sanitize(installStatus)
         );
     }
 

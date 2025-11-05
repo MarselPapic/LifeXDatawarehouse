@@ -2,6 +2,9 @@ package at.htlle.freq.domain;
 
 import org.junit.jupiter.api.Test;
 
+import at.htlle.freq.domain.ProjectLifecycleStatus;
+import at.htlle.freq.domain.InstalledSoftwareStatus;
+
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,6 +54,7 @@ class DomainFactoryTest {
         InstalledSoftware installedSoftware = installedSoftwareFactory.create(UUID1, UUID2);
         assertEquals(UUID1, installedSoftware.getSiteID());
         assertEquals(UUID2, installedSoftware.getSoftwareID());
+        assertEquals(InstalledSoftwareStatus.ACTIVE.dbValue(), installedSoftware.getStatus());
 
         PhoneIntegrationFactory phoneIntegrationFactory = new PhoneIntegrationFactory();
         PhoneIntegration phoneIntegration = phoneIntegrationFactory.create(UUID1, "TYPE", "Brand", "SN", "FW");
@@ -58,9 +62,9 @@ class DomainFactoryTest {
         assertEquals("TYPE", phoneIntegration.getPhoneType());
 
         ProjectFactory projectFactory = new ProjectFactory();
-        Project project = projectFactory.create("SAP", "Project", UUID1, "Bundle", "2024-01-01", true, UUID1, UUID2);
+        Project project = projectFactory.create("SAP", "Project", UUID1, "Bundle", "2024-01-01", ProjectLifecycleStatus.ACTIVE, UUID1, UUID2);
         assertEquals("SAP", project.getProjectSAPID());
-        assertTrue(project.isStillActive());
+        assertEquals(ProjectLifecycleStatus.ACTIVE, project.getLifecycleStatus());
 
         RadioFactory radioFactory = new RadioFactory();
         Radio radio = radioFactory.create(UUID1, UUID2, "Brand", "SN", "MODE", "STANDARD");

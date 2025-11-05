@@ -23,6 +23,11 @@
         }
         .section h2 .add-link{margin-left:auto}
         .add-link:focus,.add-link:hover{background:#2c64b5;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(44,100,181,.35)}
+        .status-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .55rem;border-radius:999px;font-size:.82rem;font-weight:600;border:1px solid transparent;}
+        .status-badge--planned{background:#eef2ff;border-color:#c7d2fe;color:#3730a3;}
+        .status-badge--active{background:#ecfdf5;border-color:#a7f3d0;color:#047857;}
+        .status-badge--maintenance{background:#fff7ed;border-color:#fed7aa;color:#c2410c;}
+        .status-badge--retired{background:#f5f5f5;border-color:#d4d4d4;color:#52525b;}
         .nav-buttons{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
         .nav-buttons a{
             display:inline-flex;align-items:center;gap:.4rem;padding:.48rem 1.05rem;border-radius:.55rem;
@@ -60,6 +65,7 @@
     <div id="children"></div>
 </main>
 
+<script src="/js/entity-type-map.js"></script>
 <script src="/js/form-config.js"></script>
 <script>
     /* -------------------- Helpers -------------------- */
@@ -81,6 +87,31 @@
         UpgradePlan: 'UpgradePlanID',
         ServiceContract: 'ContractID'
     };
+
+    const LIFECYCLE_STATUS_DISPLAY = {
+        PLANNED: { label: 'Planned', tone: 'planned' },
+        ACTIVE: { label: 'Active', tone: 'active' },
+        MAINTENANCE: { label: 'Maintenance', tone: 'maintenance' },
+        RETIRED: { label: 'Retired', tone: 'retired' }
+    };
+
+    const ALLOWED_AUDIO_DEVICE_TYPES = new Set(['HEADSET','SPEAKER','MIC']);
+
+    function normalizeLifecycleStatus(value){
+        return (value ?? '').toString().trim().toUpperCase();
+    }
+
+    function renderLifecycleStatusBadge(value){
+        const normalized = normalizeLifecycleStatus(value);
+        const entry = LIFECYCLE_STATUS_DISPLAY[normalized];
+        if(!entry){
+            const raw = value === null || value === undefined ? '' : String(value);
+            return escapeHtml(raw);
+        }
+        return `<span class="status-badge status-badge--${entry.tone}">${escapeHtml(entry.label)}</span>`;
+    }
+
+
 
     let currentRow = null;
     let currentTable = null;
@@ -189,7 +220,11 @@
         const display = shortId(full);
         return `<span class="id-chip" title="${escapeHtml(full)}">${escapeHtml(display)}</span>`;
     }
+    const entityTypeRegistry = window.EntityTypeRegistry || null;
     function tableForType(t){
+        if(entityTypeRegistry && typeof entityTypeRegistry.canonicalTableForType === 'function'){
+            return entityTypeRegistry.canonicalTableForType(t);
+        }
         const s=(t||'').toLowerCase();
         switch(s){
             case 'account': return 'Account';
@@ -212,6 +247,9 @@
         }
     }
     function configKeyForTable(table){
+        if(entityTypeRegistry && typeof entityTypeRegistry.canonicalConfigKeyForTable === 'function'){
+            return entityTypeRegistry.canonicalConfigKeyForTable(table);
+        }
         const normalized = tableForType(table);
         if(!normalized) return null;
         if(normalized === 'Clients') return 'WorkingPosition';
@@ -613,6 +651,59 @@
         });
     }
 
+    function detailApplyValidationMessages(form){
+        const inputs=form ? Array.from(form.querySelectorAll('input')) : [];
+        inputs.forEach(input=>{
+            if(!input) return;
+            if(input.type==='hidden') return;
+
+            const patternAttr=input.getAttribute('pattern');
+            let matchesCountryPattern=false;
+            if(patternAttr){
+                try{
+                    const tester=new RegExp(patternAttr);
+                    matchesCountryPattern=tester.test('AA') && !tester.test('AAA');
+                }catch(_){
+                    matchesCountryPattern=false;
+                }
+            }
+
+            const shouldHandle=(()=>{
+                if(input.required) return true;
+                if(['email','tel'].includes(input.type)) return true;
+                if(['email','phone','countryCode'].includes(input.id)) return true;
+                if(matchesCountryPattern) return true;
+                return false;
+            })();
+            if(!shouldHandle) return;
+
+            const getMessage=()=>{
+                const {validity}=input;
+                if(!validity) return '';
+                if(validity.valueMissing){
+                    return 'Please fill out this field.';
+                }
+                if((validity.typeMismatch||validity.patternMismatch)&&(input.type==='email'||input.id==='email')){
+                    return 'Please enter a valid email address.';
+                }
+                if((validity.typeMismatch||validity.patternMismatch)&&(input.type==='tel'||input.id==='phone')){
+                    return 'Please enter a valid phone number (digits, spaces, and common separators are allowed).';
+                }
+                if(validity.patternMismatch&&(input.id==='countryCode'||matchesCountryPattern)){
+                    return 'Please enter a two-letter country code.';
+                }
+                return '';
+            };
+
+            input.addEventListener('invalid',()=>{
+                input.setCustomValidity(getMessage());
+            });
+            input.addEventListener('input',()=>{
+                input.setCustomValidity('');
+            });
+        });
+    }
+
     function labelFor(type, row){
         switch((type||'').toLowerCase()){
             case 'account': return `${val(row,'AccountName') ?? 'Account'}`;
@@ -915,8 +1006,15 @@
         const { captionText } = updateHeading();
         const entries = Object.entries(row || {});
         const kvRows = entries.map(([k,v]) => {
-            const cellValue = v === null || v === undefined ? '' : escapeHtml(String(v));
-            return `<tr><th scope="row" class="key">${escapeHtml(k)}</th><td>${cellValue}</td></tr>`;
+            const keyLabel = escapeHtml(k);
+            const normalizedKey = (k ?? '').toString().trim().toLowerCase();
+            let cellHtml;
+            if(normalizedKey === 'lifecyclestatus'){
+                cellHtml = renderLifecycleStatusBadge(v);
+            }else{
+                cellHtml = v === null || v === undefined ? '' : escapeHtml(String(v));
+            }
+            return `<tr><th scope="row" class="key">${keyLabel}</th><td>${cellHtml}</td></tr>`;
         }).join('');
         detailBodyEl.innerHTML = `<table id="kv">
   <caption class="visually-hidden">Fields for ${escapeHtml(captionText)}</caption>
@@ -1082,6 +1180,7 @@
 
         detailInitializeAsyncSelects(form);
         detailApplyInputEnhancements(form);
+        detailApplyValidationMessages(form);
 
         const focusTarget = form.querySelector('input:not([readonly]), select, textarea');
         if(focusTarget){
@@ -1195,6 +1294,19 @@
             const end = payload.EndDate;
             if(start && end && start > end){
                 if(fail('End date cannot be before the start date.')) return;
+            }
+        }else if(entityKey === 'AudioDevice'){
+            if(Object.prototype.hasOwnProperty.call(payload, 'DeviceType') || Object.prototype.hasOwnProperty.call(payload, 'deviceType')){
+                const raw = payload.DeviceType ?? payload.deviceType;
+                if(raw === null || raw === undefined || raw === ''){
+                    if(fail('DeviceType must be one of HEADSET, SPEAKER, MIC.')) return;
+                }else{
+                    const normalized = String(raw).trim().toUpperCase();
+                    if(!ALLOWED_AUDIO_DEVICE_TYPES.has(normalized)){
+                        if(fail('DeviceType must be one of HEADSET, SPEAKER, MIC.')) return;
+                    }
+                    payload.DeviceType = normalized;
+                }
             }
         }
 

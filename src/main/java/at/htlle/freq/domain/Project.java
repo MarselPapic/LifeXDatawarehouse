@@ -9,13 +9,13 @@ public class Project {
     private UUID deploymentVariantID;
     private String bundleType;
     private String createDateTime; // ggf. später auf LocalDate/Time ändern
-    private boolean stillActive;
+    private ProjectLifecycleStatus lifecycleStatus;
     private UUID accountID;
     private UUID addressID;
 
     public Project() {}
     public Project(UUID projectID, String projectSAPID, String projectName, UUID deploymentVariantID,
-                   String bundleType, String createDateTime, boolean stillActive,
+                   String bundleType, String createDateTime, ProjectLifecycleStatus lifecycleStatus,
                    UUID accountID, UUID addressID) {
         this.projectID = projectID;
         this.projectSAPID = projectSAPID;
@@ -23,7 +23,7 @@ public class Project {
         this.deploymentVariantID = deploymentVariantID;
         this.bundleType = bundleType;
         this.createDateTime = createDateTime;
-        this.stillActive = stillActive;
+        this.lifecycleStatus = lifecycleStatus;
         this.accountID = accountID;
         this.addressID = addressID;
     }
@@ -46,8 +46,8 @@ public class Project {
     public String getCreateDateTime() { return createDateTime; }
     public void setCreateDateTime(String createDateTime) { this.createDateTime = createDateTime; }
 
-    public boolean isStillActive() { return stillActive; }
-    public void setStillActive(boolean stillActive) { this.stillActive = stillActive; }
+    public ProjectLifecycleStatus getLifecycleStatus() { return lifecycleStatus; }
+    public void setLifecycleStatus(ProjectLifecycleStatus lifecycleStatus) { this.lifecycleStatus = lifecycleStatus; }
 
     public UUID getAccountID() { return accountID; }
     public void setAccountID(UUID accountID) { this.accountID = accountID; }

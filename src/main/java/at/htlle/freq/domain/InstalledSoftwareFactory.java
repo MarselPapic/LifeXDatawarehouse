@@ -6,6 +6,6 @@ import java.util.UUID;
 @Component
 public class InstalledSoftwareFactory {
     public InstalledSoftware create(UUID siteID, UUID softwareID) {
-        return new InstalledSoftware(null, siteID, softwareID);
+        return new InstalledSoftware(null, siteID, softwareID, InstalledSoftwareStatus.ACTIVE.dbValue());
     }
 }

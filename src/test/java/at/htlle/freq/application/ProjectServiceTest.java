@@ -1,6 +1,7 @@
 package at.htlle.freq.application;
 
 import at.htlle.freq.domain.Project;
+import at.htlle.freq.domain.ProjectLifecycleStatus;
 import at.htlle.freq.domain.ProjectRepository;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +66,7 @@ class ProjectServiceTest {
 
         Project saved = service.createOrUpdateProject(value);
         assertSame(value, saved);
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq(true), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
     }
 
     @Test
@@ -77,18 +78,18 @@ class ProjectServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq(true), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
     }
 
     @Test
     void createProjectContinuesWhenLuceneFails() {
         Project value = project();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexProject(any(), any(), any(), any(), any(), anyBoolean(), any(), any());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexProject(any(), any(), any(), any(), any(), any(), any(), any());
 
         Project saved = service.createOrUpdateProject(value);
         assertSame(value, saved);
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq(true), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
     }
 
     @Test
@@ -103,7 +104,7 @@ class ProjectServiceTest {
         patch.setDeploymentVariantID(UUID.randomUUID());
         patch.setBundleType("New Bundle");
         patch.setCreateDateTime("2024-02-01");
-        patch.setStillActive(false);
+        patch.setLifecycleStatus(ProjectLifecycleStatus.RETIRED);
         patch.setAccountID(UUID.randomUUID());
         patch.setAddressID(UUID.randomUUID());
 
@@ -112,11 +113,11 @@ class ProjectServiceTest {
             assertTrue(updated.isPresent());
             assertEquals("SAP-NEW", existing.getProjectSAPID());
             assertEquals("New Project", existing.getProjectName());
-            assertFalse(existing.isStillActive());
+            assertEquals(ProjectLifecycleStatus.RETIRED, existing.getLifecycleStatus());
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-NEW"), eq("New Project"), eq(existing.getDeploymentVariantID().toString()), eq("New Bundle"), eq(false), eq(existing.getAccountID().toString()), eq(existing.getAddressID().toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-NEW"), eq("New Project"), eq(existing.getDeploymentVariantID().toString()), eq("New Bundle"), eq("RETIRED"), eq(existing.getAccountID().toString()), eq(existing.getAddressID().toString()));
     }
 
     @Test

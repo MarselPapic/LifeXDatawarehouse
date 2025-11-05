@@ -15,7 +15,7 @@ class ReportControllerMaintenanceIntegrationTest {
 
     @Test
     void maintenanceReportDefaultQuarterHasEntries() {
-        ReportResponse response = reportController.getReportData("maintenance", null, null, null, null, null);
+        ReportResponse response = reportController.getReportData("maintenance", null, null, null, null, null, null);
         assertThat(response.table().rows()).isNotEmpty();
     }
 }

@@ -8,7 +8,8 @@ public record ReportFilter(
         LocalDate from,
         LocalDate to,
         String query,
-        String variantCode
+        String variantCode,
+        String installStatus
 ) {
     public boolean hasDateRange() {
         return from != null && to != null;

@@ -6,5 +6,6 @@ import java.util.Map;
 public record ReportOptions(
         List<ReportTypeInfo> types,
         List<VariantOption> variants,
-        Map<String, String> periods
+        Map<String, String> periods,
+        List<StatusOption> installStatuses
 ) {}

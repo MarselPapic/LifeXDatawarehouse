@@ -115,7 +115,8 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                         lucene.indexInstalledSoftware(
                                 is.getInstalledSoftwareID() != null ? is.getInstalledSoftwareID().toString() : null,
                                 is.getSiteID() != null ? is.getSiteID().toString() : null,
-                                is.getSoftwareID() != null ? is.getSoftwareID().toString() : null
+                                is.getSoftwareID() != null ? is.getSoftwareID().toString() : null,
+                                is.getStatus()
                         );
                         return;
                     }
@@ -139,7 +140,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 p.getProjectName(),
                                 p.getDeploymentVariantID() != null ? p.getDeploymentVariantID().toString() : null,
                                 p.getBundleType(),
-                                p.isStillActive(),
+                                p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null,
                                 p.getAccountID() != null ? p.getAccountID().toString() : null,
                                 p.getAddressID() != null ? p.getAddressID().toString() : null
                         );

@@ -1,6 +1,7 @@
 package at.htlle.freq.application;
 
 import at.htlle.freq.domain.*;
+import at.htlle.freq.domain.ProjectLifecycleStatus;
 
 import java.util.UUID;
 
@@ -36,7 +37,7 @@ final class TestFixtures {
     }
 
     static Project project() {
-        return new Project(UUID3, "SAP-1", "Project", UUID2, "Bundle", "2024-01-01", true, UUID4, UUID5);
+        return new Project(UUID3, "SAP-1", "Project", UUID2, "Bundle", "2024-01-01", ProjectLifecycleStatus.ACTIVE, UUID4, UUID5);
     }
 
     static Site site() {
@@ -66,7 +67,7 @@ final class TestFixtures {
     }
 
     static InstalledSoftware installedSoftware() {
-        return new InstalledSoftware(UUID2, UUID4, UUID5);
+        return new InstalledSoftware(UUID2, UUID4, UUID5, InstalledSoftwareStatus.ACTIVE.dbValue());
     }
 
     static ServiceContract serviceContract() {

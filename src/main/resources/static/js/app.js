@@ -91,6 +91,15 @@ function parseBool(value){
     return ['true','1','yes','y','ja','wahr'].includes(normalized);
 }
 
+function normalizeLifecycleStatus(value){
+    return (value ?? '').toString().trim().toUpperCase();
+}
+
+function isLifecycleStatusOperational(value){
+    const status = normalizeLifecycleStatus(value);
+    return status === 'ACTIVE' || status === 'MAINTENANCE';
+}
+
 function formatDateLabel(value){
     if (value === null || value === undefined) return '';
     const str = String(value).trim();
@@ -126,7 +135,7 @@ async function loadShortcutItems(kind){
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const rows = await res.json();
             return rows
-                .filter(row => parseBool(val(row,'StillActive','stillActive','still_active')))
+                .filter(row => isLifecycleStatusOperational(val(row,'LifecycleStatus','lifecycleStatus','lifecycle_status')))
                 .map(row => {
                     const id       = val(row,'ProjectID');
                     const name     = val(row,'ProjectName');
@@ -276,12 +285,17 @@ function buildUserQuery(raw){
 }
 
 /* ===================== Ergebnis-Vorschau (Anreicherung) ===================== */
+const entityTypeRegistry = window.EntityTypeRegistry || null;
+
 function normalizeTypeKey(value) {
+    if (entityTypeRegistry && typeof entityTypeRegistry.normalizeTypeKey === 'function') {
+        return entityTypeRegistry.normalizeTypeKey(value);
+    }
     if (value === undefined || value === null) return '';
     return String(value).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-const ENTITY_TYPE_MAP = {
+const ENTITY_TYPE_MAP = entityTypeRegistry?.ENTITY_TYPE_MAP || {
     account: { detailType: 'account', typeToken: 'type:account', table: 'Account', aliases: ['account', 'accounts'] },
     project: { detailType: 'project', typeToken: 'type:project', table: 'Project', aliases: ['project', 'projects'] },
     site:    { detailType: 'site',    typeToken: 'type:site',    table: 'Site',    aliases: ['site', 'sites'] },
@@ -325,14 +339,17 @@ const ENTITY_TYPE_MAP = {
     },
 };
 
-const TABLE_NAME_LOOKUP = {};
-Object.entries(ENTITY_TYPE_MAP).forEach(([key, info]) => {
-    const aliases = new Set([key, info.table, info.detailType, ...(info.aliases || [])]);
-    aliases.forEach(alias => {
-        const normalized = normalizeTypeKey(alias);
-        if (normalized) TABLE_NAME_LOOKUP[normalized] = info;
+const TABLE_NAME_LOOKUP = entityTypeRegistry?.TABLE_NAME_LOOKUP || (() => {
+    const lookup = {};
+    Object.entries(ENTITY_TYPE_MAP).forEach(([key, info]) => {
+        const aliases = new Set([key, info.table, info.detailType, ...(info.aliases || [])]);
+        aliases.forEach(alias => {
+            const normalized = normalizeTypeKey(alias);
+            if (normalized) lookup[normalized] = info;
+        });
     });
-});
+    return lookup;
+})();
 
 const COLUMN_DETAIL_TYPE_OVERRIDE_SUFFIXES = [
     ['deploymentvariantguid', 'deploymentvariant'],
@@ -357,6 +374,9 @@ const COLUMN_DETAIL_TYPE_OVERRIDE_SUFFIXES = [
     ['installedsoftwareid', 'installedsoftware'],
     ['softwareguid', 'software'],
     ['softwareid', 'software'],
+    ['countrycode', 'country'],
+    ['countryid', 'country'],
+    ['cityid', 'city'],
 ];
 
 function resolveColumnDetailType(columnName, fallbackDetailType) {
@@ -380,6 +400,9 @@ function getTypeTokenForDetailType(detailType) {
 }
 
 function tableForType(t){
+    if (entityTypeRegistry && typeof entityTypeRegistry.canonicalTableForType === 'function') {
+        return entityTypeRegistry.canonicalTableForType(t);
+    }
     const key = normalizeTypeKey(t);
     const info = ENTITY_TYPE_MAP[key];
     if (info && info.table) return info.table;
@@ -764,6 +787,13 @@ function tableQuickFilterQuery(typeToken, columnKey, rawValue) {
     if (/^stillactive$/i.test(column)) {
         const active = parseBool(rawValue);
         const statusToken = active ? 'statusactive' : 'statusinactive';
+        return typeFilter ? `${typeFilter} AND ${statusToken}` : statusToken;
+    }
+
+    if (/^status$/i.test(column)) {
+        const normalized = raw.replace(/[^a-z0-9]+/gi, '').toLowerCase();
+        if (!normalized) return null;
+        const statusToken = `status${normalized}`;
         return typeFilter ? `${typeFilter} AND ${statusToken}` : statusToken;
     }
 

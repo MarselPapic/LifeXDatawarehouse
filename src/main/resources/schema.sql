@@ -86,7 +86,7 @@ CREATE TABLE Project (
                          DeploymentVariantID UUID NOT NULL,
                          BundleType          VARCHAR(50),
                          CreateDateTime      DATE,
-                         StillActive         BOOLEAN NOT NULL,
+                         LifecycleStatus     VARCHAR(20) NOT NULL,
                          AccountID           UUID NOT NULL,
                          AddressID           UUID NOT NULL,
                          CONSTRAINT uq_project_sap UNIQUE (ProjectSAPID),
@@ -229,10 +229,12 @@ CREATE TABLE InstalledSoftware (
                                    InstalledSoftwareID UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
                                    SiteID              UUID NOT NULL,
                                    SoftwareID          UUID NOT NULL,
+                                   Status              VARCHAR(12) NOT NULL DEFAULT 'Active',
                                    CONSTRAINT fk_instsw_site FOREIGN KEY (SiteID)
                                        REFERENCES Site(SiteID),
                                    CONSTRAINT fk_instsw_software FOREIGN KEY (SoftwareID)
-                                       REFERENCES Software(SoftwareID)
+                                       REFERENCES Software(SoftwareID),
+                                   CONSTRAINT ck_instsw_status CHECK (Status IN ('Active','Pending','Retired'))
 );
 
 -- =========================================================

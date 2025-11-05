@@ -35,7 +35,7 @@ class ReportControllerTest {
         LocalDate fixedToday = LocalDate.of(2024, 8, 15);
         try (MockedStatic<LocalDate> mockedLocalDate = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
             mockedLocalDate.when(LocalDate::now).thenReturn(fixedToday);
-            controller.getReportData("maintenance", null, null, null, null, null);
+            controller.getReportData("maintenance", null, null, null, null, null, null);
         }
 
         ReportFilter filter = captured.get();

@@ -10,10 +10,10 @@ public class ProjectFactory {
                           UUID deploymentVariantID,
                           String bundleType,
                           String createDateTime,
-                          boolean stillActive,
+                          ProjectLifecycleStatus lifecycleStatus,
                           UUID accountID,
                           UUID addressID) {
         return new Project(null, projectSAPID, projectName, deploymentVariantID, bundleType,
-                createDateTime, stillActive, accountID, addressID);
+                createDateTime, lifecycleStatus, accountID, addressID);
     }
 }

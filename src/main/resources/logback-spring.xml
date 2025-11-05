@@ -23,7 +23,23 @@
         <appender-ref ref="CONSOLE"/>
     </logger>
 
+    <logger name="at.htlle.freq.infrastructure" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="at.htlle.freq.web" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="at.htlle.freq.domain" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="AUDIT"/>
     </root>
 </configuration>

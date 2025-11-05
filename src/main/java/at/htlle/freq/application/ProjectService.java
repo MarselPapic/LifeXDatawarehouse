@@ -2,6 +2,7 @@
 package at.htlle.freq.application;
 
 import at.htlle.freq.domain.Project;
+import at.htlle.freq.domain.ProjectLifecycleStatus;
 import at.htlle.freq.domain.ProjectRepository;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.slf4j.Logger;
@@ -52,6 +53,9 @@ public class ProjectService {
             throw new IllegalArgumentException("ProjectName is required");
         if (isBlank(incoming.getProjectSAPID()))
             throw new IllegalArgumentException("ProjectSAPID is required");
+        if (incoming.getLifecycleStatus() == null) {
+            incoming.setLifecycleStatus(ProjectLifecycleStatus.ACTIVE);
+        }
 
         Project saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
@@ -73,7 +77,7 @@ public class ProjectService {
                     patch.getDeploymentVariantID() != null ? patch.getDeploymentVariantID() : existing.getDeploymentVariantID());
             existing.setBundleType(nvl(patch.getBundleType(), existing.getBundleType()));
             existing.setCreateDateTime(nvl(patch.getCreateDateTime(), existing.getCreateDateTime()));
-            existing.setStillActive(patch.isStillActive());
+            existing.setLifecycleStatus(patch.getLifecycleStatus() != null ? patch.getLifecycleStatus() : existing.getLifecycleStatus());
             existing.setAccountID(patch.getAccountID() != null ? patch.getAccountID() : existing.getAccountID());
             existing.setAddressID(patch.getAddressID() != null ? patch.getAddressID() : existing.getAddressID());
 
@@ -117,7 +121,7 @@ public class ProjectService {
                     p.getProjectName(),
                     p.getDeploymentVariantID() != null ? p.getDeploymentVariantID().toString() : null,
                     p.getBundleType(),
-                    p.isStillActive(),
+                    p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null,
                     p.getAccountID() != null ? p.getAccountID().toString() : null,
                     p.getAddressID() != null ? p.getAddressID().toString() : null
             );

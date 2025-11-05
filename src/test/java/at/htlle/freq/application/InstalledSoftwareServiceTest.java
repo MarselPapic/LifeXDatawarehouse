@@ -2,6 +2,7 @@ package at.htlle.freq.application;
 
 import at.htlle.freq.domain.InstalledSoftware;
 import at.htlle.freq.domain.InstalledSoftwareRepository;
+import at.htlle.freq.domain.InstalledSoftwareStatus;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,7 +69,8 @@ class InstalledSoftwareServiceTest {
 
         InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
         assertSame(value, saved);
-        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
+                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
     }
 
     @Test
@@ -80,18 +82,45 @@ class InstalledSoftwareServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
+                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
     }
 
     @Test
     void createInstalledSoftwareContinuesWhenLuceneFails() {
         InstalledSoftware value = installedSoftware();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexInstalledSoftware(any(), any(), any());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexInstalledSoftware(any(), any(), any(), any());
 
         InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
         assertSame(value, saved);
-        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
+                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+    }
+
+    @Test
+    void createInstalledSoftwareDefaultsStatusWhenMissing() {
+        InstalledSoftware value = new InstalledSoftware();
+        value.setSiteID(UUID4);
+        value.setSoftwareID(UUID5);
+        when(repo.save(any())).thenAnswer(invocation -> {
+            InstalledSoftware arg = invocation.getArgument(0);
+            arg.setInstalledSoftwareID(UUID2);
+            return arg;
+        });
+
+        InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
+        assertEquals(InstalledSoftwareStatus.ACTIVE.dbValue(), saved.getStatus());
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
+                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+    }
+
+    @Test
+    void createInstalledSoftwareRejectsInvalidStatus() {
+        InstalledSoftware value = installedSoftware();
+        value.setStatus("Invalid");
+        assertThrows(IllegalArgumentException.class, () -> service.createOrUpdateInstalledSoftware(value));
+        verifyNoInteractions(repo);
     }
 
     @Test
@@ -112,7 +141,28 @@ class InstalledSoftwareServiceTest {
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(existing.getSiteID().toString()), eq(existing.getSoftwareID().toString()));
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(existing.getSiteID().toString()),
+                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+    }
+
+    @Test
+    void updateInstalledSoftwareUpdatesStatusWhenProvided() {
+        InstalledSoftware existing = installedSoftware();
+        when(repo.findById(UUID2)).thenReturn(Optional.of(existing));
+        when(repo.save(existing)).thenReturn(existing);
+
+        InstalledSoftware patch = new InstalledSoftware();
+        patch.setStatus("retired");
+
+        List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
+            Optional<InstalledSoftware> updated = service.updateInstalledSoftware(UUID2, patch);
+            assertTrue(updated.isPresent());
+            assertEquals(InstalledSoftwareStatus.RETIRED.dbValue(), updated.get().getStatus());
+        });
+        synchronizations.forEach(TransactionSynchronization::afterCommit);
+
+        verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(existing.getSiteID().toString()),
+                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.RETIRED.dbValue()));
     }
 
     @Test

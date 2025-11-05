@@ -45,7 +45,7 @@ class LuceneIndexServiceImplTest {
     @Test
     void indexAndSearchRoundTrip() throws Exception {
         service.indexAccount("acc-1", "Acme", "Austria", "contact@acme.test");
-        service.indexProject("proj-1", "SAP-1", "HQ", null, null, true, null, null);
+        service.indexProject("proj-1", "SAP-1", "HQ", null, null, "ACTIVE", null, null);
 
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("acme"));

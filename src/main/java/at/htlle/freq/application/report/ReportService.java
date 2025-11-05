@@ -1,5 +1,6 @@
 package at.htlle.freq.application.report;
 
+import at.htlle.freq.domain.InstalledSoftwareStatus;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -55,7 +56,11 @@ public class ReportService {
                 .map(t -> new ReportTypeInfo(t.name(), t.label(), t.description()))
                 .toList();
 
-        return new ReportOptions(types, variants, defaultPeriods());
+        List<StatusOption> installStatuses = Arrays.stream(InstalledSoftwareStatus.values())
+                .map(status -> new StatusOption(status.dbValue(), status.label()))
+                .toList();
+
+        return new ReportOptions(types, variants, defaultPeriods(), installStatuses);
     }
 
     private Map<String, String> defaultPeriods() {
@@ -190,6 +195,7 @@ public class ReportService {
                 sw.Release AS current_release,
                 sw.Revision AS current_revision,
                 sw.SupportEndDate AS support_end,
+                ins.Status AS install_status,
                 ld.target_release,
                 ld.target_revision,
                 ld.target_support_end,
@@ -209,6 +215,10 @@ public class ReportService {
             sql.append(" AND dv.VariantCode = :variantCode");
             params.put("variantCode", filter.variantCode());
         }
+        if (filter.installStatus() != null && !filter.installStatus().isBlank()) {
+            sql.append(" AND ins.Status = :installStatus");
+            params.put("installStatus", filter.installStatus());
+        }
         if (filter.hasDateRange()) {
             sql.append(" AND p.CreateDateTime BETWEEN :from AND :to");
             params.put("from", filter.from());
@@ -218,7 +228,7 @@ public class ReportService {
 
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> mapDifferenceRow(rs, now));
 
-        long outdated = rows.stream().filter(r -> "Abweichung".equals(r.get("status"))).count();
+        long outdated = rows.stream().filter(r -> "Abweichung".equals(r.get("compliance"))).count();
         long critical = rows.stream().filter(r -> "Kritisch".equals(r.get("severity"))).count();
         long expiring = rows.stream().filter(r -> "Ablauf <45 Tage".equals(r.get("severity"))).count();
         int total = rows.size();
@@ -239,7 +249,8 @@ public class ReportService {
                 new ReportColumn("currentVersion", "Ist-Version", "left"),
                 new ReportColumn("targetVersion", "Soll-Version", "left"),
                 new ReportColumn("supportEnd", "Support-Ende", "left"),
-                new ReportColumn("status", "Status", "left"),
+                new ReportColumn("status", "Installationsstatus", "left"),
+                new ReportColumn("compliance", "Abgleich", "left"),
                 new ReportColumn("severity", "Severity", "left"),
                 new ReportColumn("notes", "Hinweis", "left")
         );
@@ -273,12 +284,20 @@ public class ReportService {
         String targetRelease = rs.getString("target_release");
         String targetRevision = rs.getString("target_revision");
         LocalDate supportEnd = getLocalDate(rs, "support_end");
+        String installStatusRaw = rs.getString("install_status");
+        InstalledSoftwareStatus installStatusEnum;
+        try {
+            installStatusEnum = InstalledSoftwareStatus.from(installStatusRaw);
+        } catch (IllegalArgumentException ex) {
+            installStatusEnum = InstalledSoftwareStatus.ACTIVE;
+        }
+        String installStatus = installStatusEnum.dbValue();
         LocalDate targetSupport = getLocalDate(rs, "target_support_end");
         LocalDate nextWindow = getLocalDate(rs, "next_window");
 
         boolean upToDate = targetRelease == null ||
                 (Objects.equals(currentRelease, targetRelease) && Objects.equals(currentRevision, targetRevision));
-        String status = upToDate ? "Aktuell" : "Abweichung";
+        String compliance = upToDate ? "Aktuell" : "Abweichung";
         String severity;
         if (!upToDate) {
             if (supportEnd != null && supportEnd.isBefore(now)) {
@@ -315,7 +334,8 @@ public class ReportService {
         row.put("currentVersion", versionString(currentRelease, currentRevision));
         row.put("targetVersion", versionString(targetRelease, targetRevision));
         row.put("supportEnd", supportEnd != null ? formatDate(supportEnd) : "—");
-        row.put("status", status);
+        row.put("status", installStatus);
+        row.put("compliance", compliance);
         row.put("severity", severity);
         row.put("notes", notes.toString());
         return row;
@@ -656,11 +676,18 @@ public class ReportService {
                         "FROM PhoneIntegration ph JOIN Clients c ON c.ClientID = ph.ClientID " +
                         "WHERE c.SiteID IN (:siteIds) GROUP BY COALESCE(ph.PhoneBrand, 'Unbekannt') ORDER BY label",
                 assetParams));
-        entries.addAll(queryInventory("Software",
+        Map<String, Object> softwareParams = new HashMap<>(assetParams);
+        StringBuilder softwareSql = new StringBuilder(
                 "SELECT sw.Name AS label, COUNT(*) AS qty, COUNT(DISTINCT ins.SiteID) AS sites " +
                         "FROM InstalledSoftware ins JOIN Software sw ON sw.SoftwareID = ins.SoftwareID " +
-                        "WHERE ins.SiteID IN (:siteIds) GROUP BY sw.Name ORDER BY sw.Name",
-                assetParams));
+                        "WHERE ins.SiteID IN (:siteIds)"
+        );
+        if (filter.installStatus() != null && !filter.installStatus().isBlank()) {
+            softwareSql.append(" AND ins.Status = :installStatus");
+            softwareParams.put("installStatus", filter.installStatus());
+        }
+        softwareSql.append(" GROUP BY sw.Name ORDER BY sw.Name");
+        entries.addAll(queryInventory("Software", softwareSql.toString(), softwareParams));
 
         entries.sort(Comparator.comparing(InventoryEntry::type).thenComparing(InventoryEntry::label));
 

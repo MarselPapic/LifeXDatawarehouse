@@ -18,6 +18,7 @@ public class AudioDeviceController {
     private final NamedParameterJdbcTemplate jdbc;
     private static final Logger log = LoggerFactory.getLogger(AudioDeviceController.class);
     private static final String TABLE = "AudioDevice";
+    private static final Set<String> ALLOWED_DEVICE_TYPES = Set.of("HEADSET", "SPEAKER", "MIC");
 
     public AudioDeviceController(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -69,6 +70,8 @@ public class AudioDeviceController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
         }
 
+        normalizeDeviceType(body).ifPresent(value -> body.put("deviceType", value));
+
         String sql = """
             INSERT INTO AudioDevice
             (ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType)
@@ -87,6 +90,8 @@ public class AudioDeviceController {
         if (body.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
         }
+
+        normalizeDeviceType(body);
 
         var setClauses = new ArrayList<String>();
         for (String key : body.keySet()) {
@@ -130,5 +135,40 @@ public class AudioDeviceController {
             }
         });
         return ids;
+    }
+
+    private Optional<String> normalizeDeviceType(Map<String, Object> body) {
+        String[] keys = {"DeviceType", "deviceType"};
+        String detectedKey = null;
+        Object rawValue = null;
+
+        for (String key : keys) {
+            if (body.containsKey(key)) {
+                detectedKey = key;
+                rawValue = body.get(key);
+                break;
+            }
+        }
+
+        if (detectedKey == null) {
+            return Optional.empty();
+        }
+
+        if (rawValue == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DeviceType must be one of HEADSET, SPEAKER, MIC");
+        }
+
+        String normalized = rawValue.toString().trim().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_DEVICE_TYPES.contains(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "DeviceType must be one of HEADSET, SPEAKER, MIC");
+        }
+
+        for (String key : keys) {
+            if (body.containsKey(key)) {
+                body.put(key, normalized);
+            }
+        }
+        return Optional.of(normalized);
     }
 }

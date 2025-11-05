@@ -14,6 +14,7 @@
         period: DEFAULT_PERIOD,
         query: '',
         variant: '',
+        status: '',
         from: '',
         to: ''
     };
@@ -24,6 +25,7 @@
         period: document.getElementById('period'),
         query: document.getElementById('query'),
         variant: document.getElementById('variant'),
+        status: document.getElementById('install-status'),
         from: document.getElementById('from'),
         to: document.getElementById('to'),
         customRange: document.getElementById('custom-range'),
@@ -78,6 +80,7 @@
                 state.period = DEFAULT_PERIOD;
                 state.query = '';
                 state.variant = '';
+                state.status = '';
                 state.from = '';
                 state.to = '';
                 applyStateToForm();
@@ -109,6 +112,7 @@
         populateTabs(options.types || []);
         populatePeriods(options.periods || {});
         populateVariants(options.variants || []);
+        populateStatuses(options.installStatuses || []);
     }
 
     function populateTypes(types){
@@ -174,11 +178,24 @@
         });
     }
 
+    function populateStatuses(statuses){
+        if (!elements.status) return;
+        elements.status.innerHTML = '<option value="">All</option>';
+        statuses.forEach(status => {
+            const opt = document.createElement('option');
+            const value = status.code || status;
+            opt.value = value;
+            opt.textContent = status.label || value;
+            elements.status.appendChild(opt);
+        });
+    }
+
     function applyStateToForm(){
         if (!elements.form) return;
         elements.period.value = state.period || DEFAULT_PERIOD;
         elements.query.value = state.query || '';
         elements.variant.value = state.variant || '';
+        if (elements.status) elements.status.value = state.status || '';
         elements.from.value = state.from || '';
         elements.to.value = state.to || '';
         toggleCustomRange(elements.period.value === 'custom');
@@ -197,6 +214,7 @@
         state.period = elements.period.value || DEFAULT_PERIOD;
         state.query = elements.query.value.trim();
         state.variant = elements.variant.value;
+        state.status = elements.status ? elements.status.value : '';
         if (state.period === 'custom') {
             state.from = elements.from.value;
             state.to = elements.to.value;
@@ -362,7 +380,7 @@
                 const td = document.createElement('td');
                 const value = row[col.key];
                 td.textContent = value != null ? value : '';
-                if (col.key === 'severity' || col.key === 'status') {
+                if (col.key === 'severity' || col.key === 'status' || col.key === 'compliance') {
                     const slug = slugify(String(value || ''));
                     if (slug) td.classList.add(`severity-${slug}`);
                 }
@@ -395,6 +413,12 @@
         const pieces = [typeLabel];
         if (periodLabel) pieces.push(periodLabel);
         if (state.variant) pieces.push(`Variant: ${state.variant}`);
+        if (state.status) {
+            const statuses = options.installStatuses || [];
+            const info = statuses.find(s => s.code === state.status);
+            const label = info ? info.label : state.status;
+            pieces.push(`Status: ${label}`);
+        }
         if (state.query) pieces.push(`Search: ${state.query}`);
         elements.filterInfo.textContent = pieces.join(' · ');
     }
@@ -420,6 +444,7 @@
         params.set('period', state.period || DEFAULT_PERIOD);
         if (state.query) params.set('query', state.query);
         if (state.variant) params.set('variant', state.variant);
+        if (state.status) params.set('installStatus', state.status);
         if (state.period === 'custom') {
             if (state.from) params.set('from', state.from);
             if (state.to) params.set('to', state.to);

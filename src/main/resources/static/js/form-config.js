@@ -115,47 +115,115 @@
         }
     };
 
-    const entityMessages = {
-        Account: 'You are currently creating an account.',
-        Address: 'You are currently creating an address.',
-        AudioDevice: 'You are currently creating an audio device.',
-        City: 'You are currently creating a city.',
-        Country: 'You are currently creating a country.',
-        DeploymentVariant: 'You are currently creating a deployment variant.',
-        InstalledSoftware: 'You are currently creating a software installation.',
-        PhoneIntegration: 'You are currently creating a phone integration.',
-        Project: 'You are currently creating a project.',
-        Radio: 'You are currently creating a radio.',
-        Server: 'You are currently creating a server.',
-        ServiceContract: 'You are currently creating a service contract.',
-        Site: 'You are currently creating a site.',
-        Software: 'You are currently creating a software record.',
-        UpgradePlan: 'You are currently planning a software upgrade.',
-        WorkingPosition: 'You are currently creating a workstation (client).'
+    const entityGuidance = {
+        Account: {
+            summary: 'Create an account to group related projects and contracts for a customer.',
+            notes: [
+                'The account name should match the official customer name.',
+                'Provide contact information when available so downstream teams can reach out quickly.'
+            ],
+            fieldHints: {
+                vat: 'Enter the VAT number exactly as registered by the customer.',
+                country: 'Use a two-letter ISO country code if available.'
+            }
+        },
+        Address: {
+            summary: 'Capture a postal address that can be reused by projects and sites.',
+            notes: ['Select an existing city to ensure geo-information stays consistent.']
+        },
+        AudioDevice: {
+            summary: 'Register a headset, speaker, or microphone used at a client working position.',
+            notes: ['Associate the device with the client installation that uses it.']
+        },
+        City: {
+            summary: 'Add a new city so addresses and sites can reference it.',
+            notes: ['City IDs must remain unique; use the standardized identifier from the authoritative source.'],
+            fieldHints: {
+                cityId: 'Follow the naming convention used in the source ERP when creating IDs.'
+            }
+        },
+        Country: {
+            summary: 'Maintain the list of supported countries for cities and addresses.',
+            notes: ['Country codes must be two-letter ISO codes.']
+        },
+        DeploymentVariant: {
+            summary: 'Describe how LifeX is deployed for a project (variant, name, and activation).',
+            notes: ['Inactive variants should only be used for historical records.']
+        },
+        InstalledSoftware: {
+            summary: 'Link software releases to a site to document deployments.',
+            notes: ['Ensure the site and software already exist before creating the installation.']
+        },
+        PhoneIntegration: {
+            summary: 'Document the phone integration that connects a client to telephony services.',
+            notes: ['Capture firmware and serial numbers when needed for troubleshooting.']
+        },
+        Project: {
+            summary: 'Create a project that ties an account to a deployment variant and address.',
+            notes: ['A project must belong to an account and typically references the primary installation address.'],
+            fieldHints: {
+                accId: 'Selecting an account filters the available projects in dependent forms.',
+                addrId: 'Choose an address that represents the project’s main location.'
+            }
+        },
+        Radio: {
+            summary: 'Track radios installed at a site for emergency communication.',
+            notes: ['Link radios to the client they are assigned to when applicable.']
+        },
+        Server: {
+            summary: 'Register a server at a site, including platform and availability attributes.',
+            notes: ['Specify whether the server is virtualized to support capacity planning.']
+        },
+        ServiceContract: {
+            summary: 'Define the service contract that governs project support.',
+            notes: ['Contracts cascade down from account to project to site. Select them in that order.'],
+            fieldHints: {
+                contractNumber: 'Use the reference number agreed with the customer or internal billing ID.'
+            }
+        },
+        Site: {
+            summary: 'Create a site to represent the physical installation for a project.',
+            notes: ['Make sure the project exists before adding its site.'],
+            fieldHints: {
+                addrId: 'Address selection determines where the installation is located.'
+            }
+        },
+        Software: {
+            summary: 'Catalog a software release so it can be linked to deployments and upgrade plans.',
+            notes: ['Provide support window information for upgrade planning where possible.']
+        },
+        UpgradePlan: {
+            summary: 'Plan a software upgrade by selecting the site and software along with a target window.',
+            notes: ['Ensure the planned window does not overlap with maintenance freezes.']
+        },
+        WorkingPosition: {
+            summary: 'Create a client working position that will host hardware and software installations.',
+            notes: ['Working positions should reference the site where the client is physically installed.']
+        }
     };
 
     const entityFields = {
         Account: [
             { id: 'name', label: 'Name', component: 'input', name: 'AccountName' },
-            { id: 'contact', label: 'Contact Person', component: 'input', name: 'ContactName', required: false },
-            { id: 'email', label: 'Email', component: 'input', name: 'ContactEmail', required: false, inputType: 'email', autocomplete: 'email', inputmode: 'email' },
-            { id: 'phone', label: 'Phone', component: 'input', name: 'ContactPhone', required: false, inputType: 'tel', pattern: '^[+0-9()\s-]{5,}$', inputmode: 'tel' },
-            { id: 'vat', label: 'VAT ID', component: 'input', name: 'VatNumber', required: false },
-            { id: 'country', label: 'Country', component: 'input', name: 'Country', required: false }
+            { id: 'contact', label: 'Contact Person', component: 'input', name: 'ContactName', required: false, hint: 'Optional contact person for the customer account.' },
+            { id: 'email', label: 'Email', component: 'input', name: 'ContactEmail', required: false, inputType: 'email', autocomplete: 'email', inputmode: 'email', hint: 'Used for automated notifications.' },
+            { id: 'phone', label: 'Phone', component: 'input', name: 'ContactPhone', required: false, inputType: 'tel', pattern: '^[+0-9()\s-]{5,}$', inputmode: 'tel', hint: 'Include the country code if possible.' },
+            { id: 'vat', label: 'VAT ID', component: 'input', name: 'VatNumber', required: false, hint: 'Enter the tax number without spaces.' },
+            { id: 'country', label: 'Country', component: 'input', name: 'Country', required: false, hint: 'Two-letter ISO code, e.g. DE or US.' }
         ],
         Address: [
-            { id: 'street', label: 'Street', component: 'input', name: 'Street' },
-            { id: 'cityID', label: 'Select city', component: 'asyncSelect', source: 'cities', allowManual: false, placeholder: 'Select city', name: 'CityID' }
+            { id: 'street', label: 'Street', component: 'input', name: 'Street', hint: 'Include house number if available.' },
+            { id: 'cityID', label: 'Select city', component: 'asyncSelect', source: 'cities', allowManual: false, placeholder: 'Select city', name: 'CityID', hint: 'Only existing cities can be linked to an address.' }
         ],
         AudioDevice: [
-            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID' },
+            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID', hint: 'Choose the working position that uses this device.' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'AudioDeviceBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'DeviceSerialNr', required: false },
             { id: 'fw', label: 'Firmware', component: 'input', name: 'AudioDeviceFirmware', required: false },
             { id: 'dtype', label: 'DeviceType', component: 'select', options: ['HEADSET','SPEAKER','MIC'], name: 'DeviceType' }
         ],
         City: [
-            { id: 'cityId', label: 'CityID', component: 'input', dataset: { uppercase: true }, name: 'CityID' },
+            { id: 'cityId', label: 'CityID', component: 'input', dataset: { uppercase: true }, name: 'CityID', hint: 'Use the agreed city identifier (uppercase).' },
             { id: 'cityName', label: 'City Name', component: 'input', name: 'CityName' },
             { id: 'countryCode', label: 'Select country', component: 'asyncSelect', source: 'countries', allowManual: false, placeholder: 'Select country', name: 'CountryCode' }
         ],
@@ -170,26 +238,33 @@
             { id: 'active', label: 'IsActive', component: 'select', options: ['true','false'], name: 'IsActive', valueType: 'boolean' }
         ],
         InstalledSoftware: [
-            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID' },
-            { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID' }
+            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID', hint: 'Only sites assigned to the selected project will appear.' },
+            { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID', hint: 'Choose the exact release that is deployed.' },
+            { id: 'status', label: 'Status', component: 'select', options: ['Active','Pending','Retired'], name: 'Status', defaultValue: 'Active' }
         ],
         PhoneIntegration: [
-            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID' },
+            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID', hint: 'Integrations attach to the working position using the phone.' },
             { id: 'type', label: 'PhoneType', component: 'select', options: ['Emergency','NonEmergency','Both'], name: 'PhoneType' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'PhoneBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'PhoneSerialNr', required: false },
             { id: 'fw', label: 'Firmware', component: 'input', name: 'PhoneFirmware', required: false }
         ],
         Project: [
-            { id: 'sap', label: 'SAP ID', component: 'input', name: 'ProjectSAPID', required: false },
+            { id: 'sap', label: 'SAP ID', component: 'input', name: 'ProjectSAPID', required: false, hint: 'Optional internal reference (from SAP).' },
             { id: 'pname', label: 'Project Name', component: 'input', name: 'ProjectName' },
-            { id: 'variantId', label: 'Select deployment variant', component: 'asyncSelect', source: 'deploymentVariants', placeholder: 'Select deployment variant', allowManual: false, name: 'DeploymentVariantID' },
+            { id: 'variantId', label: 'Select deployment variant', component: 'asyncSelect', source: 'deploymentVariants', placeholder: 'Select deployment variant', allowManual: false, name: 'DeploymentVariantID', hint: 'Determines the LifeX deployment flavor.' },
             { id: 'bundle', label: 'Bundle Type', component: 'input', name: 'BundleType', required: false },
+            { id: 'lifecycle', label: 'Lifecycle Status', component: 'select', name: 'LifecycleStatus', options: [
+                { value: 'PLANNED', label: 'Planned' },
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'MAINTENANCE', label: 'Maintenance' },
+                { value: 'RETIRED', label: 'Retired' }
+            ] },
             { id: 'accId', label: 'Select account', component: 'asyncSelect', source: 'accounts', allowManual: false, name: 'AccountID' },
             { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' }
         ],
         Radio: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID', hint: 'Radios are installed at a specific site.' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'RadioBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'RadioSerialNr', required: false },
             { id: 'mode', label: 'Mode', component: 'select', options: ['Analog','Digital'], name: 'Mode' },
@@ -197,7 +272,7 @@
             { id: 'client', label: 'AssignedClientID (UUID)', component: 'asyncSelect', source: 'clients', allowManual: false, name: 'AssignedClientID', required: false, placeholder: 'Select client (optional)', dependsOn: 'siteId' }
         ],
         Server: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID', hint: 'Servers must be tied to the site where they are deployed.' },
             { id: 'name', label: 'Server Name', component: 'input', name: 'ServerName' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'ServerBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ServerSerialNr', required: false },
@@ -208,18 +283,18 @@
             { id: 'ha', label: 'HighAvailability', component: 'select', options: ['true','false'], name: 'HighAvailability', valueType: 'boolean' }
         ],
         ServiceContract: [
-            { id: 'accountID', label: 'Select account', component: 'asyncSelect', source: 'accounts', placeholder: 'Select account', allowManual: false, name: 'AccountID' },
-            { id: 'projectID', label: 'Select project', component: 'asyncSelect', source: 'projects', placeholder: 'Select project', allowManual: false, dependsOn: 'accountID', name: 'ProjectID' },
-            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, dependsOn: 'projectID', emptyText: 'No sites available for selection', name: 'SiteID' },
-            { id: 'contractNumber', label: 'Contract Number', component: 'input', name: 'ContractNumber' },
+            { id: 'accountID', label: 'Select account', component: 'asyncSelect', source: 'accounts', placeholder: 'Select account', allowManual: false, name: 'AccountID', hint: 'Contracts start at the account level.' },
+            { id: 'projectID', label: 'Select project', component: 'asyncSelect', source: 'projects', placeholder: 'Select project', allowManual: false, dependsOn: 'accountID', name: 'ProjectID', hint: 'Projects list is filtered by the selected account.' },
+            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, dependsOn: 'projectID', emptyText: 'No sites available for selection', name: 'SiteID', hint: 'Sites list updates once a project is selected.' },
+            { id: 'contractNumber', label: 'Contract Number', component: 'input', name: 'ContractNumber', hint: 'Reference number from the signed agreement.' },
             { id: 'status', label: 'Status', component: 'select', options: ['Planned','Approved','InProgress','Done','Canceled'], name: 'Status' },
             { id: 'startDate', label: 'Start Date', component: 'input', inputType: 'date', name: 'StartDate' },
-            { id: 'endDate', label: 'End Date', component: 'input', inputType: 'date', name: 'EndDate' }
+            { id: 'endDate', label: 'End Date', component: 'input', inputType: 'date', name: 'EndDate', hint: 'End date may remain empty for ongoing contracts.' }
         ],
         Site: [
-            { id: 'pId', label: 'Select project', component: 'asyncSelect', source: 'projects', allowManual: false, name: 'ProjectID' },
+            { id: 'pId', label: 'Select project', component: 'asyncSelect', source: 'projects', allowManual: false, name: 'ProjectID', hint: 'Each site must belong to an existing project.' },
             { id: 'name', label: 'Site Name', component: 'input', name: 'SiteName' },
-            { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' },
+            { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID', hint: 'Choose the physical location for this site.' },
             { id: 'zone', label: 'FireZone', component: 'input', name: 'FireZone', required: false },
             { id: 'tenant', label: 'TenantCount', component: 'input', inputType: 'number', min: '0', step: '1', required: false, name: 'TenantCount' }
         ],
@@ -234,8 +309,8 @@
             { id: 'swSupportEnd', label: 'Support End', component: 'input', inputType: 'date', name: 'SupportEndDate', required: false }
         ],
         UpgradePlan: [
-            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID' },
-            { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID' },
+            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID', hint: 'Upgrades are planned for a specific installation site.' },
+            { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID', hint: 'Pick the target software release for the upgrade.' },
             { id: 'plannedStart', label: 'Planned Start', component: 'input', inputType: 'date', name: 'PlannedWindowStart' },
             { id: 'plannedEnd', label: 'Planned End', component: 'input', inputType: 'date', name: 'PlannedWindowEnd' },
             { id: 'status', label: 'Status', component: 'select', options: ['Planned','Approved','InProgress','Done','Canceled'], name: 'Status' },
@@ -243,8 +318,8 @@
             { id: 'createdBy', label: 'Created By', component: 'input', name: 'CreatedBy' }
         ],
         WorkingPosition: [
-            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID' },
-            { id: 'name', label: 'Client Name', component: 'input', name: 'ClientName' },
+            { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID', hint: 'Clients are always assigned to a site.' },
+            { id: 'name', label: 'Client Name', component: 'input', name: 'ClientName', hint: 'Pick a name that matches the device label in the field.' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'ClientBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ClientSerialNr', required: false },
             { id: 'os', label: 'OS', component: 'input', name: 'ClientOS', required: false },
@@ -255,13 +330,17 @@
 
     global.FormConfig = {
         asyncSources,
-        entityMessages,
+        entityGuidance,
         entityFields,
         getFields(entity){
             return entityFields[entity] || [];
         },
+        getGuidance(entity){
+            return entityGuidance[entity];
+        },
         getMessage(entity){
-            return entityMessages[entity];
+            const guidance = entityGuidance[entity];
+            return guidance ? guidance.summary : undefined;
         }
     };
 })(window);
