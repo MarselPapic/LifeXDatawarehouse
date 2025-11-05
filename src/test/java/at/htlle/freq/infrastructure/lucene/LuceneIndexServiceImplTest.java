@@ -15,6 +15,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Integration-like tests for {@link LuceneIndexServiceImpl} that operate on a temporary
+ * filesystem index to verify indexing and search behaviour without mocking Lucene classes.
+ */
 class LuceneIndexServiceImplTest {
 
     private LuceneIndexServiceImpl service;
@@ -44,11 +48,14 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void indexAndSearchRoundTrip() throws Exception {
+        // Arrange: index an account and project document
         service.indexAccount("acc-1", "Acme", "Austria", "contact@acme.test");
         service.indexProject("proj-1", "SAP-1", "HQ", null, null, "ACTIVE", null, null);
 
+        // Act: search for the indexed account
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("acme"));
+        // Assert
         assertEquals(1, hits.size());
         assertEquals("acc-1", hits.get(0).getId());
         assertEquals("account", hits.get(0).getType());
@@ -62,31 +69,40 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void reindexAllClearsDocuments() throws Exception {
+        // Arrange
         service.indexAccount("acc-2", "Test", null, null);
         Query query = new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer()).parse("test");
         assertFalse(service.search(query).isEmpty());
 
+        // Act
         service.reindexAll();
+        // Assert
         assertTrue(service.search(query).isEmpty());
     }
 
     @Test
     void safeHandlesNullValuesWhenIndexing() throws Exception {
+        // Arrange
         service.indexAccount("acc-3", null, null, null);
+        // Act
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("*:*"));
+        // Assert
         assertEquals(1, hits.size());
         assertEquals("", hits.get(0).getSnippet());
     }
 
     @Test
     void snippetIsTrimmedAndNormalized() throws Exception {
+        // Arrange
         String longValue = ("Austria   with   spaces   ").repeat(20);
         service.indexAccount("acc-4", "Acme", longValue, null);
 
+        // Act
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("acme"));
 
+        // Assert
         assertEquals(1, hits.size());
         String snippet = hits.get(0).getSnippet();
         assertNotNull(snippet);
@@ -97,11 +113,14 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void textFallsBackToTypeAndIdWhenFieldsAreBlank() throws Exception {
+        // Arrange
         service.indexAccount("acc-blank", "", null, null);
 
+        // Act
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("*:*"));
 
+        // Assert
         assertEquals(1, hits.size());
         assertEquals("account acc-blank", hits.get(0).getText());
         assertEquals("", hits.get(0).getSnippet());

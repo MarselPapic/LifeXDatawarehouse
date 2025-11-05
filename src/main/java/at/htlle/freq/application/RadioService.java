@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Verwaltet Funkgeräte, prüft Pflichtangaben und synchronisiert Lucene.
+ */
 @Service
 public class RadioService {
 
@@ -21,6 +24,12 @@ public class RadioService {
     private final RadioRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Funkgeräte
+     * @param lucene Lucene-Indexdienst
+     */
     public RadioService(RadioRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class RadioService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Funkgeräte.
+     *
+     * @return Liste der Funkgeräte
+     */
     public List<Radio> getAllRadios() {
         return repo.findAll();
     }
 
+    /**
+     * Holt ein Funkgerät anhand seiner ID.
+     *
+     * @param id Funkgeräte-ID
+     * @return Optional mit Funkgerät oder leer
+     */
     public Optional<Radio> getRadioById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Funkgeräte für eine Site.
+     *
+     * @param siteId Site-ID
+     * @return Liste der Funkgeräte
+     */
     public List<Radio> getRadiosBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
         return repo.findBySite(siteId);
@@ -44,6 +70,13 @@ public class RadioService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert ein Funkgerät und validiert Pflichtfelder wie Site, Marke, Seriennummer und Modus.
+     * Indexiert nach Commit in Lucene.
+     *
+     * @param incoming Funkgerät, das gespeichert werden soll
+     * @return gespeichertes Funkgerät
+     */
     @Transactional
     public Radio createOrUpdateRadio(Radio incoming) {
         Objects.requireNonNull(incoming, "radio payload must not be null");
@@ -65,6 +98,13 @@ public class RadioService {
         return saved;
     }
 
+    /**
+     * Aktualisiert ein Funkgerät und synchronisiert Lucene.
+     *
+     * @param id    Funkgeräte-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisiertem Funkgerät oder leer
+     */
     @Transactional
     public Optional<Radio> updateRadio(UUID id, Radio patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -86,6 +126,11 @@ public class RadioService {
         });
     }
 
+    /**
+     * Löscht ein Funkgerät.
+     *
+     * @param id Funkgeräte-ID
+     */
     @Transactional
     public void deleteRadio(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

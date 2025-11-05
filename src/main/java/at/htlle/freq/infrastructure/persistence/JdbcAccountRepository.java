@@ -10,6 +10,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Implementierung des {@link AccountRepository}, die alle CRUD-Operationen
+ * für die Tabelle {@code Account} kapselt.
+ * Verantwortlich für das Mapping der Kontodaten aus den Spalten
+ * {@code AccountID}, {@code AccountName}, {@code ContactName}, {@code ContactEmail},
+ * {@code ContactPhone}, {@code VATNumber} und {@code Country} in die Domäne.
+ */
 @Repository
 public class JdbcAccountRepository implements AccountRepository {
 
@@ -70,6 +77,19 @@ public class JdbcAccountRepository implements AccountRepository {
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Persistiert ein {@link Account}-Objekt per INSERT oder UPDATE.
+     * <p>
+     * Bei neuen Entitäten wird eine UUID im Service generiert und via benannter Parameter
+     * in die Spalten der Tabelle {@code Account} geschrieben. Für bestehende Datensätze
+     * erfolgt ein vollständiges Update aller Spalten, damit das RowMapper-Mapping konsistent
+     * bleibt und keine Teilupdates notwendig sind.
+     * </p>
+     *
+     * @param a Domänenobjekt, dessen Eigenschaften über {@link MapSqlParameterSource}
+     *          auf die gleichnamigen Spalten gemappt werden.
+     * @return das gespeicherte Account-Objekt mit gesetzter {@code AccountID}.
+     */
     @Override
     public Account save(Account a) {
         boolean isNew = (a.getAccountID() == null);

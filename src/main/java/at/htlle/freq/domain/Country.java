@@ -1,5 +1,10 @@
 package at.htlle.freq.domain;
 
+/**
+ * Stores ISO country master data used across the data warehouse. Cities and
+ * accounts refer to the {@code countryCode} to normalize reporting and link to
+ * geographical context.
+ */
 public class Country {
     private String countryCode; // ISO-3166-1 alpha-2
     private String countryName;

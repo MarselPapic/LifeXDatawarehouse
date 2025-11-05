@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Server}, das die Tabelle {@code Server} verwaltet und Server-Hardware
+ * inklusive Virtualisierungs- und Hochverfügbarkeitsmerkmalen in Domänenobjekte überführt.
+ */
 @Repository
 public class JdbcServerRepository implements ServerRepository {
 
@@ -59,6 +63,18 @@ public class JdbcServerRepository implements ServerRepository {
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Speichert Servereinträge per INSERT oder UPDATE in der Tabelle {@code Server}.
+     * <p>
+     * Beim INSERT wird die ID über {@code RETURNING ServerID} bezogen. Aufgrund der vielen
+     * Attribute werden alle Parameter explizit gesetzt, sodass das Mapping des RowMappers
+     * vollständig bleibt und keine inkonsistenten Teilupdates entstehen.
+     * </p>
+     *
+     * @param s Serverobjekt, dessen Eigenschaften auf die Spalten {@code SiteID}, {@code ServerName}
+     *          usw. gemappt werden.
+     * @return der persistierte Server mit {@code ServerID}.
+     */
     @Override
     public Server save(Server s) {
         boolean isNew = s.getServerID() == null;

@@ -24,6 +24,12 @@ public class ClientsService {
     private final ClientsRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Lucene-Komponenten.
+     *
+     * @param repo   Repository für Clients
+     * @param lucene Index-Dienst für Lucene
+     */
     public ClientsService(ClientsRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -33,15 +39,32 @@ public class ClientsService {
     // READ
     // ----------------------------
 
+    /**
+     * Liefert alle Clients einer Site.
+     *
+     * @param siteId technische Site-ID
+     * @return Liste der Clients der Site
+     */
     public List<Clients> findBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
         return repo.findBySite(siteId);
     }
 
+    /**
+     * Liefert alle Clients ohne Filter.
+     *
+     * @return vollständige Client-Liste
+     */
     public List<Clients> findAll() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht einen Client anhand seiner ID.
+     *
+     * @param id Client-ID
+     * @return Optional mit Client oder leer
+     */
     public Optional<Clients> findById(UUID id) {
         return repo.findById(id);
     }
@@ -50,6 +73,13 @@ public class ClientsService {
     // CREATE
     // ----------------------------
 
+    /**
+     * Persistiert einen neuen Client und indexiert ihn nach Commit in Lucene.
+     * Validiert Pflichtfelder wie Site, Name und Installationsart.
+     *
+     * @param in neuer Client
+     * @return gespeicherter Client inklusive ID
+     */
     @Transactional
     public Clients create(Clients in) {
         Objects.requireNonNull(in, "client payload must not be null");
@@ -71,6 +101,13 @@ public class ClientsService {
     // UPDATE
     // ----------------------------
 
+    /**
+     * Aktualisiert einen bestehenden Client und synchronisiert den Index.
+     *
+     * @param id    Client-ID
+     * @param patch Änderungswerte
+     * @return aktualisierter Client
+     */
     @Transactional
     public Clients update(UUID id, Clients patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -93,12 +130,12 @@ public class ClientsService {
         return existing;
     }
 
-    // ----------------------------
-    // DELETE
-    //WÄRE EIGENTLICH WICHTIG, ABER UNSER LUCENE UNTERSTÜTZ DAS NOCH NICHT
-    //DA ES NOCH NICHT IM CONTROLLER INTEGRIERT IST
-    // ----------------------------
-/**
+// ----------------------------
+// DELETE
+//WÄRE EIGENTLICH WICHTIG, ABER UNSER LUCENE UNTERSTÜTZ DAS NOCH NICHT
+//DA ES NOCH NICHT IM CONTROLLER INTEGRIERT IST
+// ----------------------------
+/*
     @Transactional
     public boolean delete(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

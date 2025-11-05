@@ -12,8 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für Project
- * (wird im Frontend unter /projects verwendet)
+ * Vollständiger CRUD-Controller für Projekte.
+ *
+ * <p>Die Datenzugriffe erfolgen über den {@link NamedParameterJdbcTemplate}.</p>
  */
 @RestController
 @RequestMapping("/projects")
@@ -31,6 +32,15 @@ public class ProjectController {
     // READ: Alle Projekte oder nach Account filtern
     // ----------------------------
 
+    /**
+     * Listet Projekte optional gefiltert nach Account.
+     *
+     * <p>Pfad: {@code GET /projects}</p>
+     * <p>Query-Parameter: {@code accountId} (optional).</p>
+     *
+     * @param accountId optionaler Account-Fremdschlüssel.
+     * @return 200 OK mit Projektzeilen als JSON.
+     */
     @GetMapping
     public List<Map<String, Object>> findByAccount(@RequestParam(required = false) String accountId) {
         if (accountId != null) {
@@ -46,6 +56,14 @@ public class ProjectController {
             """, new HashMap<>());
     }
 
+    /**
+     * Liefert ein einzelnes Projekt.
+     *
+     * <p>Pfad: {@code GET /projects/{id}}</p>
+     *
+     * @param id Projekt-ID.
+     * @return 200 OK mit den Spaltenwerten oder 404 bei unbekannter ID.
+     */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
@@ -64,6 +82,15 @@ public class ProjectController {
     // CREATE
     // ----------------------------
 
+    /**
+     * Legt ein neues Projekt an.
+     *
+     * <p>Pfad: {@code POST /projects}</p>
+     * <p>Request-Body: JSON mit Projektdaten (z.B. {@code projectName}, {@code accountID}).</p>
+     *
+     * @param body Eingabedaten.
+     * @throws ResponseStatusException 400 bei leerem Body oder ungültigem Lifecycle-Status.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
@@ -108,6 +135,16 @@ public class ProjectController {
     // UPDATE
     // ----------------------------
 
+    /**
+     * Aktualisiert ein Projekt.
+     *
+     * <p>Pfad: {@code PUT /projects/{id}}</p>
+     * <p>Request-Body: JSON mit zu überschreibenden Spalten.</p>
+     *
+     * @param id   Projekt-ID.
+     * @param body Feldwerte.
+     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn nichts aktualisiert wurde.
+     */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         if (body.isEmpty()) {
@@ -135,6 +172,14 @@ public class ProjectController {
     // DELETE
     // ----------------------------
 
+    /**
+     * Löscht ein Projekt.
+     *
+     * <p>Pfad: {@code DELETE /projects/{id}}</p>
+     *
+     * @param id Projekt-ID.
+     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {

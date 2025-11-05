@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Betreut Softwarestammdaten, validiert Pflichtfelder und synchronisiert Lucene.
+ */
 @Service
 public class SoftwareService {
 
@@ -21,6 +24,12 @@ public class SoftwareService {
     private final SoftwareRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository und Indexdienst.
+     *
+     * @param repo   Repository für Software
+     * @param lucene Lucene-Indexdienst
+     */
     public SoftwareService(SoftwareRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class SoftwareService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Softwareeinträge.
+     *
+     * @return Liste der Software
+     */
     public List<Software> getAllSoftware() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht Software anhand ihrer ID.
+     *
+     * @param id Software-ID
+     * @return Optional mit Software oder leer
+     */
     public Optional<Software> getSoftwareById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Softwareeinträge anhand eines Namens.
+     *
+     * @param name Suchname
+     * @return Liste passender Softwareeinträge
+     */
     public List<Software> getSoftwareByName(String name) {
         if (isBlank(name)) return List.of();
         return repo.findByName(name.trim());
@@ -44,6 +70,12 @@ public class SoftwareService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert Software, validiert Pflichtfelder und indexiert nach Commit in Lucene.
+     *
+     * @param incoming Software, die gespeichert werden soll
+     * @return gespeicherte Software
+     */
     @Transactional
     public Software createOrUpdateSoftware(Software incoming) {
         Objects.requireNonNull(incoming, "software payload must not be null");
@@ -61,6 +93,13 @@ public class SoftwareService {
         return saved;
     }
 
+    /**
+     * Aktualisiert Softwaredaten und synchronisiert Lucene.
+     *
+     * @param id    Software-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisierter Software oder leer
+     */
     @Transactional
     public Optional<Software> updateSoftware(UUID id, Software patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -84,6 +123,11 @@ public class SoftwareService {
         });
     }
 
+    /**
+     * Löscht eine Software.
+     *
+     * @param id Software-ID
+     */
     @Transactional
     public void deleteSoftware(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

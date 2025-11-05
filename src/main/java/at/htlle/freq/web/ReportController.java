@@ -22,6 +22,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+/**
+ * REST-Controller für Reporting-Endpunkte.
+ *
+ * <p>Delegiert Report-Generierung und Export an den {@link ReportService}.</p>
+ */
 @RestController
 @RequestMapping("/api/reports")
 public class ReportController {
@@ -32,11 +37,33 @@ public class ReportController {
         this.reportService = reportService;
     }
 
+    /**
+     * Liefert auswählbare Optionen für das Frontend.
+     *
+     * <p>Pfad: {@code GET /api/reports/options}</p>
+     * <p>Response: 200 OK mit {@link ReportOptions}.</p>
+     */
     @GetMapping("/options")
     public ReportOptions getOptions() {
         return reportService.getOptions();
     }
 
+    /**
+     * Gibt Reportdaten als JSON zurück.
+     *
+     * <p>Pfad: {@code GET /api/reports/data}</p>
+     * <p>Query-Parameter: {@code type}, {@code period}, {@code from}, {@code to}, {@code query},
+     * {@code variant}, {@code installStatus} (alle optional, siehe {@link ReportFilter}).</p>
+     *
+     * @param type          gewünschter Reporttyp.
+     * @param period        Zeitraum-Präset.
+     * @param from          Startdatum (ISO-8601) bei custom.
+     * @param to            Enddatum (ISO-8601) bei custom.
+     * @param query         Volltext-Filter.
+     * @param variant       Deployment-Variante.
+     * @param installStatus Installationsstatus.
+     * @return 200 OK mit {@link ReportResponse} als JSON.
+     */
     @GetMapping("/data")
     public ReportResponse getReportData(@RequestParam(name = "type", required = false) String type,
                                         @RequestParam(name = "period", required = false) String period,
@@ -49,6 +76,14 @@ public class ReportController {
         return reportService.getReport(filter);
     }
 
+    /**
+     * Exportiert den Report als CSV-Datei.
+     *
+     * <p>Pfad: {@code GET /api/reports/export/csv}</p>
+     * <p>Query-Parameter wie {@link #getReportData(String, String, String, String, String, String, String)}.</p>
+     *
+     * @return 200 OK mit CSV-Datei ({@code text/csv}).
+     */
     @GetMapping("/export/csv")
     public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "type", required = false) String type,
                                                        @RequestParam(name = "period", required = false) String period,
@@ -69,6 +104,14 @@ public class ReportController {
                 .body(resource);
     }
 
+    /**
+     * Exportiert den Report als PDF-Datei.
+     *
+     * <p>Pfad: {@code GET /api/reports/export/pdf}</p>
+     * <p>Query-Parameter wie {@link #getReportData(String, String, String, String, String, String, String)}.</p>
+     *
+     * @return 200 OK mit PDF ({@code application/pdf}).
+     */
     @GetMapping("/export/pdf")
     public ResponseEntity<ByteArrayResource> exportPdf(@RequestParam(name = "type", required = false) String type,
                                                        @RequestParam(name = "period", required = false) String period,

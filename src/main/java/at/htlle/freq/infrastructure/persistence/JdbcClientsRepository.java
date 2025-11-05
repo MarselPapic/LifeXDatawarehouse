@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Clients}, das den Zugriff auf die Tabelle {@code Clients}
+ * kapselt und alle Geräteeigenschaften der Mandanten in Domänenobjekte transformiert.
+ */
 @Repository
 public class JdbcClientsRepository implements ClientsRepository {
 
@@ -58,6 +62,19 @@ public class JdbcClientsRepository implements ClientsRepository {
             """, mapper);
     }
 
+    /**
+     * Speichert Client-Geräte via INSERT oder UPDATE in der Tabelle {@code Clients}.
+     * <p>
+     * Da die Zieldatenbank kein {@code RETURNING} unterstützt, wird für neue Datensätze eine
+     * UUID im Anwendungscode generiert und anschließend in das Insert übernommen. Updates
+     * binden sämtliche Spalten, um inkonsistente Teilupdates zu vermeiden und das Row-Mapping
+     * deterministisch zu halten.
+     * </p>
+     *
+     * @param c Client-Objekt, dessen Felder über {@link MapSqlParameterSource} auf gleichnamige
+     *          Spalten gemappt werden.
+     * @return der gespeicherte Client mit gesetzter {@code ClientID}.
+     */
     @Override
     public Clients save(Clients c) {
         boolean isNew = (c.getClientID() == null);

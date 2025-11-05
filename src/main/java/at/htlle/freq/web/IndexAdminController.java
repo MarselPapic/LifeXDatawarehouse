@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 
+/**
+ * Administrativer Controller für Lucene-Reindizierung.
+ *
+ * <p>Delegiert an den {@link LuceneIndexService}.</p>
+ */
 @RestController
 @RequestMapping("/api/index")
 public class IndexAdminController {
@@ -22,6 +27,15 @@ public class IndexAdminController {
         this.lucene = lucene;
     }
 
+    /**
+     * Startet einen asynchronen Reindexing-Job.
+     *
+     * <p>Pfad: {@code POST /api/index/reindex}</p>
+     * <p>Request-Body: leer.</p>
+     *
+     * @param principal optionaler Security-Principal zur Protokollierung.
+     *                  Bei {@code null} wird lediglich die Request-ID protokolliert.
+     */
     @PostMapping("/reindex")
     public void reindex(Principal principal) {
         String actorDetail = resolveActor(principal);

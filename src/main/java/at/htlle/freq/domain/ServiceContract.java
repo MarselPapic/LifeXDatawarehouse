@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Captures maintenance or rollout agreements between an {@link Account}, a
+ * {@link Project}, and optionally a specific {@link Site}. Contract data stores
+ * the commercial identifiers and schedules to coordinate service delivery.
+ */
 public class ServiceContract {
     private UUID contractID;
     private UUID accountID;

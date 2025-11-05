@@ -2,6 +2,12 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Captures the relationship between a {@link Site} and the {@link Software}
+ * packages that are installed there. The entity optionally stores the current
+ * operational {@code status} using {@link InstalledSoftwareStatus} values to
+ * support upgrade planning.
+ */
 public class InstalledSoftware {
     private UUID installedSoftwareID;
     private UUID siteID;

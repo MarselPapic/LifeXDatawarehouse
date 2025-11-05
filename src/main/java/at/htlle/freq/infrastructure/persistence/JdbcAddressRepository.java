@@ -8,6 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Address} Entitäten, das CRUD-Operationen für die Tabelle
+ * {@code Address} anbietet und die Spalten {@code AddressID}, {@code Street} und {@code CityID}
+ * in die Domänenobjekte abbildet.
+ */
 @Repository
 public class JdbcAddressRepository implements AddressRepository {
 
@@ -40,6 +45,18 @@ public class JdbcAddressRepository implements AddressRepository {
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
+    /**
+     * Persistiert Adressen in der Tabelle {@code Address}.
+     * <p>
+     * Neue Datensätze werden über ein INSERT mit {@code RETURNING AddressID} erstellt, wodurch
+     * die vom Datenbankserver generierte ID direkt in das Domänenobjekt zurückgeschrieben wird.
+     * Bei bestehenden Datensätzen erfolgt ein vollständiges Update, wobei die Parameter anhand
+     * der Feldnamen auf die gleichnamigen Spalten gemappt werden.
+     * </p>
+     *
+     * @param a Adresse, deren Attribute über {@link MapSqlParameterSource} gebunden werden.
+     * @return die gespeicherte Adresse inklusive gesetzter {@code AddressID}.
+     */
     @Override
     public Address save(Address a) {
         boolean isNew = a.getAddressID() == null;

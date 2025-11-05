@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Betreut Server-Hardware, validiert Pflichtfelder und hält Lucene aktuell.
+ */
 @Service
 public class ServerService {
 
@@ -21,6 +24,12 @@ public class ServerService {
     private final ServerRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Komponenten.
+     *
+     * @param repo   Repository für Server
+     * @param lucene Lucene-Indexdienst
+     */
     public ServerService(ServerRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class ServerService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Server.
+     *
+     * @return Liste der Server
+     */
     public List<Server> getAllServers() {
         return repo.findAll();
     }
 
+    /**
+     * Holt einen Server anhand seiner ID.
+     *
+     * @param id Server-ID
+     * @return Optional mit Server oder leer
+     */
     public Optional<Server> getServerById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Server einer Site.
+     *
+     * @param siteId Site-ID
+     * @return Liste der Server
+     */
     public List<Server> getServersBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
         return repo.findBySite(siteId);
@@ -44,6 +70,13 @@ public class ServerService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert einen Server und validiert Pflichtfelder wie Site, Name, Marke und Seriennummer.
+     * Indexiert nach Commit in Lucene.
+     *
+     * @param incoming Server, der gespeichert werden soll
+     * @return gespeicherter Server
+     */
     @Transactional
     public Server createOrUpdateServer(Server incoming) {
         Objects.requireNonNull(incoming, "server payload must not be null");
@@ -65,6 +98,13 @@ public class ServerService {
         return saved;
     }
 
+    /**
+     * Aktualisiert einen Server und synchronisiert Lucene.
+     *
+     * @param id    Server-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisiertem Server oder leer
+     */
     @Transactional
     public Optional<Server> updateServer(UUID id, Server patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -89,6 +129,11 @@ public class ServerService {
         });
     }
 
+    /**
+     * Löscht einen Server.
+     *
+     * @param id Server-ID
+     */
     @Transactional
     public void deleteServer(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

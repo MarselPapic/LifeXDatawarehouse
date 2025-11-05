@@ -10,10 +10,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/**
- * Einziger Consumer für die SEDA-Queue.
- * - concurrentConsumers=1 garantiert seriellen Zugriff auf den Lucene-Writer
- * - try-with-resources + Fehlerhandling innerhalb des LuceneService vorausgesetzt
+/*
+ * Camel-Routen-Hub für alle Lucene-Schreiboperationen.
+ *
+ * Datenfluss:
+ *  - UnifiedIndexingRoutes (Timer, Direct-Endpunkte) pushen Domain-Entities in "seda:lucene-index".
+ *  - Diese Route konsumiert die Queue mit exactly-one Consumer und ruft abhängig vom Body die passenden indexXxx()-Methoden.
+ *  - Fehler werden im onException-Block geloggt und die Nachricht verworfen, damit keine Retry-Stürme entstehen (siehe log.error).
+ *
+ * Retry-/Locking-Aspekte:
+ *  - Camel-SEDA mit concurrentConsumers=1 verhindert parallele Writer-Zugriffe, zusätzlich serialisiert der Service selbst
+ *    (ReentrantLock in LuceneIndexServiceImpl) die Schreibzugriffe.
+ *  - Kein automatisches Redelivery: handled(true) sorgt dafür, dass Dead Letter Handling deaktiviert bleibt – konsistent mit den
+ *    Logger-Hinweisen.
+ *
+ * Integrationspunkte:
+ *  - Bindeglied zwischen Camel und LuceneIndexServiceImpl.
+ *  - Konsumiert Entities aus Repositories (siehe UnifiedIndexingRoutes) und spiegelt deren Struktur 1:1 in die Indexmethoden.
  */
 @Component("LuceneIndexingHubRoute")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
@@ -27,6 +40,10 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
     }
 
     @Override
+    /**
+     * Richtet das onException-Logging sowie den Single-Consumer-Flow ein.
+     * Keine parallele Verarbeitung – consistent mit den Lock-Warnungen des Services.
+     */
     public void configure() {
 
         // Globales Error-Handling: loggen & Nachricht verwerfen (kein Retry-Sturm)

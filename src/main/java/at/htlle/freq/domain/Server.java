@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Describes an infrastructure server that supports a {@link Site}. Server
+ * instances capture hardware, operating system and virtualization properties
+ * and indicate whether the node participates in a high-availability setup.
+ */
 public class Server {
     private UUID serverID;
     private UUID siteID;

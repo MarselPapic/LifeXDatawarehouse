@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Koordiniert Upgrade-Pläne, validiert Pflichtfelder und synchronisiert Lucene.
+ */
 @Service
 public class UpgradePlanService {
 
@@ -21,6 +24,12 @@ public class UpgradePlanService {
     private final UpgradePlanRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Upgrade-Pläne
+     * @param lucene Lucene-Indexdienst
+     */
     public UpgradePlanService(UpgradePlanRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class UpgradePlanService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Upgrade-Pläne.
+     *
+     * @return Liste der Upgrade-Pläne
+     */
     public List<UpgradePlan> getAllUpgradePlans() {
         return repo.findAll();
     }
 
+    /**
+     * Holt einen Upgrade-Plan anhand seiner ID.
+     *
+     * @param id Plan-ID
+     * @return Optional mit Upgrade-Plan oder leer
+     */
     public Optional<UpgradePlan> getUpgradePlanById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Upgrade-Pläne für eine Site.
+     *
+     * @param siteId Site-ID
+     * @return Liste der Upgrade-Pläne
+     */
     public List<UpgradePlan> getUpgradePlansBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
         return repo.findBySite(siteId);
@@ -44,6 +70,12 @@ public class UpgradePlanService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert einen Upgrade-Plan, validiert Pflichtfelder und indexiert nach Commit.
+     *
+     * @param incoming Upgrade-Plan, der gespeichert werden soll
+     * @return gespeicherter Upgrade-Plan
+     */
     @Transactional
     public UpgradePlan createOrUpdateUpgradePlan(UpgradePlan incoming) {
         Objects.requireNonNull(incoming, "upgrade plan payload must not be null");
@@ -63,6 +95,13 @@ public class UpgradePlanService {
         return saved;
     }
 
+    /**
+     * Aktualisiert einen Upgrade-Plan und synchronisiert Lucene.
+     *
+     * @param id    Plan-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisiertem Plan oder leer
+     */
     @Transactional
     public Optional<UpgradePlan> updateUpgradePlan(UUID id, UpgradePlan patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -85,6 +124,11 @@ public class UpgradePlanService {
         });
     }
 
+    /**
+     * Löscht einen Upgrade-Plan.
+     *
+     * @param id Plan-ID
+     */
     @Transactional
     public void deleteUpgradePlan(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

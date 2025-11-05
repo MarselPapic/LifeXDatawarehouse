@@ -2,6 +2,12 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Aggregates all information about a deployment project that is executed for
+ * an {@link Account}. Projects reference the {@link DeploymentVariant} that
+ * governs the technical scope, track lifecycle state via
+ * {@link ProjectLifecycleStatus}, and own subordinate {@link Site} locations.
+ */
 public class Project {
     private UUID projectID;
     private String projectSAPID;

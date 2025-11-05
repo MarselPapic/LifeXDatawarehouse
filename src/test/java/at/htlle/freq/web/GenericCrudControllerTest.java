@@ -14,6 +14,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Exercises the {@link GenericCrudController} using a mocked {@link NamedParameterJdbcTemplate}
+ * to verify SQL normalization, validation and error handling of the CRUD endpoints.
+ */
 class GenericCrudControllerTest {
 
     private NamedParameterJdbcTemplate jdbc;
@@ -41,11 +45,16 @@ class GenericCrudControllerTest {
 
     @Test
     void rowFetchesByPrimaryKeyAndHandlesNotFound() {
+        // Arrange: the row exists for the first call
         when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(Map.of("AccountID", "1")));
+        // Act
         Map<String, Object> row = controller.row("account", "1");
+        // Assert
         assertEquals("1", row.get("AccountID"));
 
+        // Arrange: the row is missing so the controller must throw
         when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of());
+        // Act + Assert
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.row("account", "1"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
@@ -64,11 +73,16 @@ class GenericCrudControllerTest {
 
     @Test
     void updateBuildsUpdateStatementAndChecksAffectedRows() {
+        // Arrange: pretend the update affects one row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
+        // Act
         controller.update("account", "1", Map.of("AccountName", "Acme"));
+        // Assert
         verify(jdbc).update(startsWith("UPDATE Account"), any(MapSqlParameterSource.class));
 
+        // Arrange: emulate an update miss
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
+        // Act + Assert
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.update("account", "1", Map.of("AccountName", "Acme")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -76,11 +90,16 @@ class GenericCrudControllerTest {
 
     @Test
     void deleteBuildsDeleteStatementAndChecksAffectedRows() {
+        // Arrange
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
+        // Act
         controller.delete("account", "1");
+        // Assert
         verify(jdbc).update(startsWith("DELETE FROM Account"), any(MapSqlParameterSource.class));
 
+        // Arrange: emulate a delete miss
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
+        // Act + Assert
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.delete("account", "1"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());

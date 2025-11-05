@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link DeploymentVariant}, das sämtliche Zugriffe auf die Tabelle
+ * {@code DeploymentVariant} bündelt und Variantendaten in Domänenobjekte mappt.
+ */
 @Repository
 public class JdbcDeploymentVariantRepository implements DeploymentVariantRepository {
 
@@ -62,6 +66,18 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Persistiert Deployment-Varianten via INSERT (mit {@code RETURNING VariantID}) oder UPDATE.
+     * <p>
+     * Alle relevanten Felder werden explizit als benannte Parameter gebunden, um eine konsistente
+     * Projektion zwischen SQL-Ergebnis und {@link RowMapper} sicherzustellen und spätere
+     * Erweiterungen einfacher zu gestalten.
+     * </p>
+     *
+     * @param dv Deployment-Variante, deren Attribute direkt auf die Spalten der Tabelle
+     *           {@code DeploymentVariant} gemappt werden.
+     * @return die persistierte Variante samt Primärschlüssel.
+     */
     @Override
     public DeploymentVariant save(DeploymentVariant dv) {
         boolean isNew = dv.getVariantID() == null;

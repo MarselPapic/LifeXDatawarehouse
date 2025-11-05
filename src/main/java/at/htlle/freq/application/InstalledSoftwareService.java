@@ -14,6 +14,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Verwaltet installierte Softwarestände, prüft Statuswerte und hält den Lucene-Index aktuell.
+ */
 @Service
 public class InstalledSoftwareService {
 
@@ -22,6 +25,12 @@ public class InstalledSoftwareService {
     private final InstalledSoftwareRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Installationen
+     * @param lucene Lucene-Indexdienst
+     */
     public InstalledSoftwareService(InstalledSoftwareRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -29,20 +38,43 @@ public class InstalledSoftwareService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle installierten Softwarestände.
+     *
+     * @return Liste aller Installationen
+     */
     public List<InstalledSoftware> getAllInstalledSoftware() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht eine Installation anhand ihrer ID.
+     *
+     * @param id Installation-ID
+     * @return Optional mit Installation oder leer
+     */
     public Optional<InstalledSoftware> getInstalledSoftwareById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Installationen für eine Site.
+     *
+     * @param siteId Site-ID
+     * @return Liste der Installationen
+     */
     public List<InstalledSoftware> getInstalledSoftwareBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
         return repo.findBySite(siteId);
     }
 
+    /**
+     * Liefert Installationen zu einer Software.
+     *
+     * @param softwareId Software-ID
+     * @return Liste der Installationen
+     */
     public List<InstalledSoftware> getInstalledSoftwareBySoftware(UUID softwareId) {
         Objects.requireNonNull(softwareId, "softwareId must not be null");
         return repo.findBySoftware(softwareId);
@@ -50,6 +82,12 @@ public class InstalledSoftwareService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert eine Installation und normalisiert den Status. Indexiert nach Commit in Lucene.
+     *
+     * @param incoming Installation, die gespeichert werden soll
+     * @return gespeicherte Installation
+     */
     @Transactional
     public InstalledSoftware createOrUpdateInstalledSoftware(InstalledSoftware incoming) {
         Objects.requireNonNull(incoming, "installedSoftware payload must not be null");
@@ -69,6 +107,13 @@ public class InstalledSoftwareService {
         return saved;
     }
 
+    /**
+     * Aktualisiert eine Installation und hält den Index synchron.
+     *
+     * @param id    Installation-ID
+     * @param patch Änderungen für die Installation
+     * @return Optional mit aktualisierter Installation oder leer
+     */
     @Transactional
     public Optional<InstalledSoftware> updateInstalledSoftware(UUID id, InstalledSoftware patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -92,6 +137,11 @@ public class InstalledSoftwareService {
         });
     }
 
+    /**
+     * Löscht eine Installation.
+     *
+     * @param id Installation-ID
+     */
     @Transactional
     public void deleteInstalledSoftware(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Steuert Telefonintegrationen, validiert Pflichtfelder und synchronisiert Daten mit Lucene.
+ */
 @Service
 public class PhoneIntegrationService {
 
@@ -21,6 +24,12 @@ public class PhoneIntegrationService {
     private final PhoneIntegrationRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Telefonintegrationen
+     * @param lucene Lucene-Indexdienst
+     */
     public PhoneIntegrationService(PhoneIntegrationRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class PhoneIntegrationService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Telefonintegrationen.
+     *
+     * @return Liste aller Integrationen
+     */
     public List<PhoneIntegration> getAllPhoneIntegrations() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht eine Integration anhand ihrer ID.
+     *
+     * @param id Integrations-ID
+     * @return Optional mit Integration oder leer
+     */
     public Optional<PhoneIntegration> getPhoneIntegrationById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Integrationen für einen Client.
+     *
+     * @param clientId Client-ID
+     * @return Liste der Integrationen
+     */
     public List<PhoneIntegration> getPhoneIntegrationsByClient(UUID clientId) {
         Objects.requireNonNull(clientId, "clientId must not be null");
         return repo.findByClient(clientId);
@@ -44,6 +70,13 @@ public class PhoneIntegrationService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert eine Telefonintegration und indexiert sie nach Commit in Lucene.
+     * Validiert Client und Typ.
+     *
+     * @param incoming Integration, die gespeichert werden soll
+     * @return gespeicherte Integration
+     */
     @Transactional
     public PhoneIntegration createOrUpdatePhoneIntegration(PhoneIntegration incoming) {
         Objects.requireNonNull(incoming, "phoneIntegration payload must not be null");
@@ -61,6 +94,13 @@ public class PhoneIntegrationService {
         return saved;
     }
 
+    /**
+     * Aktualisiert eine Telefonintegration und synchronisiert Lucene.
+     *
+     * @param id    Integrations-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisierter Integration oder leer
+     */
     @Transactional
     public Optional<PhoneIntegration> updatePhoneIntegration(UUID id, PhoneIntegration patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -82,6 +122,11 @@ public class PhoneIntegrationService {
         });
     }
 
+    /**
+     * Löscht eine Telefonintegration.
+     *
+     * @param id Integrations-ID
+     */
     @Transactional
     public void deletePhoneIntegration(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

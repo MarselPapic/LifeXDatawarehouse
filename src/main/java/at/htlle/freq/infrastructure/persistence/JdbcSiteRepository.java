@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Site}, das Standortdaten in der Tabelle {@code Site} verwaltet und
+ * die Beziehungen zu Projekten sowie Adressen mappt.
+ */
 @Repository
 public class JdbcSiteRepository implements SiteRepository {
 
@@ -49,6 +53,17 @@ public class JdbcSiteRepository implements SiteRepository {
         return jdbc.query("SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount FROM Site", mapper);
     }
 
+    /**
+     * Persistiert Standorte durch INSERT oder UPDATE in der Tabelle {@code Site}.
+     * <p>
+     * Die Anweisung bindet sämtliche Spalten einschließlich optionaler Felder wie
+     * {@code TenantCount}, um ein konsistentes Mapping mit dem {@link RowMapper} sicherzustellen.
+     * Über {@code RETURNING SiteID} wird bei neuen Standorten der Primärschlüssel übernommen.
+     * </p>
+     *
+     * @param s Standortobjekt, dessen Attribute auf die gleichnamigen Spalten gemappt werden.
+     * @return der persistierte Standort mit {@code SiteID}.
+     */
     @Override
     public Site save(Site s) {
         boolean isNew = s.getSiteID() == null;

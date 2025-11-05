@@ -15,6 +15,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Verwaltet Länderstammdaten und hält Lucene nach erfolgreichen Transaktionen synchron.
+ */
 @Service
 public class CountryService {
 
@@ -23,6 +26,12 @@ public class CountryService {
     private final CountryRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Länder
+     * @param lucene Indexservice für Lucene
+     */
     public CountryService(CountryRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -30,10 +39,21 @@ public class CountryService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Länder.
+     *
+     * @return Liste aller Länder
+     */
     public List<Country> getAllCountries() {
         return repo.findAll();
     }
 
+    /**
+     * Holt ein Land anhand seines Codes.
+     *
+     * @param code Ländercode (Primärschlüssel)
+     * @return Optional mit Land oder leer
+     */
     public Optional<Country> getCountryByCode(String code) {
         Objects.requireNonNull(code, "country code must not be null");
         return repo.findById(code);
@@ -42,8 +62,11 @@ public class CountryService {
     // ---------- Commands ----------
 
     /**
-     * Legt ein Land an oder aktualisiert es
-     * und indexiert es in Lucene NACH erfolgreichem Commit.
+     * Speichert ein Land und indexiert es nach dem Commit in Lucene. Validiert
+     * Pflichtfelder für Code und Name.
+     *
+     * @param incoming Land, das erstellt oder aktualisiert werden soll
+     * @return gespeichertes Land
      */
     @Transactional
     public Country createOrUpdateCountry(Country incoming) {
@@ -62,6 +85,13 @@ public class CountryService {
         return saved;
     }
 
+    /**
+     * Aktualisiert ein bestehendes Land und synchronisiert anschließend Lucene.
+     *
+     * @param code  Ländercode
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit dem aktualisierten Land oder leer
+     */
     @Transactional
     public Optional<Country> updateCountry(String code, Country patch) {
         Objects.requireNonNull(code, "country code must not be null");
@@ -79,6 +109,11 @@ public class CountryService {
         });
     }
 
+    /**
+     * Entfernt ein Land dauerhaft aus der Datenbank.
+     *
+     * @param code Ländercode
+     */
     @Transactional
     public void deleteCountry(String code) {
         Objects.requireNonNull(code, "country code must not be null");

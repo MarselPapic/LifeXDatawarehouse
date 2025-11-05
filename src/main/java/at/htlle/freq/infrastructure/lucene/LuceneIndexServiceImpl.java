@@ -33,6 +33,24 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
+/*
+ * Zentraler Lucene-Schreibdienst.
+ *
+ * Datenfluss:
+ *  - Camel-Routen (Timer & Direct) liefern Domain-Entities in die "seda:lucene-index"-Queue.
+ *  - Der LuceneIndexingHubRoute entpackt die Entities und ruft die passenden indexXxx()-Methoden auf.
+ *  - Jede indexXxx()-Methode konsolidiert Felder, leitet sie an indexDocument() weiter und persistiert in Lucene.
+ *
+ * Retry- & Locking-Strategie:
+ *  - Der IndexWriter ist durch withWriter() und einen ReentrantLock serialisiert; parallele Zugriffe aus mehreren Threads
+ *    (z. B. Timer + On-Demand) werden dadurch aneinander gereiht.
+ *  - Scheitert Lucene mit einem write.lock, wird einmal versucht, das Lock via obtainLock() aufzuräumen – analog zu den
+ *    Logger-Warnungen in clearStaleLock(). Danach wird ein Fehler geloggt und propagiert.
+ *
+ * Integrationspunkte:
+ *  - Repositories liefern Daten für reindexAll(); Scheduler/Timer triggern diesen Pfad laut UnifiedIndexingRoutes.
+ *  - Die JSON-Lizenzfragmente werden synchronisiert, damit REST-Controller und Index konsistent bleiben.
+ */
 @Service
 public class LuceneIndexServiceImpl implements LuceneIndexService {
 
@@ -77,10 +95,18 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     private volatile Path indexDir;
     private volatile Path storedLicenseJsonPath;
 
+    /**
+     * Konstruktor für Tests – initialisiert alle Repository-Referenzen mit {@code null}.
+     * Der Indexpfad wird über {@link #setIndexPath(Path)} gesetzt, wodurch auch Lizenzdateien gefunden werden.
+     */
     public LuceneIndexServiceImpl() {
         this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
+    /**
+     * Produktionskonstruktor: alle Repository-Instanzen werden injiziert.
+     * Der Indexpfad basiert auf {@link LuceneIndexService#INDEX_PATH} (siehe Logging-Hinweis bei Fehlern in clearIndex()).
+     */
     @Autowired
     public LuceneIndexServiceImpl(AccountRepository accountRepository,
                                   AddressRepository addressRepository,
@@ -117,11 +143,24 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         setIndexPath(Paths.get(LuceneIndexService.INDEX_PATH));
     }
 
+    /**
+     * Ermöglicht alternative Indexpfade (z. B. Tests oder temporäre Builds).
+     * Wichtig für parallele Testläufe, damit keine Locks kollidieren.
+     */
     public LuceneIndexServiceImpl(Path indexPath) {
         this();
         setIndexPath(indexPath);
     }
 
+    /**
+     * Öffnet einen IndexWriter mit Serienzugriff (vgl. Logger "Konnte Lucene-Verzeichnis nicht schließen").
+     *
+     * Scheduling & Parallelisierung: Wird von allen indexXxx()-Methoden indirekt genutzt, wodurch der ReentrantLock den
+     * Zugriff auf den Index serialisiert. Camel liefert Nachrichten parallel, aber der Lock zwingt sie hier in eine FIFO-Reihe.
+     *
+     * Retry-Strategie: Bei {@link LockObtainFailedException} wird einmal clearStaleLock() versucht, anschließend erneut
+     * geöffnet. Erst danach wird die Exception nach außen gegeben (siehe log.warn/log.error in clearStaleLock()).
+     */
     private void withWriter(WriterCallback callback) throws IOException {
         writerLock.lock();
         try {
@@ -158,6 +197,12 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         }
     }
 
+    /**
+     * Versucht verwaiste write.lock-Dateien aufzuräumen, damit ein Reindex nicht hängen bleibt.
+     *
+     * Nebenwirkungen: Löscht ggf. die Lockdatei auf dem Filesystem und schreibt Warnungen in das Log (siehe log.warn in
+     * clearStaleLock). Wird nur von withWriter() nach einer gescheiterten Erstöffnung aufgerufen.
+     */
     private boolean clearStaleLock(FSDirectory dir) {
         boolean cleared = false;
 
@@ -189,6 +234,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         return cleared;
     }
 
+    /**
+     * Liest das persistent abgelegte license-fragments.json, damit der Index dieselben Lizenzanteile nutzt wie REST.
+     * Bei I/O-Fehlern wird eine Runtime-Exception mit Logger-Kontext geworfen.
+     */
     private JsonNode readStoredLicenseJson() {
         if (!Files.exists(storedLicenseJsonPath)) {
             return JsonNodeFactory.instance.objectNode();
@@ -202,6 +251,9 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         }
     }
 
+    /**
+     * Persistiert Lizenzinformationen atomar (über Files.newOutputStream). Nebenwirkung: erzeugt Verzeichnisse.
+     */
     private void writeStoredLicenseJson(ObjectNode node) {
         try {
             Files.createDirectories(storedLicenseJsonPath.getParent());
@@ -213,6 +265,9 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         }
     }
 
+    /**
+     * Öffnet einen Lesekontext für Ad-hoc-Suchen. Gibt {@code null} zurück, wenn noch kein Index existiert.
+     */
     private DirectoryReader openReader() throws IOException {
         if (!Files.isDirectory(indexDir)) {
             return null;
@@ -226,11 +281,18 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     }
 
     @Override
+    /**
+     * Liefert den aktuell verwendeten Indexpfad. Synchronisiert, da Timer/REST ihn konfigurieren können.
+     */
     public synchronized Path getIndexPath() {
         return Objects.requireNonNull(indexDir, "indexPath is not configured");
     }
 
     @Override
+    /**
+     * Konfiguriert einen neuen Indexpfad und aktualisiert den Speicherort der Lizenzfragmente.
+     * Nebenwirkung: Nachfolgende indexXxx()-Aufrufe schreiben in das neue Verzeichnis.
+     */
     public synchronized void setIndexPath(Path indexPath) {
         Path normalized = Objects.requireNonNull(indexPath, "indexPath must not be null");
         this.indexDir = normalized;
@@ -240,6 +302,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     // =================== Search ===================
 
     @Override
+    /**
+     * Parst eine Query (StandardAnalyzer) und ruft {@link #search(Query)} auf. Fehler werden geloggt und als leere Liste
+     * beantwortet, damit REST-Endpoints nicht mit Exceptions zurückkehren (siehe log.error Meldung).
+     */
     public List<SearchHit> search(String queryText) {
         try {
             QueryParser parser = new QueryParser("content", analyzer);
@@ -252,6 +318,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     }
 
     @Override
+    /**
+     * Führt eine Lucene-Suche durch, begrenzt auf 50 Treffer. Stellt sicher, dass Reader geschlossen werden (vgl. Logger
+     * "Konnte Lucene-Reader nicht schließen"). Thread-sicher, da Reader pro Aufruf neu geöffnet wird.
+     */
     public List<SearchHit> search(Query query) {
         List<SearchHit> results = new ArrayList<>();
         DirectoryReader reader = null;
@@ -284,6 +354,13 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     // =================== Reindex ===================
 
     @Override
+    /**
+     * Aggregiert alle Domain-Datensätze aus den Repositories und indexiert sie sequenziell.
+     *
+     * Scheduling & Parallelisierung: Wird typischerweise von Camel-Timern (UnifiedIndexingRoutes) oder Admin-Triggern
+     * aufgerufen. Der Fortschritt wird in {@link IndexProgress} geschrieben, sodass REST/Monitoring darauf zugreifen kann.
+     * Nebenwirkungen: Löscht den bestehenden Index (siehe clearIndex()) und schreibt umfangreiche Infos in das Log.
+     */
     public void reindexAll() {
         List<Account> accounts = accountRepository != null ? safeList(accountRepository.findAll()) : List.of();
         List<Address> addresses = addressRepository != null ? safeList(addressRepository.findAll()) : List.of();
@@ -504,6 +581,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
 
     // =================== Helper ===================
 
+    /**
+     * Löscht den kompletten Lucene-Index und committet die Löschung sofort.
+     * Wird nur aus reindexAll() aufgerufen und spiegelt die Log-Meldung "Lucene-Index geleert" wider.
+     */
     private void clearIndex() throws IOException {
         withWriter(writer -> {
             writer.deleteAll();
@@ -538,6 +619,13 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         return items == null ? List.of() : items;
     }
 
+    /**
+     * Kern der Indexierung: schreibt/aktualisiert ein Dokument und erhöht den Fortschritt.
+     *
+     * Nebenwirkungen: Commits den Writer direkt (siehe writer.commit()), erzeugt Log-Meldungen und aktualisiert
+     * {@link IndexProgress}. Die Methode wird von Camel sowohl seriell (SEDA) als auch potenziell parallel via REST genutzt,
+     * der interne Lock in withWriter() garantiert jedoch deterministische Updates.
+     */
     private void indexDocument(String id, String type, String... fields) {
         try {
             withWriter(writer -> {

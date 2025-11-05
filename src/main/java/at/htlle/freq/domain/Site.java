@@ -2,6 +2,12 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Represents a physical deployment location that belongs to a
+ * {@link Project}. Each site points to an {@link Address} record, may host
+ * multiple {@link Clients}, and provides metadata such as fire zone and tenant
+ * counts for operational planning.
+ */
 public class Site {
     private UUID siteID;
     private String siteName;

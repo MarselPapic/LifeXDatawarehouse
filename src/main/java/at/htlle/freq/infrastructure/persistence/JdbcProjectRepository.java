@@ -9,6 +9,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Project}, das alle Projektdaten in der Tabelle {@code Project}
+ * verwaltet und die Beziehungen zu Deployment-Varianten, Accounts und Adressen abbildet.
+ */
 @Repository
 public class JdbcProjectRepository implements ProjectRepository {
 
@@ -62,6 +66,19 @@ public class JdbcProjectRepository implements ProjectRepository {
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Persistiert Projekte mit vollständiger Spaltenbelegung.
+     * <p>
+     * Das INSERT nutzt {@code RETURNING ProjectID}, um den durch die Datenbank vergebenen
+     * Primärschlüssel zu übernehmen. Für Updates werden sämtliche Attribute – inklusive optionaler
+     * {@link ProjectLifecycleStatus}-Werte – gebunden, damit das Mapping des RowMappers deckungsgleich
+     * bleibt und abhängige Fremdschlüssel synchronisiert werden.
+     * </p>
+     *
+     * @param p Projekt mit referenzierten IDs, das über benannte Parameter auf die Spalten der
+     *          Tabelle {@code Project} gemappt wird.
+     * @return das persistierte Projekt samt {@code ProjectID}.
+     */
     @Override
     public Project save(Project p) {
         boolean isNew = p.getProjectID() == null;

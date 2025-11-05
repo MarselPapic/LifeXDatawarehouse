@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link UpgradePlan}, das Wartungsfenster in der Tabelle {@code UpgradePlan}
+ * verwaltet und die Beziehungen zu Site und Software abbildet.
+ */
 @Repository
 public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
 
@@ -56,6 +60,17 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             """, mapper);
     }
 
+    /**
+     * Persistiert Upgrade-Pläne über INSERT oder UPDATE in der Tabelle {@code UpgradePlan}.
+     * <p>
+     * Beim INSERT liefert {@code RETURNING UpgradePlanID} die neue ID, während Updates alle
+     * Datums- und Statusfelder binden, um Inkonsistenzen zwischen Datenbank und RowMapper zu
+     * vermeiden.
+     * </p>
+     *
+     * @param u Upgrade-Plan mit Referenzen auf Site und Software.
+     * @return der gespeicherte Plan inklusive {@code UpgradePlanID}.
+     */
     @Override
     public UpgradePlan save(UpgradePlan u) {
         boolean isNew = u.getUpgradePlanID() == null;

@@ -6,14 +6,22 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/**
- * Produzenten für ALLE Entities:
- *  - Timer-Reindex schickt Datensätze in eine gemeinsame SEDA-Queue
- *  - Single-Index-Endpunkte (direct:...) leiten ebenfalls in die Queue
+/*
+ * Vereinheitlichte Camel-Routen für die Index-Produktion.
  *
- *  Dadurch greifen nicht mehr mehrere Writer parallel auf Lucene zu.
- *  Der eigentliche Index-Schreibzugriff passiert NUR im LuceneIndexingHubRoute
- *  (ein Consumer, serialisiert).
+ * Datenfluss:
+ *  - Timer-Quellen (alle 3 Minuten) lesen nacheinander aus den JPA-Repositories und streamen einzelne Entities.
+ *  - Jede Quelle schreibt die Datensätze in die zentrale "seda:lucene-index"-Queue.
+ *  - Zusätzliche Direct-Endpunkte ermöglichen ad-hoc Indexierungen (z. B. nach CRUD-Events) und landen ebenfalls in der Queue.
+ *
+ * Retry-/Locking-Aspekte:
+ *  - SEDA-Queue nutzt blockWhenFull=true (vgl. Konfiguration) und verhindert damit Backpressure-Probleme.
+ *  - Die eigentliche Serialisierung passiert downstream (LuceneIndexingHubRoute + LuceneIndexServiceImpl) – hier werden keine
+ *    zusätzlichen Locks benötigt, da Camel die Reihenfolge innerhalb einer Route garantiert.
+ *
+ * Integrationspunkte:
+ *  - Bezieht alle Repositories via Spring, damit Timer komplette Reindex-Läufe fahren können (siehe Log-Infos in reindexAll()).
+ *  - Liefert Nachrichten an LuceneIndexingHubRoute, der wiederum die Lucene-API bedient.
  */
 @Component("UnifiedIndexingRoutes")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
@@ -72,6 +80,10 @@ public class UnifiedIndexingRoutes extends RouteBuilder {
     }
 
     @Override
+    /**
+     * Verkabelt Timer und Direct-Endpunkte zur gemeinsamen SEDA-Queue.
+     * Scheduling: jeder Timer tickt alle 180 Sekunden und streamt Entities, sodass auch große Tabellen verarbeitet werden.
+     */
     public void configure() {
 
         // ===== Timer-Reindex für alle Entities → in gemeinsame SEDA-Queue =====

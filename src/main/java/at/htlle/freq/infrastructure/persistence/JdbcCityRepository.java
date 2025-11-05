@@ -8,6 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-gestütztes Repository für {@link City}, das CRUD-Zugriffe auf die Tabelle {@code City}
+ * bereitstellt und die Spalten {@code CityID}, {@code CityName} sowie {@code CountryCode}
+ * in Domänenobjekte überführt.
+ */
 @Repository
 public class JdbcCityRepository implements CityRepository {
 
@@ -41,6 +46,20 @@ public class JdbcCityRepository implements CityRepository {
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
+    /**
+     * Realisiert ein Upsert-Verhalten für Städte.
+     * <p>
+     * Zunächst wird via {@code SELECT COUNT(*)} geprüft, ob der Primärschlüssel bereits in der
+     * Tabelle {@code City} existiert. Auf Basis dieses Ergebnisses wird entweder ein INSERT oder
+     * ein vollständiges UPDATE ausgeführt. Die Parameterzuordnung erfolgt über
+     * {@link MapSqlParameterSource} und stellt sicher, dass die Felder 1:1 den Spaltennamen
+     * entsprechen.
+     * </p>
+     *
+     * @param c Stadtobjekt, dessen Attribute auf {@code CityID}, {@code CityName} und
+     *          {@code CountryCode} gemappt werden.
+     * @return die gespeicherte Stadt.
+     */
     @Override
     public City save(City c) {
         // Upsert über EXISTS

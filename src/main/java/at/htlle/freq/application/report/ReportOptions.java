@@ -3,6 +3,9 @@ package at.htlle.freq.application.report;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Bündelt Auswahloptionen für das Report-Frontend.
+ */
 public record ReportOptions(
         List<ReportTypeInfo> types,
         List<VariantOption> variants,

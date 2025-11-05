@@ -16,6 +16,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Betreut Adressdaten, führt Validierungen durch und hält den Lucene-Index nach
+ * erfolgreichen Datenbanktransaktionen konsistent.
+ */
 @Service
 public class AddressService {
 
@@ -24,6 +28,12 @@ public class AddressService {
     private final AddressRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Lucene-Abhängigkeiten.
+     *
+     * @param repo   Repository für Adressentitäten
+     * @param lucene Service zur Index-Synchronisierung
+     */
     public AddressService(AddressRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -31,10 +41,21 @@ public class AddressService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert sämtliche Adressen.
+     *
+     * @return vollständige Liste aller Adressen
+     */
     public List<Address> getAllAddresses() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht eine Adresse anhand ihrer ID.
+     *
+     * @param id eindeutiger Schlüssel der Adresse
+     * @return Optional mit der gefundenen Adresse oder leer
+     */
     public Optional<Address> getAddressById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
@@ -43,8 +64,11 @@ public class AddressService {
     // ---------- Commands ----------
 
     /**
-     * Legt eine Address an (oder updated, falls ID gesetzt ist)
-     * und indexiert sie nach erfolgreichem Commit in Lucene.
+     * Persistiert eine neue oder bestehende Adresse und indexiert sie nach dem
+     * Transaktions-Commit in Lucene. Enthält Pflichtfeldprüfungen für Straße und City.
+     *
+     * @param incoming zu speichernde Adresse
+     * @return die gespeicherte Adresse inklusive ID
      */
     @Transactional
     public Address createAddress(Address incoming) {
@@ -69,7 +93,11 @@ public class AddressService {
     }
 
     /**
-     * Optionales Update analog zu AccountService.updateAccount.
+     * Aktualisiert eine bestehende Adresse und stößt anschließend das Indexieren an.
+     *
+     * @param id    eindeutiger Schlüssel der Adresse
+     * @param patch Änderungswerte, die übernommen werden sollen
+     * @return Optional mit der aktualisierten Adresse oder leer, falls nicht gefunden
      */
     @Transactional
     public Optional<Address> updateAddress(UUID id, Address patch) {
@@ -87,6 +115,11 @@ public class AddressService {
         });
     }
 
+    /**
+     * Löscht eine Adresse dauerhaft.
+     *
+     * @param id eindeutiger Schlüssel der Adresse
+     */
     @Transactional
     public void deleteAddress(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

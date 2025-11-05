@@ -10,7 +10,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
-/** Vollständiger CRUD-Controller für Telefon-Integrationen eines Clients. */
+/**
+ * Vollständiger CRUD-Controller für Telefon-Integrationen eines Clients.
+ *
+ * <p>Zugriff erfolgt über den {@link NamedParameterJdbcTemplate}.</p>
+ */
 @RestController
 @RequestMapping("/phones")
 public class PhoneController {
@@ -26,6 +30,15 @@ public class PhoneController {
     // ----------------------------
     // READ: Alle oder nach Client filtern
     // ----------------------------
+    /**
+     * Listet Telefon-Integrationen optional gefiltert nach Client.
+     *
+     * <p>Pfad: {@code GET /phones}</p>
+     * <p>Query-Parameter: {@code clientId} (optional).</p>
+     *
+     * @param clientId optionale Client-ID.
+     * @return 200 OK mit einer JSON-Liste der Telefon-Integrationen.
+     */
     @GetMapping
     public List<Map<String, Object>> findByClient(@RequestParam(required = false) String clientId) {
         if (clientId != null) {
@@ -44,6 +57,14 @@ public class PhoneController {
             """, new HashMap<>());
     }
 
+    /**
+     * Liefert eine Telefon-Integration anhand der ID.
+     *
+     * <p>Pfad: {@code GET /phones/{id}}</p>
+     *
+     * @param id Primärschlüssel.
+     * @return 200 OK mit den Feldwerten oder 404 bei unbekannter ID.
+     */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
@@ -62,6 +83,15 @@ public class PhoneController {
     // ----------------------------
     // CREATE
     // ----------------------------
+    /**
+     * Legt eine neue Telefon-Integration an.
+     *
+     * <p>Pfad: {@code POST /phones}</p>
+     * <p>Request-Body: JSON mit Spaltenfeldern (z.B. {@code clientID}, {@code phoneType}).</p>
+     *
+     * @param body Eingabedaten.
+     * @throws ResponseStatusException 400 bei leerem Body.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
@@ -82,6 +112,16 @@ public class PhoneController {
     // ----------------------------
     // UPDATE
     // ----------------------------
+    /**
+     * Aktualisiert eine Telefon-Integration.
+     *
+     * <p>Pfad: {@code PUT /phones/{id}}</p>
+     * <p>Request-Body: JSON-Objekt mit zu überschreibenden Spaltenwerten.</p>
+     *
+     * @param id   Primärschlüssel.
+     * @param body Feldwerte.
+     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn keine Zeile aktualisiert wurde.
+     */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         if (body.isEmpty()) {
@@ -109,6 +149,14 @@ public class PhoneController {
     // ----------------------------
     // DELETE
     // ----------------------------
+    /**
+     * Entfernt eine Telefon-Integration.
+     *
+     * <p>Pfad: {@code DELETE /phones/{id}}</p>
+     *
+     * @param id Primärschlüsselwert.
+     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {

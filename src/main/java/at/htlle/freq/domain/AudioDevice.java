@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Represents an audio peripheral that belongs to a {@link Clients} endpoint.
+ * Audio devices include headsets, speakers, or microphones and are tracked by
+ * firmware revision and serial number to support lifecycle management.
+ */
 public class AudioDevice {
     private UUID audioDeviceID;
     private UUID clientID;

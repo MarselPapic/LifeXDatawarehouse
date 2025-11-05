@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Stores catalog information for software packages that can be deployed to
+ * {@link Site} installations. Release metadata and lifecycle milestones are
+ * tracked to support compliance and maintenance scheduling.
+ */
 public class Software {
     private UUID softwareID;
     private String name;

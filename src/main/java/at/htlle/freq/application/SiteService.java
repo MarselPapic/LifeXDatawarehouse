@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Verwaltet Standorte, validiert Pflichtangaben und synchronisiert Lucene.
+ */
 @Service
 public class SiteService {
 
@@ -21,6 +24,12 @@ public class SiteService {
     private final SiteRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository und Indexdienst.
+     *
+     * @param repo   Repository für Sites
+     * @param lucene Lucene-Indexdienst
+     */
     public SiteService(SiteRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,15 +37,32 @@ public class SiteService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Standorte.
+     *
+     * @return Liste der Standorte
+     */
     public List<Site> getAllSites() {
         return repo.findAll();
     }
 
+    /**
+     * Holt einen Standort anhand seiner ID.
+     *
+     * @param id Standort-ID
+     * @return Optional mit Standort oder leer
+     */
     public Optional<Site> getSiteById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Liefert Standorte eines Projekts.
+     *
+     * @param projectId Projekt-ID
+     * @return Liste der Standorte
+     */
     public List<Site> getSitesByProject(UUID projectId) {
         Objects.requireNonNull(projectId, "projectId must not be null");
         return repo.findByProject(projectId);
@@ -44,6 +70,12 @@ public class SiteService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert einen Standort, prüft Pflichtfelder und indexiert nach Commit.
+     *
+     * @param incoming Standort, der gespeichert werden soll
+     * @return gespeicherter Standort
+     */
     @Transactional
     public Site createOrUpdateSite(Site incoming) {
         Objects.requireNonNull(incoming, "site payload must not be null");
@@ -61,6 +93,13 @@ public class SiteService {
         return saved;
     }
 
+    /**
+     * Aktualisiert einen Standort und synchronisiert Lucene.
+     *
+     * @param id    Standort-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisiertem Standort oder leer
+     */
     @Transactional
     public Optional<Site> updateSite(UUID id, Site patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -81,6 +120,11 @@ public class SiteService {
         });
     }
 
+    /**
+     * Löscht einen Standort.
+     *
+     * @param id Standort-ID
+     */
     @Transactional
     public void deleteSite(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

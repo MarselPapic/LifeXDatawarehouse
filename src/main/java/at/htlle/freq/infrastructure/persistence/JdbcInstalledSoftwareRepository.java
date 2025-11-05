@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link InstalledSoftware}, das die Tabelle {@code InstalledSoftware}
+ * adressiert und Zuordnungen zwischen Sites und Softwareversionen verwaltet.
+ */
 @Repository
 public class JdbcInstalledSoftwareRepository implements InstalledSoftwareRepository {
 
@@ -58,6 +62,19 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             """, mapper);
     }
 
+    /**
+     * Persistiert Installationsdatensätze in der Tabelle {@code InstalledSoftware}.
+     * <p>
+     * Über {@code RETURNING InstalledSoftwareID} wird bei einem INSERT die neue ID ermittelt,
+     * während Updates sämtliche Spalten binden, damit das Mapping mit dem {@link RowMapper}
+     * deckungsgleich bleibt. Die Parameter übernehmen direkt die IDs der referenzierten Tabellen
+     * {@code Site} und {@code Software}.
+     * </p>
+     *
+     * @param isw Installationsobjekt, dessen Eigenschaften auf die gleichnamigen Spalten gemappt
+     *            werden.
+     * @return der persistierte Datensatz.
+     */
     @Override
     public InstalledSoftware save(InstalledSoftware isw) {
         boolean isNew = isw.getInstalledSoftwareID() == null;

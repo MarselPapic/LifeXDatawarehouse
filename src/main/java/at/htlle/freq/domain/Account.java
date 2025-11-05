@@ -2,6 +2,13 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Represents a customer account that owns {@link Project projects} and
+ * {@link Site sites} inside the data warehouse. The account stores the
+ * organization wide master data such as VAT number and country as well as the
+ * primary contact person that is responsible for coordinating roll-outs and
+ * service contracts.
+ */
 public class Account {
     private UUID accountID;
     private String accountName;

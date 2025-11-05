@@ -5,6 +5,21 @@ import java.util.UUID;
 
 @Component
 public class ProjectFactory {
+    /**
+     * Builds a new {@link Project} aggregate that links to its account,
+     * deployment variant and optional headquarters address. The identifier is
+     * left {@code null} to be filled by the persistence layer.
+     *
+     * @param projectSAPID external SAP identifier for the project
+     * @param projectName human readable project name
+     * @param deploymentVariantID reference to the {@link DeploymentVariant}
+     * @param bundleType commercial bundle selection
+     * @param createDateTime creation timestamp captured as string
+     * @param lifecycleStatus lifecycle position of the project
+     * @param accountID owning {@link Account} identifier
+     * @param addressID headquarters {@link Address} identifier
+     * @return transient project entity
+     */
     public Project create(String projectSAPID,
                           String projectName,
                           UUID deploymentVariantID,

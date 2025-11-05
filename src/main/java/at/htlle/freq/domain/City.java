@@ -1,5 +1,10 @@
 package at.htlle.freq.domain;
 
+/**
+ * Holds the master data for a city used in address records. The natural key
+ * {@code cityID} is referenced by {@link Address} entities while
+ * {@code countryCode} links each city to a {@link Country} entry.
+ */
 public class City {
     private String cityID;      // natural key
     private String cityName;

@@ -2,6 +2,12 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Defines a standardized deployment blueprint that can be linked to a
+ * {@link Project}. Deployment variants carry business identifiers used for
+ * reporting and control whether the variant is currently available for new
+ * implementations.
+ */
 public class DeploymentVariant {
     private UUID variantID;
     private String variantCode;

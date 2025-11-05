@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * Repository für {@link AudioDevice}-Entitäten, das direkte JDBC-Zugriffe auf die Tabelle
+ * {@code AudioDevice} kapselt und alle relevanten Spalten in Domänenobjekte abbildet.
+ */
 @Repository
 public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
 
@@ -51,6 +55,19 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
             """, mapper);
     }
 
+    /**
+     * Führt INSERT- oder UPDATE-Operationen auf der Tabelle {@code AudioDevice} aus.
+     * <p>
+     * Bei neuen Datensätzen wird die primäre ID durch die Datenbank mittels {@code RETURNING}
+     * erzeugt und anschließend in das Domänenobjekt übernommen. Updates binden sämtliche Felder,
+     * um die Konsistenz mit dem {@link RowMapper} sicherzustellen und partielle Updates zu
+     * vermeiden.
+     * </p>
+     *
+     * @param d Audiogerät mit Eigenschaften, die über benannte Parameter in die SQL-Anweisung
+     *          eingetragen werden.
+     * @return das persistierte Audiogerät mit gesetzter {@code AudioDeviceID}.
+     */
     @Override
     public AudioDevice save(AudioDevice d) {
         boolean isNew = d.getAudioDeviceID() == null;

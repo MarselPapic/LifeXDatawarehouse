@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.Arrays;
 
+/**
+ * Enumeration of lifecycle states tracked for {@link InstalledSoftware}
+ * records. The enum exposes both a database value and a localized label and
+ * provides helper methods for conversions used in the ingestion pipeline.
+ */
 public enum InstalledSoftwareStatus {
     ACTIVE("Active", "Aktiv"),
     PENDING("Pending", "Geplant"),

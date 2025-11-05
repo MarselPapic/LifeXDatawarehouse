@@ -13,6 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Verwaltet Deployment-Varianten und orchestriert die Synchronisierung mit dem Lucene-Index.
+ */
 @Service
 public class DeploymentVariantService {
 
@@ -21,6 +24,12 @@ public class DeploymentVariantService {
     private final DeploymentVariantRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     *
+     * @param repo   Repository für Deployment-Varianten
+     * @param lucene Indexdienst für Lucene
+     */
     public DeploymentVariantService(DeploymentVariantRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -28,20 +37,43 @@ public class DeploymentVariantService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Deployment-Varianten.
+     *
+     * @return Liste aller Varianten
+     */
     public List<DeploymentVariant> getAllVariants() {
         return repo.findAll();
     }
 
+    /**
+     * Holt eine Variante anhand ihrer ID.
+     *
+     * @param id Varianten-ID
+     * @return Optional mit Variante oder leer
+     */
     public Optional<DeploymentVariant> getVariantById(UUID id) {
         Objects.requireNonNull(id, "variant id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Sucht eine Variante anhand ihres Codes.
+     *
+     * @param code eindeutiger Code
+     * @return Optional mit Variante oder leer
+     */
     public Optional<DeploymentVariant> getVariantByCode(String code) {
         if (isBlank(code)) return Optional.empty();
         return repo.findByCode(code.trim());
     }
 
+    /**
+     * Sucht eine Variante anhand ihres Namens.
+     *
+     * @param name Klartextname
+     * @return Optional mit Variante oder leer
+     */
     public Optional<DeploymentVariant> getVariantByName(String name) {
         if (isBlank(name)) return Optional.empty();
         return repo.findByName(name.trim());
@@ -50,8 +82,11 @@ public class DeploymentVariantService {
     // ---------- Commands ----------
 
     /**
-     * Legt eine DeploymentVariant an oder aktualisiert sie
-     * und indexiert sie in Lucene NACH erfolgreichem Commit.
+     * Speichert eine Deployment-Variante und indexiert sie nach erfolgreichem Commit.
+     * Validiert Pflichtfelder für Code und Name.
+     *
+     * @param incoming zu speichernde Variante
+     * @return gespeicherte Variante
      */
     @Transactional
     public DeploymentVariant createOrUpdateVariant(DeploymentVariant incoming) {
@@ -70,6 +105,13 @@ public class DeploymentVariantService {
         return saved;
     }
 
+    /**
+     * Aktualisiert eine bestehende Variante und synchronisiert den Lucene-Index.
+     *
+     * @param id    Varianten-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisierter Variante oder leer
+     */
     @Transactional
     public Optional<DeploymentVariant> updateVariant(UUID id, DeploymentVariant patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -90,6 +132,11 @@ public class DeploymentVariantService {
         });
     }
 
+    /**
+     * Löscht eine Variante endgültig.
+     *
+     * @param id Varianten-ID
+     */
     @Transactional
     public void deleteVariant(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

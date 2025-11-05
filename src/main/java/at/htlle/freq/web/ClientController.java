@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/** Clients (WorkingPosition) zu einer Site. */
+/**
+ * REST-Controller für {@link Clients} einer Site.
+ *
+ * <p>Verwendet den {@link ClientsService} zur Persistenz.</p>
+ */
 @RestController
 @RequestMapping("/clients")
 public class ClientController {
@@ -20,7 +24,15 @@ public class ClientController {
         this.service = service;
     }
 
-    // GET /clients?siteId={uuid}
+    /**
+     * Listet Clients optional gefiltert nach Site.
+     *
+     * <p>Pfad: {@code GET /clients}</p>
+     * <p>Query-Parameter: {@code siteId} (optional, UUID) für die Filterung.</p>
+     *
+     * @param siteId optionale Site-ID.
+     * @return 200 OK mit einer Liste von {@link Clients}.
+     */
     @GetMapping
     public List<Clients> findBySite(@RequestParam(required = false) UUID siteId) {
         if (siteId == null) {
@@ -29,7 +41,15 @@ public class ClientController {
         return service.findBySite(siteId);
     }
 
-    // POST /clients
+    /**
+     * Legt einen neuen Client an.
+     *
+     * <p>Pfad: {@code POST /clients}</p>
+     * <p>Request-Body: JSON-Repräsentation eines {@link Clients}.</p>
+     *
+     * @param client Client-Payload.
+     * @return 200 OK mit dem gespeicherten Datensatz oder entsprechende Fehlercodes (400/500).
+     */
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Clients client) {
         try {

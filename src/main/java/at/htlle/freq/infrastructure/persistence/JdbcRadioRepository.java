@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-Repository für {@link Radio}, das Inventardaten der Tabelle {@code Radio} verwaltet und
+ * die Zuordnung zu Sites und Clients abbildet.
+ */
 @Repository
 public class JdbcRadioRepository implements RadioRepository {
 
@@ -52,6 +56,17 @@ public class JdbcRadioRepository implements RadioRepository {
             """, mapper);
     }
 
+    /**
+     * Persistiert Funkgeräte in der Tabelle {@code Radio} über INSERT oder UPDATE.
+     * <p>
+     * Neue IDs werden durch die Datenbank vergeben und via {@code RETURNING RadioID} übernommen.
+     * Für Updates werden sämtliche Felder gebunden, damit der {@link RowMapper} vollständig bleibt
+     * und keine divergierenden Daten entstehen.
+     * </p>
+     *
+     * @param r Funkgerät, dessen Felder den gleichnamigen Spalten zugeordnet werden.
+     * @return das gespeicherte Radio inklusive {@code RadioID}.
+     */
     @Override
     public Radio save(Radio r) {
         boolean isNew = r.getRadioID() == null;

@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST-Controller für Such- und Suggest-Abfragen.
+ *
+ * <p>Verwendet {@link LuceneIndexService}, {@link SmartQueryBuilder} und
+ * {@link SuggestService}.</p>
+ */
 @RestController
 public class SearchController {
 
@@ -27,6 +33,16 @@ public class SearchController {
         this.suggest = suggest;
     }
 
+    /**
+     * Führt eine Volltextsuche aus.
+     *
+     * <p>Pfad: {@code GET /search}</p>
+     * <p>Query-Parameter: {@code q} (optional Suchbegriff), {@code raw} (boolean, optional).</p>
+     *
+     * @param q   Suchausdruck.
+     * @param raw wenn {@code true}, wird der Ausdruck als Lucene-Query interpretiert.
+     * @return 200 OK mit einer Liste von {@link SearchHit Suchtreffern}.
+     */
     @GetMapping("/search")
     public ResponseEntity<List<SearchHit>> query(
             @RequestParam(name = "q", required = false) String q,
@@ -47,6 +63,16 @@ public class SearchController {
     }
 
     // Autocomplete/Suggest
+    /**
+     * Liefert Autocomplete-Vorschläge.
+     *
+     * <p>Pfad: {@code GET /search/suggest}</p>
+     * <p>Query-Parameter: {@code q} (Pflichtfeld), {@code max} (optional, 1-25).</p>
+     *
+     * @param q   aktueller Eingabetext.
+     * @param max maximale Anzahl Ergebnisse.
+     * @return 200 OK mit einer Liste von Vorschlags-Strings.
+     */
     @GetMapping("/search/suggest")
     public List<String> suggest(
             @RequestParam("q") String q,

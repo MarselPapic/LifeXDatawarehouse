@@ -2,6 +2,12 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Models an installed client workstation at a {@link Site}. The entity tracks
+ * hardware details, operating system, and installation type, while the
+ * {@code clientID} is used as the parent reference for attached peripherals
+ * such as {@link AudioDevice} or {@link PhoneIntegration} instances.
+ */
 public class Clients {
     private UUID clientID;
     private UUID siteID;

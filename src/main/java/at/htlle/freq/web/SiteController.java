@@ -11,8 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für Site
- * Wird im Frontend über /sites angesprochen.
+ * Vollständiger CRUD-Controller für Sites.
+ *
+ * <p>Nutzen des {@link NamedParameterJdbcTemplate} für Datenbankoperationen.</p>
  */
 @RestController
 @RequestMapping("/sites")
@@ -30,6 +31,15 @@ public class SiteController {
     // READ: Alle Sites oder nach Project filtern
     // ----------------------------
 
+    /**
+     * Listet Sites optional gefiltert nach Projekt.
+     *
+     * <p>Pfad: {@code GET /sites}</p>
+     * <p>Query-Parameter: {@code projectId} (optional).</p>
+     *
+     * @param projectId optionaler Projekt-FK.
+     * @return 200 OK mit Sites als JSON.
+     */
     @GetMapping
     public List<Map<String, Object>> findByProject(@RequestParam(required = false) String projectId) {
         if (projectId != null) {
@@ -46,6 +56,14 @@ public class SiteController {
             """, new HashMap<>());
     }
 
+    /**
+     * Liefert eine Site anhand der ID.
+     *
+     * <p>Pfad: {@code GET /sites/{id}}</p>
+     *
+     * @param id Site-ID.
+     * @return 200 OK mit Feldwerten oder 404 bei unbekannter ID.
+     */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
@@ -64,6 +82,15 @@ public class SiteController {
     // CREATE
     // ----------------------------
 
+    /**
+     * Legt eine Site an.
+     *
+     * <p>Pfad: {@code POST /sites}</p>
+     * <p>Request-Body: JSON mit Feldern wie {@code siteName}, {@code projectID}.</p>
+     *
+     * @param body Eingabedaten.
+     * @throws ResponseStatusException 400 bei leerem Body.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
@@ -84,6 +111,16 @@ public class SiteController {
     // UPDATE
     // ----------------------------
 
+    /**
+     * Aktualisiert eine Site.
+     *
+     * <p>Pfad: {@code PUT /sites/{id}}</p>
+     * <p>Request-Body: JSON-Objekt mit zu setzenden Spalten.</p>
+     *
+     * @param id   Site-ID.
+     * @param body Feldwerte.
+     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn nichts aktualisiert wurde.
+     */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         if (body.isEmpty()) {
@@ -110,6 +147,14 @@ public class SiteController {
     // DELETE
     // ----------------------------
 
+    /**
+     * Löscht eine Site.
+     *
+     * <p>Pfad: {@code DELETE /sites/{id}}</p>
+     *
+     * @param id Site-ID.
+     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {

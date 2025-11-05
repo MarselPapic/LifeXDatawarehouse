@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Represents a radio unit that can be deployed at a {@link Site} and optionally
+ * assigned to a {@link Clients} endpoint. Mode and digital standard values are
+ * persisted to manage compatibility and interoperability obligations.
+ */
 public class Radio {
     private UUID radioID;
     private UUID siteID;

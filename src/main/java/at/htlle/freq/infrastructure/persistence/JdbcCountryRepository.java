@@ -8,6 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.*;
 
+/**
+ * JDBC-gestütztes Repository für {@link Country}, das Lese- und Schreibzugriffe auf die Tabelle
+ * {@code Country} bündelt und die Spalten {@code CountryCode} sowie {@code CountryName}
+ * in Domänenobjekte überführt.
+ */
 @Repository
 public class JdbcCountryRepository implements CountryRepository {
 
@@ -28,6 +33,19 @@ public class JdbcCountryRepository implements CountryRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Führt ein manuelles Upsert für Länder aus.
+     * <p>
+     * Mittels {@code SELECT COUNT(*)} wird geprüft, ob der Ländercode bereits existiert. Je nach
+     * Ergebnis wird ein INSERT oder UPDATE ausgeführt. Die Verwendung von
+     * {@link MapSqlParameterSource} stellt sicher, dass Parameter explizit an die Spaltennamen
+     * gebunden werden und verhindert SQL-Injection.
+     * </p>
+     *
+     * @param c Land, dessen Code und Name den Spalten {@code CountryCode} bzw. {@code CountryName}
+     *          zugeordnet werden.
+     * @return das gespeicherte Land.
+     */
     @Override
     public Country save(Country c) {
         String existsSql = "SELECT COUNT(*) FROM Country WHERE CountryCode = :code";

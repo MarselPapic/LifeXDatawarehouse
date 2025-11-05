@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.UUID;
 
+/**
+ * Represents a scheduled upgrade activity for a {@link Site} and a target
+ * {@link Software} release. The plan captures the maintenance window,
+ * workflow status, and auditing information for traceability.
+ */
 public class UpgradePlan {
     private UUID upgradePlanID;
     private UUID siteID;

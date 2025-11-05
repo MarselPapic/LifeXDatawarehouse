@@ -16,6 +16,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Verwaltet Accounts, orchestriert Datenbankzugriffe und die nachgelagerte
+ * Synchronisierung des Lucene-Index nach erfolgreichen Transaktionen.
+ */
 @Service
 public class AccountService {
 
@@ -24,6 +28,12 @@ public class AccountService {
     private final AccountRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit den benötigten Repository- und Lucene-Komponenten.
+     *
+     * @param repo   Repository für persistente Account-Zugriffe
+     * @param lucene Service für die Index-Synchronisierung
+     */
     public AccountService(AccountRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -31,15 +41,32 @@ public class AccountService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Accounts ohne weitere Filterung.
+     *
+     * @return Liste aller vorhandenen Accounts
+     */
     public List<Account> getAllAccounts() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht einen Account anhand seiner eindeutigen ID.
+     *
+     * @param id technische Primärschlüssel-ID
+     * @return Optional mit dem gefundenen Account oder leer
+     */
     public Optional<Account> getAccountById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Sucht einen Account anhand seines Namens.
+     *
+     * @param name Klartextname des Accounts
+     * @return Optional mit dem gefundenen Account oder leer bei ungültigem Namen
+     */
     public Optional<Account> getAccountByName(String name) {
         if (isBlank(name)) return Optional.empty();
         return repo.findByName(name.trim());
@@ -48,8 +75,12 @@ public class AccountService {
     // ---------- Commands ----------
 
     /**
-     * Legt einen Account an (oder updated, falls ID gesetzt ist) und indexiert ihn
-     * in Lucene NACH erfolgreichem Commit der DB-Transaktion.
+     * Persistiert einen neuen oder bestehenden Account und stößt nach erfolgreichem
+     * Transaktions-Commit das Indexieren in Lucene an. Enthält Pflichtfeldprüfungen
+     * für den Accountnamen.
+     *
+     * @param incoming Account-Daten, die gespeichert werden sollen
+     * @return der gespeicherte Account inkl. generierter ID
      */
     @Transactional
     public Account createAccount(Account incoming) {
@@ -72,7 +103,12 @@ public class AccountService {
     }
 
     /**
-     * Optionales Update (nicht vom Controller verlangt, aber nützlich).
+     * Aktualisiert ein bestehendes Accountobjekt mittels Patchdaten und
+     * synchronisiert anschließend den Lucene-Index.
+     *
+     * @param id    technische Primärschlüssel-ID
+     * @param patch Felder, die in das bestehende Objekt übernommen werden sollen
+     * @return Optional mit dem aktualisierten Account oder leer, falls nicht gefunden
      */
     @Transactional
     public Optional<Account> updateAccount(UUID id, Account patch) {
@@ -95,6 +131,11 @@ public class AccountService {
         });
     }
 
+    /**
+     * Entfernt einen Account dauerhaft aus der Datenbank.
+     *
+     * @param id technische Primärschlüssel-ID
+     */
     @Transactional
     public void deleteAccount(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

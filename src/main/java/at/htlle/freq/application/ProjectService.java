@@ -14,6 +14,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.*;
 
+/**
+ * Verwaltet Projekte, normalisiert Zustandsinformationen und synchronisiert Lucene.
+ */
 @Service
 public class ProjectService {
 
@@ -22,6 +25,12 @@ public class ProjectService {
     private final ProjectRepository repo;
     private final LuceneIndexService lucene;
 
+    /**
+     * Erstellt den Service mit Repository und Indexdienst.
+     *
+     * @param repo   Repository für Projekte
+     * @param lucene Lucene-Indexdienst
+     */
     public ProjectService(ProjectRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
         this.lucene = lucene;
@@ -29,15 +38,32 @@ public class ProjectService {
 
     // ---------- Queries ----------
 
+    /**
+     * Liefert alle Projekte.
+     *
+     * @return Liste aller Projekte
+     */
     public List<Project> getAllProjects() {
         return repo.findAll();
     }
 
+    /**
+     * Sucht ein Projekt anhand seiner ID.
+     *
+     * @param id Projekt-ID
+     * @return Optional mit Projekt oder leer
+     */
     public Optional<Project> getProjectById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return repo.findById(id);
     }
 
+    /**
+     * Sucht ein Projekt anhand der SAP-ID.
+     *
+     * @param sapId SAP-Projektnummer
+     * @return Optional mit Projekt oder leer
+     */
     public Optional<Project> getProjectBySapId(String sapId) {
         if (isBlank(sapId)) return Optional.empty();
         return repo.findBySapId(sapId.trim());
@@ -45,6 +71,12 @@ public class ProjectService {
 
     // ---------- Commands ----------
 
+    /**
+     * Speichert ein Projekt, setzt Standardwerte und indexiert nach Commit in Lucene.
+     *
+     * @param incoming zu speicherndes Projekt
+     * @return gespeichertes Projekt
+     */
     @Transactional
     public Project createOrUpdateProject(Project incoming) {
         Objects.requireNonNull(incoming, "project payload must not be null");
@@ -65,6 +97,13 @@ public class ProjectService {
         return saved;
     }
 
+    /**
+     * Aktualisiert ein Projekt und hält Lucene synchron.
+     *
+     * @param id    Projekt-ID
+     * @param patch Änderungen, die übernommen werden sollen
+     * @return Optional mit aktualisiertem Projekt oder leer
+     */
     @Transactional
     public Optional<Project> updateProject(UUID id, Project patch) {
         Objects.requireNonNull(id, "id must not be null");
@@ -89,6 +128,11 @@ public class ProjectService {
         });
     }
 
+    /**
+     * Löscht ein Projekt.
+     *
+     * @param id Projekt-ID
+     */
     @Transactional
     public void deleteProject(UUID id) {
         Objects.requireNonNull(id, "id must not be null");

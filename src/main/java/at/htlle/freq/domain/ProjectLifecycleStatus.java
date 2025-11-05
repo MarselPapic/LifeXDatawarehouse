@@ -2,6 +2,11 @@ package at.htlle.freq.domain;
 
 import java.util.Locale;
 
+/**
+ * Enumerates the lifecycle phases a {@link Project} can assume. Helper methods
+ * offer conversions from free text inputs, derive display labels, and allow
+ * consumers to check if a project is currently operational.
+ */
 public enum ProjectLifecycleStatus {
     PLANNED,
     ACTIVE,
