@@ -3,13 +3,13 @@ package at.htlle.freq.application.report;
 import java.util.Locale;
 
 /**
- * Unterstützte Report-Kategorien für das Reporting-Frontend.
+ * Supported report categories for the reporting front end.
  */
 public enum ReportType {
-    DIFFERENCE("Difference", "Vergleich von Soll- und Ist-Konfigurationen"),
-    MAINTENANCE("Maintenance", "Geplante und laufende Wartungsfenster"),
-    CONFIGURATION("Configuration", "Konfigurationsübersicht über Standorte"),
-    INVENTORY("Inventory", "Inventarverteilung nach Asset-Klasse");
+    DIFFERENCE("Difference", "Comparison of target and actual configurations"),
+    MAINTENANCE("Maintenance", "Planned and ongoing maintenance windows"),
+    CONFIGURATION("Configuration", "Configuration overview by site"),
+    INVENTORY("Inventory", "Asset distribution by category");
 
     private final String label;
     private final String description;
@@ -20,29 +20,29 @@ public enum ReportType {
     }
 
     /**
-     * Liefert das lokalisierte Label.
+     * Returns the localized label.
      *
-     * @return Anzeigename des Report-Typs
+     * @return display name of the report type
      */
     public String label() {
         return label;
     }
 
     /**
-     * Liefert die Beschreibung für UI-Tooltips.
+     * Returns the description used for UI tooltips.
      *
-     * @return erläuternder Beschreibungstext
+     * @return explanatory description text
      */
     public String description() {
         return description;
     }
 
     /**
-     * Ermittelt den passenden Report-Typ aus einem Request-Parameter.
+     * Resolves the matching report type from a request parameter.
      *
-     * @param value Name oder Label
-     * @return passender Report-Typ
-     * @throws IllegalArgumentException bei unbekannten Werten
+     * @param value name or label
+     * @return matching report type
+     * @throws IllegalArgumentException for unknown values
      */
     public static ReportType fromParameter(String value) {
         if (value == null || value.isBlank()) {
@@ -58,9 +58,9 @@ public enum ReportType {
     }
 
     /**
-     * Gibt den Enum-Namen in Kleinschreibung zurück (z. B. für CSS- oder Template-Keys).
+     * Returns the enum name in lower case (e.g. for CSS or template keys).
      *
-     * @return kleingeschriebener Enum-Name
+     * @return enum name in lower case
      */
     public String toLowerCase() {
         return name().toLowerCase(Locale.ROOT);

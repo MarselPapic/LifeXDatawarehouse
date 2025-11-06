@@ -8,9 +8,9 @@ import java.util.Arrays;
  * provides helper methods for conversions used in the ingestion pipeline.
  */
 public enum InstalledSoftwareStatus {
-    ACTIVE("Active", "Aktiv"),
-    PENDING("Pending", "Geplant"),
-    RETIRED("Retired", "Außer Betrieb");
+    OFFERED("Offered", "Angeboten"),
+    INSTALLED("Installed", "Installiert"),
+    REJECTED("Rejected", "Abgelehnt");
 
     private final String dbValue;
     private final String label;
@@ -30,7 +30,7 @@ public enum InstalledSoftwareStatus {
 
     public static InstalledSoftwareStatus from(String value) {
         if (value == null || value.isBlank()) {
-            return ACTIVE;
+            return OFFERED;
         }
         return Arrays.stream(values())
                 .filter(status -> status.dbValue.equalsIgnoreCase(value.trim()))

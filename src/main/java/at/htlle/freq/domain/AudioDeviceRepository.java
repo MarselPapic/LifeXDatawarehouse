@@ -15,9 +15,9 @@ public interface AudioDeviceRepository {
     Optional<AudioDevice> findById(UUID id);
 
     /**
-     * Fetches all audio devices assigned to the given client.
+     * Fetches all audio devices assigned to the given client workstation.
      *
-     * @param clientId identifier of the owning {@link Clients} installation
+     * @param clientId identifier of the owning {@link Clients} workstation
      * @return list of matching audio devices
      */
     List<AudioDevice> findByClient(UUID clientId);

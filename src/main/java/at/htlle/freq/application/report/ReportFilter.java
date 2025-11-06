@@ -3,7 +3,7 @@ package at.htlle.freq.application.report;
 import java.time.LocalDate;
 
 /**
- * Transportiert Filterkriterien für den Reportabruf.
+ * Transports filter criteria for report retrieval.
  */
 public record ReportFilter(
         ReportType type,
@@ -15,9 +15,9 @@ public record ReportFilter(
         String installStatus
 ) {
     /**
-     * Prüft, ob sowohl ein Start- als auch ein Enddatum gesetzt wurde.
+     * Checks whether both a start and an end date have been provided.
      *
-     * @return {@code true}, wenn beide Datumswerte vorhanden sind
+     * @return {@code true} when both date values are present
      */
     public boolean hasDateRange() {
         return from != null && to != null;

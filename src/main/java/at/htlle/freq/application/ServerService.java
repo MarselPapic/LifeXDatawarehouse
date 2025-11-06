@@ -14,7 +14,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Betreut Server-Hardware, validiert Pflichtfelder und hält Lucene aktuell.
+ * Manages server hardware, validates required fields, and keeps Lucene up to date.
  */
 @Service
 public class ServerService {
@@ -25,10 +25,10 @@ public class ServerService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository- und Index-Komponenten.
+     * Creates the service with repository and index components.
      *
-     * @param repo   Repository für Server
-     * @param lucene Lucene-Indexdienst
+     * @param repo   repository for servers
+     * @param lucene Lucene indexing service
      */
     public ServerService(ServerRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -38,19 +38,19 @@ public class ServerService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle Server.
+     * Returns all servers.
      *
-     * @return Liste der Server
+     * @return list of servers
      */
     public List<Server> getAllServers() {
         return repo.findAll();
     }
 
     /**
-     * Holt einen Server anhand seiner ID.
+     * Retrieves a server by its identifier.
      *
-     * @param id Server-ID
-     * @return Optional mit Server oder leer
+     * @param id server identifier
+     * @return optional containing the server or empty otherwise
      */
     public Optional<Server> getServerById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -58,10 +58,10 @@ public class ServerService {
     }
 
     /**
-     * Liefert Server einer Site.
+     * Returns servers for a site.
      *
-     * @param siteId Site-ID
-     * @return Liste der Server
+     * @param siteId site identifier
+     * @return list of servers
      */
     public List<Server> getServersBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
@@ -71,11 +71,11 @@ public class ServerService {
     // ---------- Commands ----------
 
     /**
-     * Speichert einen Server und validiert Pflichtfelder wie Site, Name, Marke und Seriennummer.
-     * Indexiert nach Commit in Lucene.
+     * Saves a server and validates required fields such as site, name, brand, and serial number.
+     * Indexes the record in Lucene after the commit.
      *
-     * @param incoming Server, der gespeichert werden soll
-     * @return gespeicherter Server
+     * @param incoming server to persist
+     * @return stored server
      */
     @Transactional
     public Server createOrUpdateServer(Server incoming) {
@@ -93,17 +93,17 @@ public class ServerService {
         Server saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("Server gespeichert: id={} site={} name='{}' brand='{}'",
+        log.info("Server saved: id={} site={} name='{}' brand='{}'",
                 saved.getServerID(), saved.getSiteID(), saved.getServerName(), saved.getServerBrand());
         return saved;
     }
 
     /**
-     * Aktualisiert einen Server und synchronisiert Lucene.
+     * Updates a server and synchronizes Lucene.
      *
-     * @param id    Server-ID
-     * @param patch Änderungen, die übernommen werden sollen
-     * @return Optional mit aktualisiertem Server oder leer
+     * @param id    server identifier
+     * @param patch changes to merge into the entity
+     * @return optional containing the updated server or empty otherwise
      */
     @Transactional
     public Optional<Server> updateServer(UUID id, Server patch) {
@@ -124,22 +124,22 @@ public class ServerService {
             Server saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("Server aktualisiert: id={} name='{}'", id, saved.getServerName());
+            log.info("Server updated: id={} name='{}'", id, saved.getServerName());
             return saved;
         });
     }
 
     /**
-     * Löscht einen Server.
+     * Deletes a server.
      *
-     * @param id Server-ID
+     * @param id server identifier
      */
     @Transactional
     public void deleteServer(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(s -> {
-            log.info("Server gelöscht: id={} name='{}' brand='{}'", id, s.getServerName(), s.getServerBrand());
-            // Optional: lucene.deleteServer(id.toString());
+            log.info("Server deleted: id={} name='{}' brand='{}'", id, s.getServerName(), s.getServerBrand());
+            // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
@@ -172,9 +172,9 @@ public class ServerService {
                     s.getVirtualVersion(),
                     s.isHighAvailability()
             );
-            log.debug("Server in Lucene indexiert: id={}", s.getServerID());
+            log.debug("Server indexed in Lucene: id={}", s.getServerID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für Server {} fehlgeschlagen", s.getServerID(), e);
+            log.error("Lucene indexing for Server {} failed", s.getServerID(), e);
         }
     }
 

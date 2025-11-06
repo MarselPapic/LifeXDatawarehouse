@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bündelt Auswahloptionen für das Report-Frontend.
+ * Bundles selectable options for the reporting front end.
  */
 public record ReportOptions(
         List<ReportTypeInfo> types,

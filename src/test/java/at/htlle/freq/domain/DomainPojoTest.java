@@ -40,7 +40,7 @@ class DomainPojoTest {
                 Class<?> paramType = method.getParameterTypes()[0];
                 Object value = sampleValue(paramType);
                 if (value == null) {
-                    continue; // skip unsupported types
+                    continue; // Skip unsupported types such as collections that do not have sample fixtures
                 }
                 method.invoke(instance, value);
 
@@ -64,7 +64,7 @@ class DomainPojoTest {
         try {
             return type.getMethod(getterName);
         } catch (NoSuchMethodException ex) {
-            // fall back to getX for Boolean properties where only get-prefixed accessor exists
+            // Fall back to a getX accessor for Boolean properties when no isX method is exposed
             if (!getterName.startsWith("get")) {
                 return type.getMethod(setter.getName().replaceFirst("set", "get"));
             }

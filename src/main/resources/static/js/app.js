@@ -1,13 +1,13 @@
-/* ===================== Konfiguration ===================== */
+/* ===================== Configuration ===================== */
 const API = {
-    progress: '/api/index-progress',   // liefert IndexProgress.Status
-    reindex:  '/api/index/reindex',    // POST → manueller Reindex
+    progress: '/api/index-progress',   // returns IndexProgress.Status
+    reindex:  '/api/index/reindex',    // POST → manual reindex
     search:   '/search',               // GET /search?q=...
     suggest:  '/search/suggest',       // GET /search/suggest?q=...
     table:    '/table',                // GET /table/{name}
 };
 
-/* ===================== DOM-Referenzen ===================== */
+/* ===================== DOM references ===================== */
 const resultArea  = document.getElementById('resultArea');
 const searchInput = document.getElementById('search-input');
 const searchBtn   = document.getElementById('search-btn');
@@ -270,13 +270,13 @@ async function renderShortcutList(sc, listEl){
     }
 }
 
-/* ---------- Lucene-Heuristik & QoL-Query-Builder ---------- */
+/* ---------- Lucene heuristics & QoL query builder ---------- */
 function looksLikeLucene(q){
     if (!q) return false;
     const s = q.trim();
     return s.includes(':') || s.includes('"') || s.includes(' AND ') || s.includes(' OR ') || s.endsWith('*');
 }
-/** Nutzerfreundlich: bei „normalem Text“ automatisch Prefix-Suche (token*) */
+/** User-friendly: automatically use prefix search (token*) for plain text */
 function buildUserQuery(raw){
     const s = (raw || '').trim();
     if (!s) return s;
@@ -284,7 +284,7 @@ function buildUserQuery(raw){
     return s.split(/\s+/).map(tok => /[*?]$/.test(tok) ? tok : (tok + '*')).join(' ');
 }
 
-/* ===================== Ergebnis-Vorschau (Anreicherung) ===================== */
+/* ===================== Result preview (enrichment) ===================== */
 const entityTypeRegistry = window.EntityTypeRegistry || null;
 
 function normalizeTypeKey(value) {
@@ -480,6 +480,10 @@ function formatPreview(type, row){
         const release = val(row,'Release'); if (release) parts.push(`Release ${release}`);
         const revision = val(row,'Revision'); if (revision) parts.push(`Rev ${revision}`);
         const phase = val(row,'SupportPhase'); if (phase) parts.push(phase);
+        const vendor = val(row,'ThirdParty');
+        if (vendor !== undefined) {
+            parts.push(parseBool(vendor) ? 'Third-party' : 'First-party');
+        }
     } else if (t==='installedsoftware'){
         const siteId = val(row,'SiteID'); if (siteId) parts.push(`Site ${shortUuid(siteId)}`);
         const swId = val(row,'SoftwareID'); if (swId) parts.push(`Software ${shortUuid(swId)}`);
@@ -509,12 +513,12 @@ async function enrichRows(hits){
     await Promise.allSettled(jobs);
 }
 
-/* ===================== Event-Wiring ===================== */
+/* ===================== Event wiring ===================== */
 function wireEvents() {
-    // Hauptsuche (Button)
+    // Primary search (button)
     searchBtn.onclick = () => runSearch(searchInput.value);
 
-    // Enter → suchen | Tab → Top-Vorschlag übernehmen + sofort suchen
+    // Enter → search | Tab → accept top suggestion + search immediately
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             runSearch(searchInput.value);
@@ -527,7 +531,7 @@ function wireEvents() {
         }
     });
 
-    // Auswahl eines datalist-Eintrags per Maus → automatisch suchen
+    // Selecting a datalist entry via mouse → search automatically
     searchInput.addEventListener('change', () => {
         if ((searchInput.value || '').trim()) runSearch(searchInput.value);
     });
@@ -551,12 +555,12 @@ function wireEvents() {
     setInterval(pollProgress, 50);
     pollProgress();
 
-    // Shortcuts initialisieren inkl. ARIA
+    // Initialize shortcuts including ARIA
     setupShortcuts();
 }
 document.addEventListener('DOMContentLoaded', wireEvents);
 
-// Top-Suggestion finden/übernehmen (case-insensitive); true = übernommen
+// Find/apply top suggestion (case-insensitive); true = applied
 function completeFromSuggestions(){
     if (!sugList) return false;
     const cur = (searchInput.value || '').trim().toLowerCase();
@@ -680,7 +684,7 @@ function setupShortcuts() {
     });
 }
 
-/* ===================== Suche ===================== */
+/* ===================== Search ===================== */
 function runSearch(raw){
     const prepared = buildUserQuery(raw);
     runLucene(prepared);
@@ -762,7 +766,7 @@ async function runLucene(q) {
     }
 }
 
-/* Tabellen-Viewer (100-Zeilen-Preview) */
+/* Table viewer (100-row preview) */
 function isIdColumnName(columnKey) {
     const normalized = normalizeTypeKey(columnKey);
     if (!normalized) return false;
@@ -795,6 +799,12 @@ function tableQuickFilterQuery(typeToken, columnKey, rawValue) {
         if (!normalized) return null;
         const statusToken = `status${normalized}`;
         return typeFilter ? `${typeFilter} AND ${statusToken}` : statusToken;
+    }
+
+    if (/^thirdparty$/i.test(column)) {
+        const flag = parseBool(rawValue) ? 'true' : 'false';
+        const vendorToken = `thirdparty${flag}`;
+        return typeFilter ? `${typeFilter} AND ${vendorToken}` : vendorToken;
     }
 
     const prepared = buildUserQuery(raw);
@@ -864,13 +874,13 @@ async function showTable(name) {
     }
 }
 
-/* Details-Navigation (details.html) */
+/* Details navigation (details.html) */
 function toDetails(type, id) {
     location.href = `/details.html?type=${encodeURIComponent(type)}&id=${id}`;
 }
 window.toDetails = toDetails;
 
-/* ===================== Fortschrittsanzeige ===================== */
+/* ===================== Progress indicator ===================== */
 async function pollProgress() {
     try {
         const r = await fetch(API.progress);
@@ -896,6 +906,6 @@ async function pollProgress() {
             idxText.textContent = '';
         }
     } catch {
-        // still bleiben, wenn Endpunkt (noch) nicht erreichbar ist
+        // remain quiet if the endpoint is not reachable yet
     }
 }

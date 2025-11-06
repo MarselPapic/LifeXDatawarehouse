@@ -3,37 +3,37 @@ package at.htlle.freq.domain;
 import java.util.*;
 
 /**
- * Repository interface for {@link Clients} endpoints.
+ * Repository interface for {@link Clients} client workstations.
  */
 public interface ClientsRepository {
     /**
-     * Retrieves a client by its identifier.
+     * Retrieves a client workstation by its identifier.
      *
-     * @param id client primary key
-     * @return optional containing the client when found
+     * @param id client workstation primary key
+     * @return optional containing the client workstation when found
      */
     Optional<Clients> findById(UUID id);
 
     /**
-     * Returns all clients installed at a specific site.
+     * Returns all client workstations installed at a specific site.
      *
      * @param siteId identifier of the hosting {@link Site}
-     * @return list of client devices assigned to the site
+     * @return list of client workstations assigned to the site
      */
     List<Clients> findBySite(UUID siteId);
 
     /**
-     * Persists the provided client aggregate.
+     * Persists the provided client workstation aggregate.
      *
-     * @param client client endpoint to store
+     * @param client client workstation to store
      * @return the managed entity after persistence
      */
     Clients save(Clients client);
 
     /**
-     * Lists all clients across all sites.
+     * Lists all client workstations across all sites.
      *
-     * @return snapshot of every client endpoint
+     * @return snapshot of every client workstation
      */
     List<Clients> findAll();
 }

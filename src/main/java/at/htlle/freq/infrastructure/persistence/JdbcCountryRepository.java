@@ -9,9 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-gestütztes Repository für {@link Country}, das Lese- und Schreibzugriffe auf die Tabelle
- * {@code Country} bündelt und die Spalten {@code CountryCode} sowie {@code CountryName}
- * in Domänenobjekte überführt.
+ * JDBC-backed repository for {@link Country} that bundles read and write operations on the
+ * {@code Country} table and maps the columns {@code CountryCode} and {@code CountryName} to
+ * domain objects.
  */
 @Repository
 public class JdbcCountryRepository implements CountryRepository {
@@ -34,17 +34,17 @@ public class JdbcCountryRepository implements CountryRepository {
     }
 
     /**
-     * Führt ein manuelles Upsert für Länder aus.
+     * Performs a manual upsert for country entries.
      * <p>
-     * Mittels {@code SELECT COUNT(*)} wird geprüft, ob der Ländercode bereits existiert. Je nach
-     * Ergebnis wird ein INSERT oder UPDATE ausgeführt. Die Verwendung von
-     * {@link MapSqlParameterSource} stellt sicher, dass Parameter explizit an die Spaltennamen
-     * gebunden werden und verhindert SQL-Injection.
+     * A {@code SELECT COUNT(*)} determines whether the country code already exists. Depending on
+     * the outcome, the method runs an INSERT or an UPDATE. Using {@link MapSqlParameterSource}
+     * ensures parameters are bound explicitly to the column names and protects against SQL
+     * injection.
      * </p>
      *
-     * @param c Land, dessen Code und Name den Spalten {@code CountryCode} bzw. {@code CountryName}
-     *          zugeordnet werden.
-     * @return das gespeicherte Land.
+     * @param c country entity whose code and name map to the {@code CountryCode} and
+     *          {@code CountryName} columns.
+     * @return the stored country.
      */
     @Override
     public Country save(Country c) {

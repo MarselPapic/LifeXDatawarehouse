@@ -1,7 +1,7 @@
 -- Auto-generated seed data (2025-10-22)
 -- Use at.htlle.freq.seed.SeedDataGenerator to regenerate.
 
--- Country
+-- Countries (ISO codes with readable names)
 INSERT INTO Country (CountryCode, CountryName) VALUES
     ('AT', 'Austria'),
     ('DE', 'Germany'),
@@ -15,7 +15,7 @@ INSERT INTO Country (CountryCode, CountryName) VALUES
     ('CA', 'Canada')
 ;
 
--- City
+-- Cities (IDs, names, and country references)
 INSERT INTO City (CityID, CityName, CountryCode) VALUES
     ('AT-VIENNA', 'Vienna', 'AT'),
     ('AT-GRAZ', 'Graz', 'AT'),
@@ -49,7 +49,7 @@ INSERT INTO City (CityID, CityName, CountryCode) VALUES
     ('CA-CALGARY', 'Calgary', 'CA')
 ;
 
--- Address
+-- Addresses (street data mapped to cities)
 INSERT INTO Address (AddressID, Street, CityID) VALUES
     ('eec1d383-0eaf-4730-8d3c-030000000001', 'Riverside Road 1', 'AT-VIENNA'),
     ('92ee5dd4-33f4-4ea3-a93a-030000000002', 'Central Avenue 2', 'AT-GRAZ'),
@@ -113,7 +113,7 @@ INSERT INTO Address (AddressID, Street, CityID) VALUES
     ('c2431a5b-e1fb-473f-b85f-030000000060', 'Oak Drive 60', 'CA-CALGARY')
 ;
 
--- Account
+-- Accounts (organizations and contact details)
 INSERT INTO Account (AccountID, AccountName, ContactName, ContactEmail, ContactPhone, VATNumber, Country) VALUES
     ('bfacb3aa-2756-4c62-9f92-040000000001', 'Acme Integration', 'Ingrid Novak', 'ingrid.novak@acme-integration.example', '+43 720000', 'AT19999999', 'Austria'),
     ('79481711-f879-4692-b08f-040000000002', 'Resilience Network 02', 'Markus Larsson', 'markus.larsson@resiliencenetwork.example', '+31 692763', 'DE10000001', 'Germany'),
@@ -147,7 +147,7 @@ INSERT INTO Account (AccountID, AccountName, ContactName, ContactEmail, ContactP
     ('64fc2d09-dbac-4d89-b094-040000000030', 'Nova Alliance 30', 'Elias Fernandez', 'elias.fernandez@novaalliance.example', '+59 198246', 'CA10000029', 'Canada')
 ;
 
--- DeploymentVariant
+-- Deployment variants (catalog of rollout templates)
 INSERT INTO DeploymentVariant (VariantID, VariantCode, VariantName, Description, IsActive) VALUES
     ('c6d338c5-53ff-4f94-a39e-050000000001', 'URB-HA', 'Urban High Availability', 'Redundant core with disaster recovery', TRUE),
     ('06adb20b-d915-419e-92bf-050000000002', 'URB-STD', 'Urban Standard', 'Standard city deployment', TRUE),
@@ -161,23 +161,23 @@ INSERT INTO DeploymentVariant (VariantID, VariantCode, VariantName, Description,
     ('df39fe3c-8a25-4760-8d08-050000000010', 'BSC-LITE', 'Basic Lite', 'Entry level configuration', TRUE)
 ;
 
--- Software
-INSERT INTO Software (SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, EndOfSalesDate, SupportStartDate, SupportEndDate) VALUES
-    ('4da74a93-b659-4247-a8eb-060000000001', 'LifeX Core', '2024.1', '5', 'Production', 'Subscription', DATEADD('DAY', 490, CURRENT_DATE), DATEADD('DAY', -204, CURRENT_DATE), DATEADD('DAY', 161, CURRENT_DATE)),
-    ('c1b43cf4-e63e-46c3-b938-060000000002', 'Command Center', '2024.2', '6', 'Preview', 'Perpetual', DATEADD('DAY', 290, CURRENT_DATE), DATEADD('DAY', -235, CURRENT_DATE), DATEADD('DAY', 130, CURRENT_DATE)),
-    ('ee8deef4-f74f-450f-a6aa-060000000003', 'Edge Gateway', '2024.3', '7', 'EoL', 'Subscription', DATEADD('DAY', 677, CURRENT_DATE), DATEADD('DAY', -193, CURRENT_DATE), DATEADD('DAY', 172, CURRENT_DATE)),
-    ('fed6149a-d95f-42fd-b6c7-060000000004', 'Analytics Suite', '2024.1', '8', 'Production', 'Perpetual', DATEADD('DAY', 192, CURRENT_DATE), DATEADD('DAY', -227, CURRENT_DATE), DATEADD('DAY', 138, CURRENT_DATE)),
-    ('3b484b1d-f8e2-44ca-81a5-060000000005', 'LifeX Core', '2025.2', '9', 'Preview', 'Subscription', DATEADD('DAY', 673, CURRENT_DATE), DATEADD('DAY', -156, CURRENT_DATE), DATEADD('DAY', 209, CURRENT_DATE)),
-    ('13e636a8-bea2-4ec3-89da-060000000006', 'Command Center', '2025.3', '10', 'EoL', 'Perpetual', DATEADD('DAY', 239, CURRENT_DATE), DATEADD('DAY', -215, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE)),
-    ('5ef88261-c149-4f8b-9252-060000000007', 'Edge Gateway', '2025.1', '11', 'Production', 'Subscription', DATEADD('DAY', 503, CURRENT_DATE), DATEADD('DAY', -143, CURRENT_DATE), DATEADD('DAY', 222, CURRENT_DATE)),
-    ('7eb2372a-4947-47de-b690-060000000008', 'Analytics Suite', '2025.2', '12', 'Preview', 'Perpetual', DATEADD('DAY', 455, CURRENT_DATE), DATEADD('DAY', -186, CURRENT_DATE), DATEADD('DAY', 179, CURRENT_DATE)),
-    ('ca80bbb5-c8f9-4c71-b571-060000000009', 'LifeX Core', '2026.3', '13', 'EoL', 'Subscription', DATEADD('DAY', 607, CURRENT_DATE), DATEADD('DAY', -145, CURRENT_DATE), DATEADD('DAY', 220, CURRENT_DATE)),
-    ('1a213527-9b68-4c7c-892a-060000000010', 'Command Center', '2026.1', '14', 'Production', 'Perpetual', DATEADD('DAY', 577, CURRENT_DATE), DATEADD('DAY', -197, CURRENT_DATE), DATEADD('DAY', 168, CURRENT_DATE)),
-    ('005485d3-eecc-4b21-ab38-060000000011', 'Edge Gateway', '2026.2', '15', 'Preview', 'Subscription', DATEADD('DAY', 553, CURRENT_DATE), DATEADD('DAY', -160, CURRENT_DATE), DATEADD('DAY', 205, CURRENT_DATE)),
-    ('94c37f57-9782-4842-80d1-060000000012', 'Analytics Suite', '2026.3', '16', 'EoL', 'Perpetual', DATEADD('DAY', 458, CURRENT_DATE), DATEADD('DAY', -164, CURRENT_DATE), DATEADD('DAY', 201, CURRENT_DATE))
+-- Software catalogue entries (release and lifecycle metadata)
+INSERT INTO Software (SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty, EndOfSalesDate, SupportStartDate, SupportEndDate) VALUES
+    ('4da74a93-b659-4247-a8eb-060000000001', 'LifeX Core', '2024.1', '5', 'Production', 'Subscription', FALSE, DATEADD('DAY', 490, CURRENT_DATE), DATEADD('DAY', -204, CURRENT_DATE), DATEADD('DAY', 161, CURRENT_DATE)),
+    ('c1b43cf4-e63e-46c3-b938-060000000002', 'Command Center', '2024.2', '6', 'Preview', 'Perpetual', FALSE, DATEADD('DAY', 290, CURRENT_DATE), DATEADD('DAY', -235, CURRENT_DATE), DATEADD('DAY', 130, CURRENT_DATE)),
+    ('ee8deef4-f74f-450f-a6aa-060000000003', 'Edge Gateway', '2024.3', '7', 'EoL', 'Subscription', TRUE, DATEADD('DAY', 677, CURRENT_DATE), DATEADD('DAY', -193, CURRENT_DATE), DATEADD('DAY', 172, CURRENT_DATE)),
+    ('fed6149a-d95f-42fd-b6c7-060000000004', 'Analytics Suite', '2024.1', '8', 'Production', 'Perpetual', TRUE, DATEADD('DAY', 192, CURRENT_DATE), DATEADD('DAY', -227, CURRENT_DATE), DATEADD('DAY', 138, CURRENT_DATE)),
+    ('3b484b1d-f8e2-44ca-81a5-060000000005', 'LifeX Core', '2025.2', '9', 'Preview', 'Subscription', FALSE, DATEADD('DAY', 673, CURRENT_DATE), DATEADD('DAY', -156, CURRENT_DATE), DATEADD('DAY', 209, CURRENT_DATE)),
+    ('13e636a8-bea2-4ec3-89da-060000000006', 'Command Center', '2025.3', '10', 'EoL', 'Perpetual', FALSE, DATEADD('DAY', 239, CURRENT_DATE), DATEADD('DAY', -215, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE)),
+    ('5ef88261-c149-4f8b-9252-060000000007', 'Edge Gateway', '2025.1', '11', 'Production', 'Subscription', TRUE, DATEADD('DAY', 503, CURRENT_DATE), DATEADD('DAY', -143, CURRENT_DATE), DATEADD('DAY', 222, CURRENT_DATE)),
+    ('7eb2372a-4947-47de-b690-060000000008', 'Analytics Suite', '2025.2', '12', 'Preview', 'Perpetual', TRUE, DATEADD('DAY', 455, CURRENT_DATE), DATEADD('DAY', -186, CURRENT_DATE), DATEADD('DAY', 179, CURRENT_DATE)),
+    ('ca80bbb5-c8f9-4c71-b571-060000000009', 'LifeX Core', '2026.3', '13', 'EoL', 'Subscription', FALSE, DATEADD('DAY', 607, CURRENT_DATE), DATEADD('DAY', -145, CURRENT_DATE), DATEADD('DAY', 220, CURRENT_DATE)),
+    ('1a213527-9b68-4c7c-892a-060000000010', 'Command Center', '2026.1', '14', 'Production', 'Perpetual', FALSE, DATEADD('DAY', 577, CURRENT_DATE), DATEADD('DAY', -197, CURRENT_DATE), DATEADD('DAY', 168, CURRENT_DATE)),
+    ('005485d3-eecc-4b21-ab38-060000000011', 'Edge Gateway', '2026.2', '15', 'Preview', 'Subscription', TRUE, DATEADD('DAY', 553, CURRENT_DATE), DATEADD('DAY', -160, CURRENT_DATE), DATEADD('DAY', 205, CURRENT_DATE)),
+    ('94c37f57-9782-4842-80d1-060000000012', 'Analytics Suite', '2026.3', '16', 'EoL', 'Perpetual', TRUE, DATEADD('DAY', 458, CURRENT_DATE), DATEADD('DAY', -164, CURRENT_DATE), DATEADD('DAY', 201, CURRENT_DATE))
 ;
 
--- Project
+-- Projects (SAP references, variants, and lifecycle states)
 INSERT INTO Project (ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID) VALUES
     ('c0cb3f12-abdc-4839-bd70-070000000001', 'PX-2101', 'Project Aurora 01', 'c6d338c5-53ff-4f94-a39e-050000000001', 'Premium', DATEADD('DAY', -10, CURRENT_DATE), 'ACTIVE', 'bfacb3aa-2756-4c62-9f92-040000000001', 'eec1d383-0eaf-4730-8d3c-030000000001'),
     ('2b0d9a59-e2b6-4fbe-b257-070000000002', 'PX-2102', 'Project Beacon 02', '06adb20b-d915-419e-92bf-050000000002', 'Standard', DATEADD('DAY', -14, CURRENT_DATE), 'MAINTENANCE', '79481711-f879-4692-b08f-040000000002', '92ee5dd4-33f4-4ea3-a93a-030000000002'),
@@ -219,7 +219,7 @@ INSERT INTO Project (ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, 
     ('0ba17419-b102-44d3-bb42-070000000038', 'PX-2138', 'Project Harbor 18', '1da6c6d8-bc85-46fa-8db7-050000000008', 'Standard', DATEADD('DAY', -158, CURRENT_DATE), 'MAINTENANCE', '39d87f59-4c91-40d0-8c20-040000000008', 'ad738fe8-47a8-4d1b-8f15-030000000038')
 ;
 
--- Site
+-- Sites (per-project locations and facilities metadata)
 INSERT INTO Site (SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount) VALUES
     ('9356ae01-fce4-4d24-84ca-080000000001', 'Aurora 01 Hub 1', 'c0cb3f12-abdc-4839-bd70-070000000001', 'eec1d383-0eaf-4730-8d3c-030000000001', 'Alpha', 6),
     ('7e723334-3ac1-454c-8e6d-080000000002', 'Aurora 01 Hub 2', 'c0cb3f12-abdc-4839-bd70-070000000001', '92ee5dd4-33f4-4ea3-a93a-030000000002', 'Bravo', 16),
@@ -278,7 +278,7 @@ INSERT INTO Site (SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount)
     ('72cff023-c18a-47b0-8392-080000000055', 'Harbor 18 Hub 1', '0ba17419-b102-44d3-bb42-070000000038', 'ad738fe8-47a8-4d1b-8f15-030000000038', 'Bravo', 21)
 ;
 
--- Server
+-- Servers (hardware inventory per site)
 INSERT INTO Server (ServerID, SiteID, ServerName, ServerBrand, ServerSerialNr, ServerOS, PatchLevel, VirtualPlatform, VirtualVersion, HighAvailability) VALUES
     ('2fba4c90-c0fd-4663-9b71-090000000001', '9356ae01-fce4-4d24-84ca-080000000001', 'SRV-100', 'Lenovo', 'LE-001', 'Windows Server 2022', '2025.01', 'vSphere', '8.0', TRUE),
     ('ad07c2a4-5d3b-4afa-ac20-090000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'SRV-101', 'Dell', 'DE-002', 'Ubuntu 24.04 LTS', '2025.02', 'HyperV', '2022', FALSE),
@@ -310,7 +310,7 @@ INSERT INTO Server (ServerID, SiteID, ServerName, ServerBrand, ServerSerialNr, S
     ('a1176f1e-0cd6-4055-b867-090000000028', '2f7c3f72-7023-4c77-9864-080000000028', 'SRV-127', 'Fujitsu', 'FU-028', 'SUSE Linux Enterprise 15', '2025.04', 'vSphere', '8.0', FALSE)
 ;
 
--- Clients
+-- Client workstations (operator consoles)
 INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType) VALUES
     ('166830fd-808b-46d2-ba03-0A0000000001', '9356ae01-fce4-4d24-84ca-080000000001', 'Operator Console 001', 'Dell', 'DEL-0200', 'Windows 11', '2025.01', 'LOCAL'),
     ('86200d68-1345-41a5-8ddc-0A0000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'Operator Console 002', 'Lenovo', 'LEN-0201', 'Windows 10', '2025.02', 'BROWSER'),
@@ -354,7 +354,7 @@ INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, 
     ('18e5eb0c-8990-4ab8-8058-0A0000000040', '7a599a02-b111-4961-b2e7-080000000040', 'Operator Console 040', 'Getac', 'GET-0239', 'Windows 11', '2025.04', 'LOCAL')
 ;
 
--- Radio
+-- Radios (site-assigned devices and modes)
 INSERT INTO Radio (RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr, Mode, DigitalStandard) VALUES
     ('35993a79-bb85-450a-b9df-0B0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '166830fd-808b-46d2-ba03-0A0000000001', 'Motorola', 'RD-0300', 'Analog', 'Motorola'),
     ('4cb763dc-529d-45eb-a42b-0B0000000002', '7e723334-3ac1-454c-8e6d-080000000002', NULL, 'Airbus', 'RD-0301', 'Digital', 'Airbus'),
@@ -376,7 +376,7 @@ INSERT INTO Radio (RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr,
     ('429e50e0-ca17-4752-8b53-0B0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', NULL, 'Airbus', 'RD-0317', 'Digital', 'P25')
 ;
 
--- AudioDevice
+-- Audio devices (client peripherals)
 INSERT INTO AudioDevice (AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType) VALUES
     ('5e2b8c37-a733-41ff-b002-0C0000000001', '166830fd-808b-46d2-ba03-0A0000000001', 'Jabra', 'AD-0400', '1.0.5', 'HEADSET'),
     ('bb775b74-c428-4292-970c-0C0000000002', '86200d68-1345-41a5-8ddc-0A0000000002', 'Bose', 'AD-0401', '2.1.3', 'SPEAKER'),
@@ -416,7 +416,7 @@ INSERT INTO AudioDevice (AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerial
     ('9b8c5fe8-c6d1-4add-b5c7-0C0000000036', '77d1410d-65b8-4667-912e-0A0000000036', 'Jabra', 'AD-0435', '4.2.0', 'MIC')
 ;
 
--- PhoneIntegration
+-- Phone integrations (telephony endpoints per client)
 INSERT INTO PhoneIntegration (PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware) VALUES
     ('65650bf6-8635-42e4-952b-0D0000000001', '166830fd-808b-46d2-ba03-0A0000000001', 'Emergency', 'Avaya', 'PH-0500', 'v1.0'),
     ('c822b9c9-25c1-42a8-b236-0D0000000002', '86200d68-1345-41a5-8ddc-0A0000000002', 'NonEmergency', 'Cisco', 'PH-0501', 'v2.1'),
@@ -452,66 +452,66 @@ INSERT INTO PhoneIntegration (PhoneIntegrationID, ClientID, PhoneType, PhoneBran
     ('8475e87f-4869-4723-a6be-0D0000000032', '370a9310-6e00-401b-ae57-0A0000000032', 'NonEmergency', 'Cisco', 'PH-0531', 'v4.1')
 ;
 
--- InstalledSoftware
+-- Installed software (site-to-software assignments)
 INSERT INTO InstalledSoftware (InstalledSoftwareID, SiteID, SoftwareID, Status)
     VALUES
-    ('dce80e4f-2783-422f-9ce5-0E0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '4da74a93-b659-4247-a8eb-060000000001', 'Active'),
-    ('9492e833-ee47-4666-a492-0E0000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Pending'),
-    ('d8cd4d61-3c92-4334-b894-0E0000000003', 'c5314a99-d4d0-4939-8f0f-080000000003', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Retired'),
-    ('21fd83c3-5d80-4de2-a6f8-0E0000000004', '572031c7-2b2b-4914-b228-080000000004', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Active'),
-    ('1235e2b1-a036-4541-968c-0E0000000005', '7c82162b-ef58-4f14-96db-080000000005', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Pending'),
-    ('dde1a320-a0c4-4f54-9931-0E0000000006', '65a3be41-4d28-4276-a711-080000000006', '13e636a8-bea2-4ec3-89da-060000000006', 'Retired'),
-    ('831adfed-e4ed-4895-bcb9-0E0000000007', 'fcde8ce1-ab84-404a-8fc7-080000000007', '5ef88261-c149-4f8b-9252-060000000007', 'Active'),
-    ('f5c8a2fd-3d5b-4af9-93c7-0E0000000008', '7b77662c-09b5-4b48-a3fd-080000000008', '7eb2372a-4947-47de-b690-060000000008', 'Pending'),
-    ('df44f659-2ba1-4c0f-9067-0E0000000009', '95ae3b4a-058a-4412-9302-080000000009', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Retired'),
-    ('ab55421f-8e42-4b5a-ab09-0E0000000010', '9f40a081-9821-4962-a5d7-080000000010', '1a213527-9b68-4c7c-892a-060000000010', 'Active'),
-    ('089e466b-f385-48b8-849e-0E0000000011', 'f0227786-e7a8-4612-bb1a-080000000011', '005485d3-eecc-4b21-ab38-060000000011', 'Pending'),
-    ('846da34e-2c8f-40e2-8337-0E0000000012', '5542cc53-724f-4d4f-85fd-080000000012', '94c37f57-9782-4842-80d1-060000000012', 'Retired'),
-    ('24febc1b-6e76-4977-8c32-0E0000000013', '65aec290-3c78-4380-aaa8-080000000013', '4da74a93-b659-4247-a8eb-060000000001', 'Active'),
-    ('18234730-cb45-4f1f-aead-0E0000000014', '2e4e3983-fe01-4281-b33d-080000000014', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Pending'),
-    ('d192f521-3700-4dfb-ac76-0E0000000015', 'a474481c-e010-46ff-8b18-080000000015', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Retired'),
-    ('8007e171-3f4d-43bd-93b8-0E0000000016', '59ced102-d984-47dd-823b-080000000016', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Active'),
-    ('4efd516e-fe9e-4107-aa1a-0E0000000017', 'a78012f5-46a9-4623-bc92-080000000017', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Pending'),
-    ('12a18530-d227-4cbe-bc52-0E0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', '13e636a8-bea2-4ec3-89da-060000000006', 'Retired'),
-    ('6ccfd4bc-7494-4286-8b0e-0E0000000019', 'eb06be2e-3fe7-43d7-99b2-080000000019', '5ef88261-c149-4f8b-9252-060000000007', 'Active'),
-    ('ba3f616f-46cf-485a-b638-0E0000000020', 'be84bbb8-a994-403c-ad7f-080000000020', '7eb2372a-4947-47de-b690-060000000008', 'Pending'),
-    ('6d22f23f-4618-4e51-853d-0E0000000021', 'aa74e93e-7939-46b6-a56d-080000000021', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Retired'),
-    ('59d9d402-eeac-4532-ab45-0E0000000022', '942f3664-f6e4-4260-8432-080000000022', '1a213527-9b68-4c7c-892a-060000000010', 'Active'),
-    ('7017096e-5c59-46b2-b0f2-0E0000000023', 'c3fa62be-1106-41c5-858d-080000000023', '005485d3-eecc-4b21-ab38-060000000011', 'Pending'),
-    ('4b50de17-bd73-4ba9-adfc-0E0000000024', '7db4d198-9ddb-46dd-be3f-080000000024', '94c37f57-9782-4842-80d1-060000000012', 'Retired'),
-    ('377ec911-0051-4659-805e-0E0000000025', '497f21ca-c4d9-4a0f-aad2-080000000025', '4da74a93-b659-4247-a8eb-060000000001', 'Active'),
-    ('4b6b1418-4303-4e75-b1de-0E0000000026', '1434b4e1-d3b2-4e26-939d-080000000026', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Pending'),
-    ('238c5413-e29e-420d-917d-0E0000000027', 'c332e001-d195-4049-b558-080000000027', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Retired'),
-    ('3d2e659a-0690-4f99-bb13-0E0000000028', '2f7c3f72-7023-4c77-9864-080000000028', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Active'),
-    ('264a83e4-2710-4bed-a232-0E0000000029', 'b76a3f2d-2b0a-44a9-b711-080000000029', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Pending'),
-    ('2fe92d3f-bf0b-410d-a4e3-0E0000000030', 'bb016efc-0902-41cc-88fb-080000000030', '13e636a8-bea2-4ec3-89da-060000000006', 'Retired'),
-    ('c0f7a51d-08bd-40b1-a627-0E0000000031', 'ebdc917c-2c9d-409b-a942-080000000031', '5ef88261-c149-4f8b-9252-060000000007', 'Active'),
-    ('8c471f5c-d9aa-4c64-bb42-0E0000000032', '4c0b8185-e61a-4e6f-be92-080000000032', '7eb2372a-4947-47de-b690-060000000008', 'Pending'),
-    ('431253f9-7c2a-46b2-bd94-0E0000000033', '60c209e7-221d-4af6-bb8f-080000000033', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Retired'),
-    ('ace7944a-5954-4770-b6ff-0E0000000034', '7a506f6a-5af7-4635-9a3f-080000000034', '1a213527-9b68-4c7c-892a-060000000010', 'Active'),
-    ('d03d04c6-689b-41ea-8ca3-0E0000000035', '32a10043-9f50-437b-9809-080000000035', '005485d3-eecc-4b21-ab38-060000000011', 'Pending'),
-    ('c26f6f26-f1f4-4984-9bc9-0E0000000036', 'f258cf7c-eb27-4f72-9ab2-080000000036', '94c37f57-9782-4842-80d1-060000000012', 'Retired'),
-    ('a2004ab7-7c5e-404e-9d90-0E0000000037', '354edfc0-7dea-4493-9321-080000000037', '4da74a93-b659-4247-a8eb-060000000001', 'Active'),
-    ('1ab13a38-757b-48b5-966b-0E0000000038', 'd9944e19-042c-42f5-bace-080000000038', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Pending'),
-    ('c7f83956-3b75-4683-856f-0E0000000039', '96b9ac38-9946-43c6-aa82-080000000039', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Retired'),
-    ('238c64f9-d6c9-4289-b781-0E0000000040', '7a599a02-b111-4961-b2e7-080000000040', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Active'),
-    ('2627f803-dd0b-4871-9b0f-0E0000000041', '946349f4-5d9d-424b-b251-080000000041', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Pending'),
-    ('392e5979-7379-4eda-bbe0-0E0000000042', 'e2adc1d4-fb8f-4de6-9328-080000000042', '13e636a8-bea2-4ec3-89da-060000000006', 'Retired'),
-    ('8fa5aab4-987b-492d-9987-0E0000000043', 'cd33ae58-e955-4508-9d32-080000000043', '5ef88261-c149-4f8b-9252-060000000007', 'Active'),
-    ('f062a733-7322-4cb1-8f5e-0E0000000044', '72910968-9d5b-4b3c-9298-080000000044', '7eb2372a-4947-47de-b690-060000000008', 'Pending'),
-    ('aa8d4c88-b7cf-4b64-96fb-0E0000000045', '91ca8b42-39ee-486c-b022-080000000045', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Retired'),
-    ('c536c8e9-67b3-4936-ac66-0E0000000046', '6ab32fd1-b99d-4c97-b753-080000000046', '1a213527-9b68-4c7c-892a-060000000010', 'Active'),
-    ('e299148f-dc76-47fd-b071-0E0000000047', 'a89a0333-1d5d-4190-99e2-080000000047', '005485d3-eecc-4b21-ab38-060000000011', 'Pending'),
-    ('ae74d001-51d4-49c4-9e1b-0E0000000048', 'a0204ce4-1c9f-475d-98ba-080000000048', '94c37f57-9782-4842-80d1-060000000012', 'Retired'),
-    ('f2d62ce3-d738-4a35-a21d-0E0000000049', '3eb257cc-7f77-4040-9a3a-080000000049', '4da74a93-b659-4247-a8eb-060000000001', 'Active'),
-    ('c692c7a9-b831-4c96-9609-0E0000000050', 'a0b6ae50-7b70-4a3c-a73b-080000000050', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Pending'),
-    ('df1b6f03-eedd-4c45-8be3-0E0000000051', '1b5c132b-a160-4bf8-a7f5-080000000051', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Retired'),
-    ('8f798f1a-0b07-4810-a073-0E0000000052', 'f636ca1c-a65c-4f8f-ab5b-080000000052', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Active'),
-    ('6298aad4-93f1-47d7-bbdc-0E0000000053', '7cf12c5d-2c23-433e-b1a6-080000000053', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Pending'),
-    ('42c2827a-418e-42b8-8b90-0E0000000054', '3958626e-a3e3-467f-bc8a-080000000054', '13e636a8-bea2-4ec3-89da-060000000006', 'Retired'),
-    ('d8078e1a-c361-425f-a096-0E0000000055', '72cff023-c18a-47b0-8392-080000000055', '5ef88261-c149-4f8b-9252-060000000007', 'Active');
+    ('dce80e4f-2783-422f-9ce5-0E0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '4da74a93-b659-4247-a8eb-060000000001', 'Installed'),
+    ('9492e833-ee47-4666-a492-0E0000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Offered'),
+    ('d8cd4d61-3c92-4334-b894-0E0000000003', 'c5314a99-d4d0-4939-8f0f-080000000003', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Rejected'),
+    ('21fd83c3-5d80-4de2-a6f8-0E0000000004', '572031c7-2b2b-4914-b228-080000000004', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Installed'),
+    ('1235e2b1-a036-4541-968c-0E0000000005', '7c82162b-ef58-4f14-96db-080000000005', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Offered'),
+    ('dde1a320-a0c4-4f54-9931-0E0000000006', '65a3be41-4d28-4276-a711-080000000006', '13e636a8-bea2-4ec3-89da-060000000006', 'Rejected'),
+    ('831adfed-e4ed-4895-bcb9-0E0000000007', 'fcde8ce1-ab84-404a-8fc7-080000000007', '5ef88261-c149-4f8b-9252-060000000007', 'Installed'),
+    ('f5c8a2fd-3d5b-4af9-93c7-0E0000000008', '7b77662c-09b5-4b48-a3fd-080000000008', '7eb2372a-4947-47de-b690-060000000008', 'Offered'),
+    ('df44f659-2ba1-4c0f-9067-0E0000000009', '95ae3b4a-058a-4412-9302-080000000009', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Rejected'),
+    ('ab55421f-8e42-4b5a-ab09-0E0000000010', '9f40a081-9821-4962-a5d7-080000000010', '1a213527-9b68-4c7c-892a-060000000010', 'Installed'),
+    ('089e466b-f385-48b8-849e-0E0000000011', 'f0227786-e7a8-4612-bb1a-080000000011', '005485d3-eecc-4b21-ab38-060000000011', 'Offered'),
+    ('846da34e-2c8f-40e2-8337-0E0000000012', '5542cc53-724f-4d4f-85fd-080000000012', '94c37f57-9782-4842-80d1-060000000012', 'Rejected'),
+    ('24febc1b-6e76-4977-8c32-0E0000000013', '65aec290-3c78-4380-aaa8-080000000013', '4da74a93-b659-4247-a8eb-060000000001', 'Installed'),
+    ('18234730-cb45-4f1f-aead-0E0000000014', '2e4e3983-fe01-4281-b33d-080000000014', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Offered'),
+    ('d192f521-3700-4dfb-ac76-0E0000000015', 'a474481c-e010-46ff-8b18-080000000015', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Rejected'),
+    ('8007e171-3f4d-43bd-93b8-0E0000000016', '59ced102-d984-47dd-823b-080000000016', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Installed'),
+    ('4efd516e-fe9e-4107-aa1a-0E0000000017', 'a78012f5-46a9-4623-bc92-080000000017', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Offered'),
+    ('12a18530-d227-4cbe-bc52-0E0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', '13e636a8-bea2-4ec3-89da-060000000006', 'Rejected'),
+    ('6ccfd4bc-7494-4286-8b0e-0E0000000019', 'eb06be2e-3fe7-43d7-99b2-080000000019', '5ef88261-c149-4f8b-9252-060000000007', 'Installed'),
+    ('ba3f616f-46cf-485a-b638-0E0000000020', 'be84bbb8-a994-403c-ad7f-080000000020', '7eb2372a-4947-47de-b690-060000000008', 'Offered'),
+    ('6d22f23f-4618-4e51-853d-0E0000000021', 'aa74e93e-7939-46b6-a56d-080000000021', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Rejected'),
+    ('59d9d402-eeac-4532-ab45-0E0000000022', '942f3664-f6e4-4260-8432-080000000022', '1a213527-9b68-4c7c-892a-060000000010', 'Installed'),
+    ('7017096e-5c59-46b2-b0f2-0E0000000023', 'c3fa62be-1106-41c5-858d-080000000023', '005485d3-eecc-4b21-ab38-060000000011', 'Offered'),
+    ('4b50de17-bd73-4ba9-adfc-0E0000000024', '7db4d198-9ddb-46dd-be3f-080000000024', '94c37f57-9782-4842-80d1-060000000012', 'Rejected'),
+    ('377ec911-0051-4659-805e-0E0000000025', '497f21ca-c4d9-4a0f-aad2-080000000025', '4da74a93-b659-4247-a8eb-060000000001', 'Installed'),
+    ('4b6b1418-4303-4e75-b1de-0E0000000026', '1434b4e1-d3b2-4e26-939d-080000000026', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Offered'),
+    ('238c5413-e29e-420d-917d-0E0000000027', 'c332e001-d195-4049-b558-080000000027', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Rejected'),
+    ('3d2e659a-0690-4f99-bb13-0E0000000028', '2f7c3f72-7023-4c77-9864-080000000028', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Installed'),
+    ('264a83e4-2710-4bed-a232-0E0000000029', 'b76a3f2d-2b0a-44a9-b711-080000000029', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Offered'),
+    ('2fe92d3f-bf0b-410d-a4e3-0E0000000030', 'bb016efc-0902-41cc-88fb-080000000030', '13e636a8-bea2-4ec3-89da-060000000006', 'Rejected'),
+    ('c0f7a51d-08bd-40b1-a627-0E0000000031', 'ebdc917c-2c9d-409b-a942-080000000031', '5ef88261-c149-4f8b-9252-060000000007', 'Installed'),
+    ('8c471f5c-d9aa-4c64-bb42-0E0000000032', '4c0b8185-e61a-4e6f-be92-080000000032', '7eb2372a-4947-47de-b690-060000000008', 'Offered'),
+    ('431253f9-7c2a-46b2-bd94-0E0000000033', '60c209e7-221d-4af6-bb8f-080000000033', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Rejected'),
+    ('ace7944a-5954-4770-b6ff-0E0000000034', '7a506f6a-5af7-4635-9a3f-080000000034', '1a213527-9b68-4c7c-892a-060000000010', 'Installed'),
+    ('d03d04c6-689b-41ea-8ca3-0E0000000035', '32a10043-9f50-437b-9809-080000000035', '005485d3-eecc-4b21-ab38-060000000011', 'Offered'),
+    ('c26f6f26-f1f4-4984-9bc9-0E0000000036', 'f258cf7c-eb27-4f72-9ab2-080000000036', '94c37f57-9782-4842-80d1-060000000012', 'Rejected'),
+    ('a2004ab7-7c5e-404e-9d90-0E0000000037', '354edfc0-7dea-4493-9321-080000000037', '4da74a93-b659-4247-a8eb-060000000001', 'Installed'),
+    ('1ab13a38-757b-48b5-966b-0E0000000038', 'd9944e19-042c-42f5-bace-080000000038', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Offered'),
+    ('c7f83956-3b75-4683-856f-0E0000000039', '96b9ac38-9946-43c6-aa82-080000000039', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Rejected'),
+    ('238c64f9-d6c9-4289-b781-0E0000000040', '7a599a02-b111-4961-b2e7-080000000040', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Installed'),
+    ('2627f803-dd0b-4871-9b0f-0E0000000041', '946349f4-5d9d-424b-b251-080000000041', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Offered'),
+    ('392e5979-7379-4eda-bbe0-0E0000000042', 'e2adc1d4-fb8f-4de6-9328-080000000042', '13e636a8-bea2-4ec3-89da-060000000006', 'Rejected'),
+    ('8fa5aab4-987b-492d-9987-0E0000000043', 'cd33ae58-e955-4508-9d32-080000000043', '5ef88261-c149-4f8b-9252-060000000007', 'Installed'),
+    ('f062a733-7322-4cb1-8f5e-0E0000000044', '72910968-9d5b-4b3c-9298-080000000044', '7eb2372a-4947-47de-b690-060000000008', 'Offered'),
+    ('aa8d4c88-b7cf-4b64-96fb-0E0000000045', '91ca8b42-39ee-486c-b022-080000000045', 'ca80bbb5-c8f9-4c71-b571-060000000009', 'Rejected'),
+    ('c536c8e9-67b3-4936-ac66-0E0000000046', '6ab32fd1-b99d-4c97-b753-080000000046', '1a213527-9b68-4c7c-892a-060000000010', 'Installed'),
+    ('e299148f-dc76-47fd-b071-0E0000000047', 'a89a0333-1d5d-4190-99e2-080000000047', '005485d3-eecc-4b21-ab38-060000000011', 'Offered'),
+    ('ae74d001-51d4-49c4-9e1b-0E0000000048', 'a0204ce4-1c9f-475d-98ba-080000000048', '94c37f57-9782-4842-80d1-060000000012', 'Rejected'),
+    ('f2d62ce3-d738-4a35-a21d-0E0000000049', '3eb257cc-7f77-4040-9a3a-080000000049', '4da74a93-b659-4247-a8eb-060000000001', 'Installed'),
+    ('c692c7a9-b831-4c96-9609-0E0000000050', 'a0b6ae50-7b70-4a3c-a73b-080000000050', 'c1b43cf4-e63e-46c3-b938-060000000002', 'Offered'),
+    ('df1b6f03-eedd-4c45-8be3-0E0000000051', '1b5c132b-a160-4bf8-a7f5-080000000051', 'ee8deef4-f74f-450f-a6aa-060000000003', 'Rejected'),
+    ('8f798f1a-0b07-4810-a073-0E0000000052', 'f636ca1c-a65c-4f8f-ab5b-080000000052', 'fed6149a-d95f-42fd-b6c7-060000000004', 'Installed'),
+    ('6298aad4-93f1-47d7-bbdc-0E0000000053', '7cf12c5d-2c23-433e-b1a6-080000000053', '3b484b1d-f8e2-44ca-81a5-060000000005', 'Offered'),
+    ('42c2827a-418e-42b8-8b90-0E0000000054', '3958626e-a3e3-467f-bc8a-080000000054', '13e636a8-bea2-4ec3-89da-060000000006', 'Rejected'),
+    ('d8078e1a-c361-425f-a096-0E0000000055', '72cff023-c18a-47b0-8392-080000000055', '5ef88261-c149-4f8b-9252-060000000007', 'Installed');
 
--- UpgradePlan
+-- Upgrade plans (scheduled maintenance windows)
 INSERT INTO UpgradePlan (UpgradePlanID, SiteID, SoftwareID, PlannedWindowStart, PlannedWindowEnd, Status, CreatedAt, CreatedBy) VALUES
     ('1b6fe1f2-d596-4f05-b942-0F0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '4da74a93-b659-4247-a8eb-060000000001', DATEADD('DAY', 14, CURRENT_DATE), DATEADD('DAY', 15, CURRENT_DATE), 'Planned', DATEADD('DAY', -30, CURRENT_DATE), 'automation'),
     ('28b41b56-701a-48ec-ac6b-0F0000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'c1b43cf4-e63e-46c3-b938-060000000002', DATEADD('DAY', 16, CURRENT_DATE), DATEADD('DAY', 17, CURRENT_DATE), 'Approved', DATEADD('DAY', -33, CURRENT_DATE), 'regional-admin'),
@@ -533,7 +533,7 @@ INSERT INTO UpgradePlan (UpgradePlanID, SiteID, SoftwareID, PlannedWindowStart, 
     ('991c1bca-cf75-46dc-8042-0F0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', '13e636a8-bea2-4ec3-89da-060000000006', DATEADD('DAY', 48, CURRENT_DATE), DATEADD('DAY', 49, CURRENT_DATE), 'InProgress', DATEADD('DAY', -81, CURRENT_DATE), 'regional-admin')
 ;
 
--- ServiceContract
+-- Service contracts (coverage per account/project/site)
 INSERT INTO ServiceContract (ContractID, AccountID, ProjectID, SiteID, ContractNumber, Status, StartDate, EndDate) VALUES
     ('03c4d9ba-1152-4d08-a232-100000000001', 'bfacb3aa-2756-4c62-9f92-040000000001', 'c0cb3f12-abdc-4839-bd70-070000000001', '9356ae01-fce4-4d24-84ca-080000000001', 'SC-2025-001', 'Planned', DATEADD('DAY', -90, CURRENT_DATE), DATEADD('DAY', 275, CURRENT_DATE)),
     ('7967aa71-d217-412f-9d34-100000000002', '79481711-f879-4692-b08f-040000000002', '2b0d9a59-e2b6-4fbe-b257-070000000002', '572031c7-2b2b-4914-b228-080000000004', 'SC-2025-002', 'Approved', DATEADD('DAY', -93, CURRENT_DATE), DATEADD('DAY', 272, CURRENT_DATE)),

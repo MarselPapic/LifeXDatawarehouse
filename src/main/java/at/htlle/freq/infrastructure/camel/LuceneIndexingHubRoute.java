@@ -11,22 +11,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /*
- * Camel-Routen-Hub für alle Lucene-Schreiboperationen.
+ * Camel routing hub for all Lucene write operations.
  *
- * Datenfluss:
- *  - UnifiedIndexingRoutes (Timer, Direct-Endpunkte) pushen Domain-Entities in "seda:lucene-index".
- *  - Diese Route konsumiert die Queue mit exactly-one Consumer und ruft abhängig vom Body die passenden indexXxx()-Methoden.
- *  - Fehler werden im onException-Block geloggt und die Nachricht verworfen, damit keine Retry-Stürme entstehen (siehe log.error).
+ * Data flow:
+ *  - UnifiedIndexingRoutes (timers, direct endpoints) push domain entities into the "seda:lucene-index" queue.
+ *  - This route consumes the queue with a single consumer and invokes the matching indexXxx() method based on the payload.
+ *  - Errors are logged inside onException with the template {@code "Lucene indexing failed for {}: {}"} and the
+ *    message is dropped to prevent retry storms.
  *
- * Retry-/Locking-Aspekte:
- *  - Camel-SEDA mit concurrentConsumers=1 verhindert parallele Writer-Zugriffe, zusätzlich serialisiert der Service selbst
- *    (ReentrantLock in LuceneIndexServiceImpl) die Schreibzugriffe.
- *  - Kein automatisches Redelivery: handled(true) sorgt dafür, dass Dead Letter Handling deaktiviert bleibt – konsistent mit den
- *    Logger-Hinweisen.
+ * Retry / locking considerations:
+ *  - Camel SEDA with concurrentConsumers=1 ensures only one writer at a time; LuceneIndexServiceImpl also serializes write
+ *    operations via a ReentrantLock as an additional safeguard.
+ *  - Automatic redelivery is disabled (handled(true)) to align with the logging guidance and avoid requeue loops.
  *
- * Integrationspunkte:
- *  - Bindeglied zwischen Camel und LuceneIndexServiceImpl.
- *  - Konsumiert Entities aus Repositories (siehe UnifiedIndexingRoutes) und spiegelt deren Struktur 1:1 in die Indexmethoden.
+ * Integration points:
+ *  - Serves as the bridge between Camel and LuceneIndexServiceImpl.
+ *  - Consumes entities from the repositories (see UnifiedIndexingRoutes) and mirrors their structure one-to-one in the indexing methods.
  */
 @Component("LuceneIndexingHubRoute")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
@@ -41,12 +41,12 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
 
     @Override
     /**
-     * Richtet das onException-Logging sowie den Single-Consumer-Flow ein.
-     * Keine parallele Verarbeitung – consistent mit den Lock-Warnungen des Services.
+     * Configures the onException logging and enforces a single-consumer flow.
+     * Parallel processing is disabled to match the lock warnings emitted by the service.
      */
     public void configure() {
 
-        // Globales Error-Handling: loggen & Nachricht verwerfen (kein Retry-Sturm)
+        // Global error handling: log and drop the message to avoid retry storms
         onException(Exception.class)
                 .handled(true)
                 .process(ex -> {
@@ -58,7 +58,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                             cause);
                 });
 
-        // EIN Consumer -> keine write.lock Konflikte
+        // Single consumer to prevent write.lock conflicts
         from("seda:lucene-index?concurrentConsumers=1")
                 .routeId("LuceneIndexHub")
                 .process(ex -> {
@@ -227,6 +227,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 sw.getRevision(),
                                 sw.getSupportPhase(),
                                 sw.getLicenseModel(),
+                                sw.isThirdParty(),
                                 sw.getEndOfSalesDate(),
                                 sw.getSupportStartDate(),
                                 sw.getSupportEndDate()
@@ -248,7 +249,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                         return;
                     }
 
-                    // Fallback
+                    // Fallback: log unsupported payload types
                     log.warn("LuceneIndexHub: Unsupported body type: {}", body == null ? "null" : body.getClass());
                 });
     }

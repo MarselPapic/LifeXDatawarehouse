@@ -2,40 +2,40 @@
 
 ---
 
-## 📑 Projektüberblick
+## 📑 Project Overview
 
-LifeX Data Warehouse ist eine schlanke, aber funktionsreiche Applikation, die im Rahmen einer Diplomarbeit an der HTL Leoben (Abteilung Informationstechnik) entsteht.  
-Sie vereint **ETL-ähnliche Datenhaltung**, **Volltextsuche via Lucene** (oder normale Suche mit Autocomplete), ein **leichtgewichtiges Web-UI** und eine **REST-API** in einem einzigen Spring-Boot-Projekt.
+LifeX Data Warehouse is a lean yet feature-rich application developed as part of a diploma thesis at HTL Leoben (Department of Information Technology).
+The project combines **ETL-style data storage**, **full-text search via Lucene** (or regular search with autocomplete), a **lightweight web UI**, and a **REST API** in a single Spring Boot codebase.
 
-> **Mission Statement**  
-> „Statische Stammdaten (Account → Project → Site …) sollen schnell erfasst, durchsucht und exportiert werden können – ohne schwergewichtige BI-Tools.“
+> **Mission Statement**
+> "Static master data (Account → Project → Site …) should be captured, searched, and exported quickly—without heavyweight BI tools."
 
-Neu: Die globale Suche unterstützt jetzt **Lucene-Syntax oder normale Eingaben** mit automatischer Präfix-Erweiterung (token\*), Autocomplete-Vorschlägen und angereicherten Ergebnislisten.
+Global search supports **Lucene syntax or regular input** with automatic prefix expansion (token\*), autocomplete suggestions, and enriched result lists.
 
 ---
 
-## ✨ Haupt-Features
+## ✨ Key Features
 
-- **Datenmodell** – relationale H2-In-Memory-DB (Account, Project, Site, Server …)
-- **API** – CRUD-REST-Controller je Entität + generischer GenericCrudController (GET/POST/PUT/DELETE)
-- **Reporting & Export** – KPI-Übersichten mit Filtern, KPI-Kacheln sowie CSV/PDF-Export via `/api/reports/*`
-- **Indexing** – Apache Lucene 8 (Full-Reindex alle 3 min + inkrementeller Camel-Sync, manuelles Reindexing über UI)
-- **Suche**
-  - Globale Lucene-Query-Syntax im Dashboard und via `/search?q=`
-  - Normale Suchbegriffe werden automatisch zu Präfix-Suchen (`beispiel*`)
-  - Autocomplete mit Vorschlägen
-  - Ergebnislisten mit zusätzlicher Info-Spalte (z. B. Kontaktdaten, Marken, Varianten)
+- **Data Model** – relational H2 in-memory database (Account, Project, Site, Server …)
+- **API** – CRUD REST controllers per entity + generic `GenericCrudController` (GET/POST/PUT/DELETE)
+- **Reporting & Export** – KPI overviews with filters, KPI tiles, and CSV/PDF export via `/api/reports/*`
+- **Indexing** – Apache Lucene 8 (full reindex every 3 minutes + incremental Camel sync, manual reindex via UI)
+- **Search**
+  - Global Lucene query syntax on the dashboard and via `/search?q=`
+  - Regular search terms are automatically converted to prefix searches (`example*`)
+  - Autocomplete with suggestions
+  - Result lists with an additional information column (e.g., contact data, brands, variants)
 - **UI**
-  - Rein statisches HTML / CSS / JS (kein Build-Tool erforderlich)
-  - Shortcut-Buttons direkt editierbar (Name + Query)
-  - Fortschrittsanzeige für laufenden Index-Build mit Live-Daten aus `/api/index-progress`
-  - Generischer Tabellen-Viewer (100 Zeilen Vorschau)
-- **Automation** – Apache Camel 4 Timer-Routes (Sync, Full-Reindex, Einzel-Index)
-- **Dev-Ergonomie** – Spring Boot DevTools, LiveReload, H2-Console, Lombok
+  - Pure static HTML / CSS / JS (no build tool required)
+  - Shortcut buttons are directly editable (name + query)
+  - Progress indicator for ongoing index builds with live data from `/api/index-progress`
+  - Generic table viewer (100-row preview)
+- **Automation** – Apache Camel 4 timer routes (sync, full reindex, single index)
+- **Developer Ergonomics** – Spring Boot DevTools, LiveReload, H2 console, Lombok
 
 ---
 
-## 🏗️ Architektur-Überblick
+## 🏗️ Architecture Overview
 
 ```text
 ┌──────────────────────────────┐     Timer          ┌─────────────────────────┐
@@ -61,7 +61,7 @@ Neu: Die globale Suche unterstützt jetzt **Lucene-Syntax oder normale Eingaben*
 
 ---
 
-## 🧰 Tech-Stack
+## 🧰 Tech Stack
 
 - Java 17 (17.x LTS)
 - Spring Boot 3.4.6
@@ -76,117 +76,117 @@ Neu: Die globale Suche unterstützt jetzt **Lucene-Syntax oder normale Eingaben*
 ## 🚀 Build & Run
 
 ```bash
-# Repository klonen
+# Clone repository
 git clone https://github.com/<user>/LifeXDatawarehouse.git
 cd LifeXDatawarehouse
 
-# Start im Dev-Modus
+# Start in dev mode
 mvn spring-boot:run
 ```
 
-**Öffnen im Browser:**
+**Open in the browser:**
 
 - http://localhost:8080
-- Hot-Reload via DevTools
-- H2-Console: `/h2-console` (JDBC-URL: `jdbc:h2:mem:testdb`)
+- Hot reload via DevTools
+- H2 console: `/h2-console` (JDBC URL: `jdbc:h2:mem:testdb`)
 
 ---
 
-## 🧪 Seed-Daten & Generator
+## 🧪 Seed Data & Generator
 
-- `src/main/resources/data.sql` enthält jetzt rund **500 miteinander verknüpfte Datensätze** über alle Tabellen hinweg (Countries → ServiceContract). Die Mengenplanung ist in [`docs/data-volume-plan.md`](docs/data-volume-plan.md) dokumentiert.
-- Die **UUIDs** erhalten im letzten Block ein zweistelliges Hex-Präfix pro Tabelle (z. B. `07` für `Project`) und eine zehnstellige Sequenznummer. Dadurch lassen sich IDs im UI leichter gruppieren, bleiben aber vollständig UUID-kompatibel.
-- Zur Reproduktion dient das Hilfstool [`SeedDataGenerator`](src/test/java/at/htlle/freq/seed/SeedDataGenerator.java). Der Generator legt bei Bedarf ein Backup (`data.sql.legacy`) an und überschreibt anschließend die aktuelle Seed-Datei.
-- Nach Änderungen am Generator: `javac --release 17 -d target/test-classes src/test/java/at/htlle/freq/seed/SeedDataGenerator.java && java -cp target/test-classes at.htlle.freq.seed.SeedDataGenerator`
-
----
-
-## 🌐 REST-API (Schnellreferenz)
-
-- `GET  /accounts` – alle Accounts
-- `GET  /accounts/{id}` – einzelner Account
-- `POST /accounts` – neuen Account anlegen (JSON-Body)
-- `POST /projects` – neues Projekt; optionales `stillActive`-Flag (Default `true`)
-- `GET  /search?q=…` – globale Suche (Lucene oder normal)
-  → Liefert Trefferobjekte mit `id`, `type`, `text` (Primärbezeichnung) und optional `snippet` (zusätzliche Inhalte); das Frontend lädt Detaildaten aus `/row/{table}/{id}` nach
-- `GET  /table/{name}` – 100-Zeilen-Dump einer Tabelle
-- `GET  /row/{name}/{id}` – Einzel-Zeile (Detail-View)
-- `POST /row/{name}` – Generischer Insert über den GenericCrudController
-- `PUT  /row/{name}/{id}` – Generisches Update (feldbasierter Merge)
-- `DELETE /row/{name}/{id}` – Generisches Löschen
-- `GET  /api/reports/options` – Filter- und KPI-Optionen für das Reporting
-- `GET  /api/reports/data` – Aggregierte Kennzahlen inkl. Tabellenansicht
-- `GET  /api/reports/export/csv` – Export der aktuellen Auswertung als CSV
-- `GET  /api/reports/export/pdf` – Export der aktuellen Auswertung als PDF
-
-Weitere Endpunkte für `Project`, `Site`, `Server` usw. analog.
+- `src/main/resources/data.sql` now contains roughly **500 interconnected records** across all tables (Countries → ServiceContract). The volume planning is documented in [`docs/data-volume-plan.md`](docs/data-volume-plan.md).
+- The **UUIDs** receive a two-digit hex prefix per table in the last block (e.g., `07` for `Project`) plus a ten-digit sequence number. This convention makes it easier to group IDs in the UI while keeping them compliant with the UUID format.
+- Use the helper tool [`SeedDataGenerator`](src/test/java/at/htlle/freq/seed/SeedDataGenerator.java) to reproduce the dataset. The generator creates a backup (`data.sql.legacy`) when necessary and then overwrites the current seed file.
+- After updating the generator, rebuild and run it with `javac --release 17 -d target/test-classes src/test/java/at/htlle/freq/seed/SeedDataGenerator.java && java -cp target/test-classes at.htlle.freq.seed.SeedDataGenerator`
 
 ---
 
-## 🖥️ Frontend-Seiten
+## 🌐 REST API (Quick Reference)
+
+- `GET  /accounts` – all accounts
+- `GET  /accounts/{id}` – single account
+- `POST /accounts` – create a new account (JSON body)
+- `POST /projects` – create a new project; optional `stillActive` flag (default `true`)
+- `GET  /search?q=…` – global search (Lucene or regular)
+  → Returns hit objects with `id`, `type`, `text` (primary label) and optional `snippet` (additional content); the frontend fetches detail data from `/row/{table}/{id}`
+- `GET  /table/{name}` – 100-row dump of a table
+- `GET  /row/{name}/{id}` – single row (detail view)
+- `POST /row/{name}` – generic insert via `GenericCrudController`
+- `PUT  /row/{name}/{id}` – generic update (field-based merge)
+- `DELETE /row/{name}/{id}` – generic delete
+- `GET  /api/reports/options` – filter and KPI options for reporting
+- `GET  /api/reports/data` – aggregated metrics including table view
+- `GET  /api/reports/export/csv` – export the current evaluation as CSV
+- `GET  /api/reports/export/pdf` – export the current evaluation as PDF
+
+Additional endpoints for `Project`, `Site`, `Server`, and more follow the same pattern.
+
+---
+
+## 🖥️ Frontend Pages
 
 - **`index.html` – Dashboard**
-  - Globale Suche (Lucene + normale Suche mit automatischem `*`)
-  - Autocomplete-Vorschläge beim Tippen
-  - Editierbare Shortcut-Buttons
-  - Tabellen-Explorer
-  - Ergebnisliste mit zusätzlicher Info-Spalte
-  - Reindex-Button und Fortschrittsbalken für Indexaufbau
-  - Dashboard fragt den Fortschritt regelmäßig über `/api/index-progress` ab; der Backend-Indexlauf liefert hierzu Statuswerte
+  - Global search (Lucene + regular search with automatic `*`)
+  - Autocomplete suggestions while typing
+  - Editable shortcut buttons
+  - Table explorer
+  - Result list with an additional info column
+  - Reindex button and progress bar for index builds
+  - Dashboard polls progress regularly via `/api/index-progress`; the backend index job provides status values for this
 
-- **`create.html` – Datensatz-Erstellung**
-  - Schritt-für-Schritt-Wizard zur Anlage neuer Datensätze (inkl. Country, City, Address, Software, InstalledSoftware, UpgradePlan und ServiceContract)
-  - Dynamische Formularfelder je Entitätstyp mit abhängigen Dropdowns und asynchronen Datenquellen
-  - Direkte Validierung der Eingaben im Browser (Pflichtfelder, Datentypen, Datumslogik)
-  - Abschließende Übersicht vor dem Speichern
+- **`create.html` – Record creation**
+  - Step-by-step wizard to create new records (including Country, City, Address, Software, InstalledSoftware, UpgradePlan, and ServiceContract)
+  - Dynamic form fields per entity type with dependent dropdowns and asynchronous data sources
+  - Direct validation in the browser (required fields, data types, date logic)
+  - Final summary before saving
 
-- **`details.html` – Detailansicht**
-  - Generische Key/Value-Darstellung aller Felder
-  - Verknüpfte Entitäten werden als klickbare Links angezeigt
-  - Einheitliches Layout für alle Entitätstypen
-  - Kompaktansicht und Vollansicht umschaltbar
+- **`details.html` – Detail view**
+  - Generic key/value display for all fields
+  - Linked entities shown as clickable links
+  - Unified layout for all entity types
+  - Toggle between compact view and full view
 
-- **`reports.html` – Reporting & KPI-Übersicht**
-  - Dynamische Filter (Zeitraum, Suchbegriff, Varianten)
-  - KPI-Kacheln und Tabellenansicht aus `/api/reports/data`
-  - CSV- und PDF-Export über Buttons (`/api/reports/export/*`)
-  - Sofortige UI-Aktualisierung beim Anpassen der Filter
+- **`reports.html` – Reporting & KPI overview**
+  - Dynamic filters (time range, search term, variants)
+  - KPI tiles and table view from `/api/reports/data`
+  - CSV and PDF export buttons (`/api/reports/export/*`)
+  - Instant UI updates when filters change
 
-**Alle Assets:**  
-Liegen unter `src/main/resources/static/` – kein Frontend-Build nötig.
+**All assets:**
+Live under `src/main/resources/static/`—no frontend build required.
 
 ---
 
 ## 🔍 Lucene Quick Ref
 
 ```text
-tech*                       # Wildcard  
+tech*                       # Wildcard
 "green valley"              # Phrase
-+foo -bar                   # Muss / Nicht
-country:germany             # Feldsuche
-type:project AND statusActive        # Aktive Projekte
-type:serviceContract AND statusInProgress  # Laufende Serviceverträge
++foo -bar                   # Must / Must not
+country:germany             # Field search
+type:project AND statusActive        # Active projects
+type:serviceContract AND statusInProgress  # Ongoing service contracts
 type:site AND zoneBravo              # Sites in FireZone Bravo
-type:server AND Lenovo      # Lenovo-Serverbestand
+type:server AND Lenovo      # Lenovo server inventory
 ```
 
-**Frontend-Feature:**
-Wenn keine Lucene-Syntax erkannt wird, fügt das Frontend automatisch ein `*` an den Suchbegriff an (Präfixsuche).
+**Frontend feature:**
+If no Lucene syntax is detected, the frontend automatically appends `*` to the search term (prefix search).
 
-**Voreingestellte Dashboard-Shortcuts:**
+**Preset dashboard shortcuts:**
 
-- Accounts – Gesamtbestand → `type:account`
-- Projekte – aktiv → `type:project AND statusActive`
-- Serviceverträge – In Progress → `type:serviceContract AND statusInProgress`
+- Accounts – Total inventory → `type:account`
+- Projects – Active → `type:project AND statusActive`
+- Service contracts – In progress → `type:serviceContract AND statusInProgress`
 - Sites – FireZone Bravo → `type:site AND zoneBravo`
-- Server – Lenovo → `type:server AND Lenovo`
+- Servers – Lenovo → `type:server AND Lenovo`
 
-**Indexierte Felder (Beispiele):**
+**Indexed fields (examples):**
 
-- Account → `txt` (Name), `country`
-- Project → `txt` (Name), `variant`
-- Site    → `txt` (Name), `fireZone`
-- Server  → `txt` (Name), `os`
+- Account → `txt` (name), `country`
+- Project → `txt` (name), `variant`
+- Site    → `txt` (name), `fireZone`
+- Server  → `txt` (name), `os`
 
 ```text
 erDiagram
@@ -198,40 +198,40 @@ erDiagram
     WorkingPosition ||--|{ PhoneIntegration : phones
 ```
 
-*(Die vollständige SQL-Definition findest du in `schema.sql`.)*
+*(You can find the full SQL definition in `schema.sql`.)*
 
 ---
 
-## 🛡️ Qualität & CI
+## 🛡️ Quality & CI
 
-- **JUnit-Tests** – Maven führt die vorhandenen Tests unter `src/test/java` aus, u. a. für `IndexProgress` und dessen REST-Controller.
-- **IndexProgress-Updates** – Die Fortschrittsanzeige nutzt die produktiven Updates aus `IndexProgress`, sodass UI und API denselben Status liefern.
-- **Lokale Checks** – Vor Commits laufen `mvn test` sowie manuelle UI-Prüfungen (Autocomplete, Debouncing, API-Fallbacks).
-- **Statische Analyse** – Checkstyle und SpotBugs bleiben auf der Roadmap.
+- **JUnit tests** – Maven runs the available tests under `src/test/java`, including those for `IndexProgress` and its REST controller.
+- **IndexProgress updates** – The progress indicator uses the production updates from `IndexProgress`, keeping UI and API aligned.
+- **Local checks** – Before commits, `mvn test` runs alongside manual UI checks (autocomplete, debouncing, API fallbacks).
+- **Static analysis** – Checkstyle and SpotBugs remain on the roadmap.
 
 ---
 
 ## 🚧 Roadmap
 
-- ✔️ Lucene-Index + globale Suche
-- ✔️ Shortcut-UI (editierbar)
-- ✔️ Create-Wizard
-- ✔️ Autocomplete in Suche
-- ✔️ Zusatzinfos in Ergebnisliste
-- ✔️ CSV-Export per REST (`/api/reports/export/csv`)
-- ✔️ PDF-Export per REST (`/api/reports/export/pdf`)
-- ☐ Excel-Export per REST
-- ☐ Benutzer-Auth (Spring Security + JWT)
-- ☐ Docker-Compose (PostgreSQL + OpenSearch)
+- ✔️ Lucene index + global search
+- ✔️ Shortcut UI (editable)
+- ✔️ Create wizard
+- ✔️ Autocomplete in search
+- ✔️ Additional info in result list
+- ✔️ CSV export via REST (`/api/reports/export/csv`)
+- ✔️ PDF export via REST (`/api/reports/export/pdf`)
+- ☐ Excel export via REST
+- ☐ User authentication (Spring Security + JWT)
+- ☐ Docker Compose (PostgreSQL + OpenSearch)
 
 ---
 
-## 👥 Mitwirkende
+## 👥 Contributors
 
-- Mario Ziegerhofer – Entwickler
-- Marcel Papic – Entwickler
-- Alexander Schüller – Team-Lead
+- Mario Ziegerhofer – Developer
+- Marcel Papic – Developer
+- Alexander Schüller – Team Lead
 
 ---
 
-© 2025 Mario Ziegerhofer • HTL Leoben Informationstechnik • Alle Angaben ohne Gewähr
+© 2025 Mario Ziegerhofer • HTL Leoben Information Technology • All information is provided as-is without warranty.

@@ -48,14 +48,14 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void indexAndSearchRoundTrip() throws Exception {
-        // Arrange: index an account and project document
+        // Arrange: index both an account and a project so the search has relevant content
         service.indexAccount("acc-1", "Acme", "Austria", "contact@acme.test");
         service.indexProject("proj-1", "SAP-1", "HQ", null, null, "ACTIVE", null, null);
 
-        // Act: search for the indexed account
+        // Act: execute a Lucene query that should match the stored account document
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("acme"));
-        // Assert
+        // Assert: confirm the query returns the account with the expected metadata
         assertEquals(1, hits.size());
         assertEquals("acc-1", hits.get(0).getId());
         assertEquals("account", hits.get(0).getType());
@@ -69,40 +69,40 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void reindexAllClearsDocuments() throws Exception {
-        // Arrange
+        // Arrange: persist an account so the subsequent query yields a hit
         service.indexAccount("acc-2", "Test", null, null);
         Query query = new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer()).parse("test");
         assertFalse(service.search(query).isEmpty());
 
-        // Act
+        // Act: request a full reindex, which should clear previously indexed documents
         service.reindexAll();
-        // Assert
+        // Assert: verify the earlier query now returns no search hits
         assertTrue(service.search(query).isEmpty());
     }
 
     @Test
     void safeHandlesNullValuesWhenIndexing() throws Exception {
-        // Arrange
+        // Arrange: index an account where all optional fields are null
         service.indexAccount("acc-3", null, null, null);
-        // Act
+        // Act: perform a broad match-all search against the index
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("*:*"));
-        // Assert
+        // Assert: ensure the snippet collapses to an empty string instead of "null"
         assertEquals(1, hits.size());
         assertEquals("", hits.get(0).getSnippet());
     }
 
     @Test
     void snippetIsTrimmedAndNormalized() throws Exception {
-        // Arrange
+        // Arrange: index an account with a long snippet to test trimming behaviour
         String longValue = ("Austria   with   spaces   ").repeat(20);
         service.indexAccount("acc-4", "Acme", longValue, null);
 
-        // Act
+        // Act: search for the account using a keyword from the document text
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("acme"));
 
-        // Assert
+        // Assert: verify the snippet is normalized, deduplicated, and appropriately truncated
         assertEquals(1, hits.size());
         String snippet = hits.get(0).getSnippet();
         assertNotNull(snippet);
@@ -113,14 +113,14 @@ class LuceneIndexServiceImplTest {
 
     @Test
     void textFallsBackToTypeAndIdWhenFieldsAreBlank() throws Exception {
-        // Arrange
+        // Arrange: index an account where both the text and snippet fields are blank
         service.indexAccount("acc-blank", "", null, null);
 
-        // Act
+        // Act: issue a match-all search to load the indexed account
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())
                 .parse("*:*"));
 
-        // Assert
+        // Assert: confirm the result falls back to the type and identifier as the display text
         assertEquals(1, hits.size());
         assertEquals("account acc-blank", hits.get(0).getText());
         assertEquals("", hits.get(0).getSnippet());

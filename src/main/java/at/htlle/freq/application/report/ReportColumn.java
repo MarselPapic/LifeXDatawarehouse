@@ -1,7 +1,7 @@
 package at.htlle.freq.application.report;
 
 /**
- * Definiert eine Spaltenkonfiguration für tabellarische Report-Daten.
+ * Defines a column configuration for tabular report data.
  */
 public record ReportColumn(
         String key,

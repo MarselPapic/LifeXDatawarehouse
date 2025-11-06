@@ -6,10 +6,11 @@ import java.util.UUID;
 @Component
 public class AudioDeviceFactory {
     /**
-     * Creates a new {@link AudioDevice} attached to the given {@link Clients}
-     * endpoint. The device identifier stays {@code null} until persistence.
+     * Creates a new {@link AudioDevice} attached to the given
+     * {@link Clients} client workstation. The device identifier stays
+     * {@code null} until persistence.
      *
-     * @param clientID owning client installation
+     * @param clientID owning client workstation identifier
      * @param brand vendor or model family name
      * @param serialNr hardware serial number for traceability
      * @param firmware firmware revision reported by the device

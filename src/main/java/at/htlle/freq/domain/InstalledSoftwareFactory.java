@@ -7,7 +7,7 @@ import java.util.UUID;
 public class InstalledSoftwareFactory {
     /**
      * Links a {@link Software} package to a {@link Site} with an initial
-     * {@link InstalledSoftwareStatus#ACTIVE} state. The identifier stays unset
+     * {@link InstalledSoftwareStatus#OFFERED} state. The identifier stays unset
      * for database generation.
      *
      * @param siteID site that hosts the installation
@@ -15,6 +15,6 @@ public class InstalledSoftwareFactory {
      * @return transient installed software relationship
      */
     public InstalledSoftware create(UUID siteID, UUID softwareID) {
-        return new InstalledSoftware(null, siteID, softwareID, InstalledSoftwareStatus.ACTIVE.dbValue());
+        return new InstalledSoftware(null, siteID, softwareID, InstalledSoftwareStatus.OFFERED.dbValue());
     }
 }

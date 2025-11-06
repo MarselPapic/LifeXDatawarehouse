@@ -14,7 +14,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Steuert Telefonintegrationen, validiert Pflichtfelder und synchronisiert Daten mit Lucene.
+ * Manages phone integrations, validates required fields, and synchronizes data with Lucene.
  */
 @Service
 public class PhoneIntegrationService {
@@ -25,10 +25,10 @@ public class PhoneIntegrationService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     * Creates the service with repository and index dependencies.
      *
-     * @param repo   Repository für Telefonintegrationen
-     * @param lucene Lucene-Indexdienst
+     * @param repo   repository for phone integrations
+     * @param lucene Lucene indexing service
      */
     public PhoneIntegrationService(PhoneIntegrationRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -38,19 +38,19 @@ public class PhoneIntegrationService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle Telefonintegrationen.
+     * Returns all phone integrations.
      *
-     * @return Liste aller Integrationen
+     * @return list of all integrations
      */
     public List<PhoneIntegration> getAllPhoneIntegrations() {
         return repo.findAll();
     }
 
     /**
-     * Sucht eine Integration anhand ihrer ID.
+     * Retrieves an integration by its identifier.
      *
-     * @param id Integrations-ID
-     * @return Optional mit Integration oder leer
+     * @param id integration identifier
+     * @return optional containing the integration or empty otherwise
      */
     public Optional<PhoneIntegration> getPhoneIntegrationById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -58,10 +58,10 @@ public class PhoneIntegrationService {
     }
 
     /**
-     * Liefert Integrationen für einen Client.
+     * Returns integrations for a client.
      *
-     * @param clientId Client-ID
-     * @return Liste der Integrationen
+     * @param clientId client identifier
+     * @return list of integrations
      */
     public List<PhoneIntegration> getPhoneIntegrationsByClient(UUID clientId) {
         Objects.requireNonNull(clientId, "clientId must not be null");
@@ -71,11 +71,11 @@ public class PhoneIntegrationService {
     // ---------- Commands ----------
 
     /**
-     * Speichert eine Telefonintegration und indexiert sie nach Commit in Lucene.
-     * Validiert Client und Typ.
+     * Saves a phone integration and indexes it in Lucene after the commit.
+     * Validates the client and type.
      *
-     * @param incoming Integration, die gespeichert werden soll
-     * @return gespeicherte Integration
+     * @param incoming integration to persist
+     * @return stored integration
      */
     @Transactional
     public PhoneIntegration createOrUpdatePhoneIntegration(PhoneIntegration incoming) {
@@ -89,17 +89,17 @@ public class PhoneIntegrationService {
         PhoneIntegration saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("PhoneIntegration gespeichert: id={} client={} type='{}'",
+        log.info("PhoneIntegration saved: id={} client={} type='{}'",
                 saved.getPhoneIntegrationID(), saved.getClientID(), saved.getPhoneType());
         return saved;
     }
 
     /**
-     * Aktualisiert eine Telefonintegration und synchronisiert Lucene.
+     * Updates a phone integration and synchronizes Lucene.
      *
-     * @param id    Integrations-ID
-     * @param patch Änderungen, die übernommen werden sollen
-     * @return Optional mit aktualisierter Integration oder leer
+     * @param id    integration identifier
+     * @param patch changes to merge into the entity
+     * @return optional with the updated integration or empty otherwise
      */
     @Transactional
     public Optional<PhoneIntegration> updatePhoneIntegration(UUID id, PhoneIntegration patch) {
@@ -116,24 +116,24 @@ public class PhoneIntegrationService {
             PhoneIntegration saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("PhoneIntegration aktualisiert: id={} client={} type='{}'",
+            log.info("PhoneIntegration updated: id={} client={} type='{}'",
                     id, saved.getClientID(), saved.getPhoneType());
             return saved;
         });
     }
 
     /**
-     * Löscht eine Telefonintegration.
+     * Deletes a phone integration.
      *
-     * @param id Integrations-ID
+     * @param id integration identifier
      */
     @Transactional
     public void deletePhoneIntegration(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(p -> {
-            log.info("PhoneIntegration gelöscht: id={} client={} type='{}'",
+            log.info("PhoneIntegration deleted: id={} client={} type='{}'",
                     id, p.getClientID(), p.getPhoneType());
-            // Optional: lucene.deletePhoneIntegration(id.toString());
+            // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
@@ -162,9 +162,9 @@ public class PhoneIntegrationService {
                     p.getPhoneSerialNr(),
                     p.getPhoneFirmware()
             );
-            log.debug("PhoneIntegration in Lucene indexiert: id={}", p.getPhoneIntegrationID());
+            log.debug("PhoneIntegration indexed in Lucene: id={}", p.getPhoneIntegrationID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für PhoneIntegration {} fehlgeschlagen", p.getPhoneIntegrationID(), e);
+            log.error("Lucene indexing for PhoneIntegration {} failed", p.getPhoneIntegrationID(), e);
         }
     }
 

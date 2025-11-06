@@ -1,7 +1,7 @@
 package at.htlle.freq.application.report;
 
 /**
- * Beschreibt eine Deployment-Variante als auswählbare Option.
+ * Describes a deployment variant as a selectable option.
  */
 public record VariantOption(
         String code,

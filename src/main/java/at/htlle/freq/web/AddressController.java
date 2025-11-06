@@ -12,10 +12,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * REST-Controller für {@link Address} Datensätze.
+ * REST controller for {@link Address} records.
  *
- * <p>Verwendet den {@link AddressService}, um CRUD-Vorgänge auf der
- * Datenbank abzubilden.</p>
+ * <p>Uses {@link AddressService} to perform database CRUD operations.</p>
  */
 @RestController
 @RequestMapping("/addresses")
@@ -27,14 +26,14 @@ public class AddressController {
         this.service = service;
     }
 
-    // ---------- READ ----------
+    // READ operations
 
     /**
-     * Listet alle Adressen auf.
+     * Lists all addresses.
      *
-     * <p>Pfad: {@code GET /addresses}</p>
+     * <p>Path: {@code GET /addresses}</p>
      *
-     * @return 200 OK mit einer JSON-Liste aller {@link Address Adressen}.
+     * @return 200 OK with a JSON list of {@link Address} entries.
      */
     @GetMapping
     public List<Address> list() {
@@ -42,12 +41,12 @@ public class AddressController {
     }
 
     /**
-     * Liefert eine Adresse anhand der ID.
+     * Returns an address by ID.
      *
-     * <p>Pfad: {@code GET /addresses/{id}}</p>
+     * <p>Path: {@code GET /addresses/{id}}</p>
      *
-     * @param id Address-ID als UUID Path-Variable.
-     * @return 200 OK mit der Adresse oder 404, wenn nicht gefunden.
+     * @param id address ID as UUID path variable.
+     * @return 200 OK with the address or 404 if it is not found.
      */
     @GetMapping("/{id}")
     public Address byId(@PathVariable UUID id) {
@@ -55,16 +54,16 @@ public class AddressController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found"));
     }
 
-    // ---------- WRITE ----------
+    // WRITE operations
 
     /**
-     * Erzeugt eine neue Adresse.
+     * Creates a new address.
      *
-     * <p>Pfad: {@code POST /addresses}</p>
-     * <p>Request-Body: JSON-Repräsentation einer {@link Address}.</p>
+     * <p>Path: {@code POST /addresses}</p>
+     * <p>Request body: JSON representation of an {@link Address}.</p>
      *
-     * @param payload neue Adresse.
-     * @return 201 Created mit der gespeicherten Adresse.
+     * @param payload new address.
+     * @return 201 Created with the stored address.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -77,14 +76,14 @@ public class AddressController {
     }
 
     /**
-     * Aktualisiert eine bestehende Adresse.
+     * Updates an existing address.
      *
-     * <p>Pfad: {@code PUT /addresses/{id}}</p>
-     * <p>Request-Body: Teil- oder Voll-Payload einer {@link Address}.</p>
+     * <p>Path: {@code PUT /addresses/{id}}</p>
+     * <p>Request body: partial or full {@link Address} payload.</p>
      *
-     * @param id    Address-ID als UUID Path-Variable.
-     * @param patch Änderungen im JSON-Format.
-     * @return 200 OK mit der aktualisierten Adresse oder 404 bei unbekannter ID.
+     * @param id    address ID as UUID path variable.
+     * @param patch changes in JSON format.
+     * @return 200 OK with the updated address or 404 if the ID is unknown.
      */
     @PutMapping("/{id}")
     public Address update(@PathVariable UUID id, @RequestBody Address patch) {

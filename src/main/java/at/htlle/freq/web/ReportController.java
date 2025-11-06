@@ -23,9 +23,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /**
- * REST-Controller für Reporting-Endpunkte.
+ * REST controller for reporting endpoints.
  *
- * <p>Delegiert Report-Generierung und Export an den {@link ReportService}.</p>
+ * <p>Delegates report generation and export to {@link ReportService}.</p>
  */
 @RestController
 @RequestMapping("/api/reports")
@@ -38,10 +38,10 @@ public class ReportController {
     }
 
     /**
-     * Liefert auswählbare Optionen für das Frontend.
+     * Provides selectable options for the frontend.
      *
-     * <p>Pfad: {@code GET /api/reports/options}</p>
-     * <p>Response: 200 OK mit {@link ReportOptions}.</p>
+     * <p>Path: {@code GET /api/reports/options}</p>
+     * <p>Response: 200 OK with {@link ReportOptions}.</p>
      */
     @GetMapping("/options")
     public ReportOptions getOptions() {
@@ -49,20 +49,20 @@ public class ReportController {
     }
 
     /**
-     * Gibt Reportdaten als JSON zurück.
+     * Returns report data as JSON.
      *
-     * <p>Pfad: {@code GET /api/reports/data}</p>
-     * <p>Query-Parameter: {@code type}, {@code period}, {@code from}, {@code to}, {@code query},
-     * {@code variant}, {@code installStatus} (alle optional, siehe {@link ReportFilter}).</p>
+     * <p>Path: {@code GET /api/reports/data}</p>
+     * <p>Query parameters: {@code type}, {@code period}, {@code from}, {@code to}, {@code query},
+     * {@code variant}, {@code installStatus} (all optional, see {@link ReportFilter}).</p>
      *
-     * @param type          gewünschter Reporttyp.
-     * @param period        Zeitraum-Präset.
-     * @param from          Startdatum (ISO-8601) bei custom.
-     * @param to            Enddatum (ISO-8601) bei custom.
-     * @param query         Volltext-Filter.
-     * @param variant       Deployment-Variante.
-     * @param installStatus Installationsstatus.
-     * @return 200 OK mit {@link ReportResponse} als JSON.
+     * @param type          desired report type.
+     * @param period        period preset.
+     * @param from          start date (ISO-8601) when using the custom preset.
+     * @param to            end date (ISO-8601) when using the custom preset.
+     * @param query         full-text filter.
+     * @param variant       deployment variant.
+     * @param installStatus installation status.
+     * @return 200 OK with {@link ReportResponse} as JSON.
      */
     @GetMapping("/data")
     public ReportResponse getReportData(@RequestParam(name = "type", required = false) String type,
@@ -77,12 +77,12 @@ public class ReportController {
     }
 
     /**
-     * Exportiert den Report als CSV-Datei.
+     * Exports the report as a CSV file.
      *
-     * <p>Pfad: {@code GET /api/reports/export/csv}</p>
-     * <p>Query-Parameter wie {@link #getReportData(String, String, String, String, String, String, String)}.</p>
+     * <p>Path: {@code GET /api/reports/export/csv}</p>
+     * <p>Query parameters match {@link #getReportData(String, String, String, String, String, String, String)}.</p>
      *
-     * @return 200 OK mit CSV-Datei ({@code text/csv}).
+     * @return 200 OK with a CSV file ({@code text/csv}).
      */
     @GetMapping("/export/csv")
     public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "type", required = false) String type,
@@ -105,12 +105,12 @@ public class ReportController {
     }
 
     /**
-     * Exportiert den Report als PDF-Datei.
+     * Exports the report as a PDF file.
      *
-     * <p>Pfad: {@code GET /api/reports/export/pdf}</p>
-     * <p>Query-Parameter wie {@link #getReportData(String, String, String, String, String, String, String)}.</p>
+     * <p>Path: {@code GET /api/reports/export/pdf}</p>
+     * <p>Query parameters match {@link #getReportData(String, String, String, String, String, String, String)}.</p>
      *
-     * @return 200 OK mit PDF ({@code application/pdf}).
+     * @return 200 OK with a PDF ({@code application/pdf}).
      */
     @GetMapping("/export/pdf")
     public ResponseEntity<ByteArrayResource> exportPdf(@RequestParam(name = "type", required = false) String type,
@@ -173,7 +173,7 @@ public class ReportController {
             }
             case "custom" -> {
                 if (fromStr == null || toStr == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Zeitraum 'custom' benötigt from/to");
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Custom period requires from/to");
                 }
                 try {
                     LocalDate from = LocalDate.parse(fromStr.trim());
@@ -185,10 +185,10 @@ public class ReportController {
                     }
                     yield new DateRange(from, to);
                 } catch (Exception ex) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ungültiges Datumsformat", ex);
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date format", ex);
                 }
             }
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unbekannter Zeitraum: " + period);
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown period: " + period);
         };
     }
 

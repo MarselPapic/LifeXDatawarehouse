@@ -1,8 +1,8 @@
 -- =========================================================
--- H2 DDL for LifeX Inventory / Projects DB (fixed)
+-- H2 DDL for the LifeX inventory/projects database (normalized)
 -- =========================================================
 
--- ---------- Safety: drop in correct dependency order ----------
+-- ---------- Safety check: drop tables in dependency order ----------
 DROP TABLE IF EXISTS ServiceContract;
 DROP TABLE IF EXISTS UpgradePlan;
 DROP TABLE IF EXISTS InstalledSoftware;
@@ -21,18 +21,18 @@ DROP TABLE IF EXISTS City;
 DROP TABLE IF EXISTS Country;
 
 -- =========================================================
--- 11.1 Country
+-- 11.1 Country table
 -- =========================================================
 CREATE TABLE Country (
-                         CountryCode   VARCHAR(2)   PRIMARY KEY,         -- ISO-3166-1 alpha-2
+                         CountryCode   VARCHAR(2)   PRIMARY KEY,         -- ISO 3166-1 alpha-2 code
                          CountryName   VARCHAR(100) NOT NULL
 );
 
 -- =========================================================
--- 10.1 City
+-- 10.1 City table
 -- =========================================================
 CREATE TABLE City (
-                      CityID        VARCHAR(50)  PRIMARY KEY,         -- natural key
+                      CityID        VARCHAR(50)  PRIMARY KEY,         -- natural identifier
                       CityName      VARCHAR(100) NOT NULL,
                       CountryCode   VARCHAR(2)   NOT NULL,
                       CONSTRAINT fk_city_country
@@ -40,7 +40,7 @@ CREATE TABLE City (
 );
 
 -- =========================================================
--- 9.1 Address
+-- 9.1 Address table
 -- =========================================================
 CREATE TABLE Address (
                          AddressID     UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -51,7 +51,7 @@ CREATE TABLE Address (
 );
 
 -- =========================================================
--- 8.1 Account
+-- 8.1 Account table
 -- =========================================================
 CREATE TABLE Account (
                          AccountID     UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -64,7 +64,7 @@ CREATE TABLE Account (
 );
 
 -- =========================================================
--- 7.1 Deployment Variant
+-- 7.1 DeploymentVariant table
 -- =========================================================
 CREATE TABLE DeploymentVariant (
                                    VariantID     UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -77,7 +77,7 @@ CREATE TABLE DeploymentVariant (
 );
 
 -- =========================================================
--- 6.1 Project
+-- 6.1 Project table
 -- =========================================================
 CREATE TABLE Project (
                          ProjectID           UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -99,7 +99,7 @@ CREATE TABLE Project (
 );
 
 -- =========================================================
--- 12.1 Site
+-- 12.1 Site table
 -- =========================================================
 CREATE TABLE Site (
                       SiteID       UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -115,7 +115,7 @@ CREATE TABLE Site (
 );
 
 -- =========================================================
--- 18.1 Software
+-- 18.1 Software table
 -- =========================================================
 CREATE TABLE Software (
                           SoftwareID       UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -124,6 +124,7 @@ CREATE TABLE Software (
                           Revision         VARCHAR(20)  NOT NULL,
                           SupportPhase     VARCHAR(10)  NOT NULL,
                           LicenseModel     VARCHAR(50),
+                          ThirdParty       BOOLEAN      NOT NULL DEFAULT FALSE,
                           EndOfSalesDate   DATE,
                           SupportStartDate DATE,
                           SupportEndDate   DATE,
@@ -132,7 +133,7 @@ CREATE TABLE Software (
 );
 
 -- =========================================================
--- 13.1 Server
+-- 13.1 Server table
 -- =========================================================
 CREATE TABLE Server (
                         ServerID         UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -152,7 +153,7 @@ CREATE TABLE Server (
 );
 
 -- =========================================================
--- 14.1 Clients
+-- 14.1 Clients table
 -- =========================================================
 CREATE TABLE Clients (
                          ClientID       UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -170,7 +171,7 @@ CREATE TABLE Clients (
 );
 
 -- =========================================================
--- 15.1 Radio
+-- 15.1 Radio table
 -- =========================================================
 CREATE TABLE Radio (
                        RadioID          UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -191,7 +192,7 @@ CREATE TABLE Radio (
 );
 
 -- =========================================================
--- 16.1 AudioDevice
+-- 16.1 AudioDevice table
 -- =========================================================
 CREATE TABLE AudioDevice (
                              AudioDeviceID       UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -207,7 +208,7 @@ CREATE TABLE AudioDevice (
 );
 
 -- =========================================================
--- 17.1 PhoneIntegration
+-- 17.1 PhoneIntegration table
 -- =========================================================
 CREATE TABLE PhoneIntegration (
                                   PhoneIntegrationID  UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -223,22 +224,22 @@ CREATE TABLE PhoneIntegration (
 );
 
 -- =========================================================
--- 19.1 InstalledSoftware
+-- 19.1 InstalledSoftware table
 -- =========================================================
 CREATE TABLE InstalledSoftware (
                                    InstalledSoftwareID UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
                                    SiteID              UUID NOT NULL,
                                    SoftwareID          UUID NOT NULL,
-                                   Status              VARCHAR(12) NOT NULL DEFAULT 'Active',
+                                   Status              VARCHAR(12) NOT NULL DEFAULT 'Offered',
                                    CONSTRAINT fk_instsw_site FOREIGN KEY (SiteID)
                                        REFERENCES Site(SiteID),
                                    CONSTRAINT fk_instsw_software FOREIGN KEY (SoftwareID)
                                        REFERENCES Software(SoftwareID),
-                                   CONSTRAINT ck_instsw_status CHECK (Status IN ('Active','Pending','Retired'))
+                                   CONSTRAINT ck_instsw_status CHECK (Status IN ('Offered','Installed','Rejected'))
 );
 
 -- =========================================================
--- 20.1 UpgradePlan
+-- 20.1 UpgradePlan table
 -- =========================================================
 CREATE TABLE UpgradePlan (
                              UpgradePlanID      UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -258,7 +259,7 @@ CREATE TABLE UpgradePlan (
 );
 
 -- =========================================================
--- 21.1 ServiceContract
+-- 21.1 ServiceContract table
 -- =========================================================
 CREATE TABLE ServiceContract (
                                  ContractID     UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
@@ -280,7 +281,7 @@ CREATE TABLE ServiceContract (
 );
 
 -- =========================================================
--- Helpful indexes
+-- Helpful indexes for query performance
 -- =========================================================
 CREATE INDEX ix_project_account      ON Project(AccountID);
 CREATE INDEX ix_site_project         ON Site(ProjectID);

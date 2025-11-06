@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link Clients}, das den Zugriff auf die Tabelle {@code Clients}
- * kapselt und alle Geräteeigenschaften der Mandanten in Domänenobjekte transformiert.
+ * JDBC repository for {@link Clients} that encapsulates access to the {@code Clients} table and
+ * maps all tenant device properties into domain objects.
  */
 @Repository
 public class JdbcClientsRepository implements ClientsRepository {
@@ -63,24 +63,23 @@ public class JdbcClientsRepository implements ClientsRepository {
     }
 
     /**
-     * Speichert Client-Geräte via INSERT oder UPDATE in der Tabelle {@code Clients}.
+     * Stores client devices via INSERT or UPDATE statements on the {@code Clients} table.
      * <p>
-     * Da die Zieldatenbank kein {@code RETURNING} unterstützt, wird für neue Datensätze eine
-     * UUID im Anwendungscode generiert und anschließend in das Insert übernommen. Updates
-     * binden sämtliche Spalten, um inkonsistente Teilupdates zu vermeiden und das Row-Mapping
-     * deterministisch zu halten.
+     * Because the target database does not support {@code RETURNING}, new records generate their
+     * UUID inside the application before executing the INSERT. UPDATE statements bind all columns
+     * to avoid inconsistent partial updates and to keep the row mapping deterministic.
      * </p>
      *
-     * @param c Client-Objekt, dessen Felder über {@link MapSqlParameterSource} auf gleichnamige
-     *          Spalten gemappt werden.
-     * @return der gespeicherte Client mit gesetzter {@code ClientID}.
+     * @param c client entity whose fields are bound to identically named columns via
+     *          {@link MapSqlParameterSource}.
+     * @return the stored client with its {@code ClientID} populated.
      */
     @Override
     public Clients save(Clients c) {
         boolean isNew = (c.getClientID() == null);
 
         if (isNew) {
-            // UUID selbst erzeugen, da H2 RETURNING nicht kennt
+            // Generate the UUID within the application because H2 does not support RETURNING
             UUID newId = UUID.randomUUID();
             c.setClientID(newId);
 

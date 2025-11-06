@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link Software}, das Software-Metadaten in der Tabelle {@code Software}
- * verwaltet und Lebenszyklusinformationen in Domänenobjekte überführt.
+ * JDBC repository for {@link Software} that manages software metadata stored in the
+ * {@code Software} table and maps lifecycle information into domain objects.
  */
 @Repository
 public class JdbcSoftwareRepository implements SoftwareRepository {
@@ -26,6 +26,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
             rs.getString("Revision"),
             rs.getString("SupportPhase"),
             rs.getString("LicenseModel"),
+            rs.getBoolean("ThirdParty"),
             rs.getString("EndOfSalesDate"),
             rs.getString("SupportStartDate"),
             rs.getString("SupportEndDate")
@@ -34,7 +35,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public Optional<Software> findById(UUID id) {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel,
+            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software WHERE SoftwareID = :id
             """;
@@ -45,7 +46,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public List<Software> findByName(String name) {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel,
+            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software WHERE Name = :name
             """;
@@ -55,7 +56,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public List<Software> findAll() {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel,
+            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software
             """;
@@ -63,16 +64,15 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     }
 
     /**
-     * Persistiert Softwareeinträge per INSERT oder UPDATE in der Tabelle {@code Software}.
+     * Persists software entries via INSERT or UPDATE in the {@code Software} table.
      * <p>
-     * Die Insert-Anweisung nutzt {@code RETURNING SoftwareID}, um den Primärschlüssel aus der
-     * Datenbank zu übernehmen. Dank benannter Parameter werden auch optionale Zeiträume wie
-     * {@code SupportStartDate} eindeutig den Spalten zugeordnet und bleiben mit dem
-     * {@link RowMapper} synchron.
+     * The INSERT statement uses {@code RETURNING SoftwareID} to obtain the primary key from the
+     * database. Named parameters ensure that optional periods such as {@code SupportStartDate}
+     * are bound to the correct columns and stay in sync with the {@link RowMapper}.
      * </p>
      *
-     * @param s Softwareobjekt mit Release-/Support-Informationen.
-     * @return der persistierte Softwareeintrag mit {@code SoftwareID}.
+     * @param s software object containing release and support information.
+     * @return the persisted software entry including its {@code SoftwareID}.
      */
     @Override
     public Software save(Software s) {
@@ -80,8 +80,8 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         if (isNew) {
             String sql = """
                 INSERT INTO Software (Name, Release, Revision, SupportPhase, LicenseModel,
-                                      EndOfSalesDate, SupportStartDate, SupportEndDate)
-                VALUES (:name, :rel, :rev, :phase, :lic, :eos, :ss, :se)
+                                      ThirdParty, EndOfSalesDate, SupportStartDate, SupportEndDate)
+                VALUES (:name, :rel, :rev, :phase, :lic, :third, :eos, :ss, :se)
                 RETURNING SoftwareID
                 """;
             UUID id = jdbc.queryForObject(sql, new MapSqlParameterSource()
@@ -90,6 +90,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
                             .addValue("rev",  s.getRevision())
                             .addValue("phase",s.getSupportPhase())
                             .addValue("lic",  s.getLicenseModel())
+                            .addValue("third", s.isThirdParty())
                             .addValue("eos",  s.getEndOfSalesDate())
                             .addValue("ss",   s.getSupportStartDate())
                             .addValue("se",   s.getSupportEndDate()),
@@ -99,7 +100,8 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
             String sql = """
                 UPDATE Software SET
                     Name = :name, Release = :rel, Revision = :rev, SupportPhase = :phase,
-                    LicenseModel = :lic, EndOfSalesDate = :eos, SupportStartDate = :ss, SupportEndDate = :se
+                    LicenseModel = :lic, ThirdParty = :third, EndOfSalesDate = :eos,
+                    SupportStartDate = :ss, SupportEndDate = :se
                 WHERE SoftwareID = :id
                 """;
             jdbc.update(sql, new MapSqlParameterSource()
@@ -109,6 +111,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
                     .addValue("rev",  s.getRevision())
                     .addValue("phase",s.getSupportPhase())
                     .addValue("lic",  s.getLicenseModel())
+                    .addValue("third", s.isThirdParty())
                     .addValue("eos",  s.getEndOfSalesDate())
                     .addValue("ss",   s.getSupportStartDate())
                     .addValue("se",   s.getSupportEndDate()));

@@ -15,7 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Verwaltet Projekte, normalisiert Zustandsinformationen und synchronisiert Lucene.
+ * Manages projects, normalizes lifecycle information, and keeps Lucene synchronized.
  */
 @Service
 public class ProjectService {
@@ -26,10 +26,10 @@ public class ProjectService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository und Indexdienst.
+     * Creates the service with repository and indexing dependencies.
      *
-     * @param repo   Repository für Projekte
-     * @param lucene Lucene-Indexdienst
+     * @param repo   repository for projects
+     * @param lucene Lucene indexing service
      */
     public ProjectService(ProjectRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -39,19 +39,19 @@ public class ProjectService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle Projekte.
+     * Returns all projects.
      *
-     * @return Liste aller Projekte
+     * @return list of every project
      */
     public List<Project> getAllProjects() {
         return repo.findAll();
     }
 
     /**
-     * Sucht ein Projekt anhand seiner ID.
+     * Retrieves a project by its identifier.
      *
-     * @param id Projekt-ID
-     * @return Optional mit Projekt oder leer
+     * @param id project identifier
+     * @return optional containing the project or empty otherwise
      */
     public Optional<Project> getProjectById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -59,10 +59,10 @@ public class ProjectService {
     }
 
     /**
-     * Sucht ein Projekt anhand der SAP-ID.
+     * Searches for a project by its SAP identifier.
      *
-     * @param sapId SAP-Projektnummer
-     * @return Optional mit Projekt oder leer
+     * @param sapId SAP project number
+     * @return optional containing the project or empty otherwise
      */
     public Optional<Project> getProjectBySapId(String sapId) {
         if (isBlank(sapId)) return Optional.empty();
@@ -72,10 +72,10 @@ public class ProjectService {
     // ---------- Commands ----------
 
     /**
-     * Speichert ein Projekt, setzt Standardwerte und indexiert nach Commit in Lucene.
+     * Saves a project, applies defaults, and indexes it in Lucene after the commit.
      *
-     * @param incoming zu speicherndes Projekt
-     * @return gespeichertes Projekt
+     * @param incoming project to persist
+     * @return stored project
      */
     @Transactional
     public Project createOrUpdateProject(Project incoming) {
@@ -92,17 +92,17 @@ public class ProjectService {
         Project saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("Project gespeichert: id={} name='{}' SAP={}",
+        log.info("Project saved: id={} name='{}' SAP={}",
                 saved.getProjectID(), saved.getProjectName(), saved.getProjectSAPID());
         return saved;
     }
 
     /**
-     * Aktualisiert ein Projekt und hält Lucene synchron.
+     * Updates a project and keeps Lucene synchronized.
      *
-     * @param id    Projekt-ID
-     * @param patch Änderungen, die übernommen werden sollen
-     * @return Optional mit aktualisiertem Projekt oder leer
+     * @param id    project identifier
+     * @param patch changes to merge into the entity
+     * @return optional containing the updated project or empty otherwise
      */
     @Transactional
     public Optional<Project> updateProject(UUID id, Project patch) {
@@ -123,22 +123,22 @@ public class ProjectService {
             Project saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("Project aktualisiert: id={} name='{}'", id, saved.getProjectName());
+            log.info("Project updated: id={} name='{}'", id, saved.getProjectName());
             return saved;
         });
     }
 
     /**
-     * Löscht ein Projekt.
+     * Deletes a project.
      *
-     * @param id Projekt-ID
+     * @param id project identifier
      */
     @Transactional
     public void deleteProject(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(p -> {
-            log.info("Project gelöscht: id={} name='{}'", id, p.getProjectName());
-            // Optional: lucene.deleteProject(id.toString());
+            log.info("Project deleted: id={} name='{}'", id, p.getProjectName());
+            // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
@@ -169,9 +169,9 @@ public class ProjectService {
                     p.getAccountID() != null ? p.getAccountID().toString() : null,
                     p.getAddressID() != null ? p.getAddressID().toString() : null
             );
-            log.debug("Project in Lucene indexiert: id={}", p.getProjectID());
+            log.debug("Project indexed in Lucene: id={}", p.getProjectID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für Project {} fehlgeschlagen", p.getProjectID(), e);
+            log.error("Lucene indexing for Project {} failed", p.getProjectID(), e);
         }
     }
 

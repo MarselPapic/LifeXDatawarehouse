@@ -4,8 +4,8 @@ import java.util.UUID;
 
 /**
  * Aggregates all information about a deployment project that is executed for
- * an {@link Account}. Projects reference the {@link DeploymentVariant} that
- * governs the technical scope, track lifecycle state via
+ * a customer {@link Account}. Projects reference the {@link DeploymentVariant}
+ * that governs the technical scope, track lifecycle state via
  * {@link ProjectLifecycleStatus}, and own subordinate {@link Site} locations.
  */
 public class Project {
@@ -14,7 +14,7 @@ public class Project {
     private String projectName;
     private UUID deploymentVariantID;
     private String bundleType;
-    private String createDateTime; // ggf. später auf LocalDate/Time ändern
+    private String createDateTime; // potentially switch to LocalDate/Time later
     private ProjectLifecycleStatus lifecycleStatus;
     private UUID accountID;
     private UUID addressID;

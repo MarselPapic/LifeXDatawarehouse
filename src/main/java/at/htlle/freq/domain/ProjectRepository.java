@@ -3,7 +3,8 @@ package at.htlle.freq.domain;
 import java.util.*;
 
 /**
- * Repository abstraction for {@link Project} aggregates.
+ * Repository abstraction for {@link Project} deployment projects executed for
+ * customer accounts.
  */
 public interface ProjectRepository {
     /**

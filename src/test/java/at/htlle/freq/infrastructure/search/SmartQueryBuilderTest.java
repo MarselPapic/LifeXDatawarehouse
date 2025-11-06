@@ -42,6 +42,6 @@ class SmartQueryBuilderTest {
     void buildWrapsParserExceptions() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> builder.build("\"unterminated"));
-        assertTrue(ex.getMessage().contains("Ungültige Suchanfrage"));
+        assertTrue(ex.getMessage().contains("Invalid search query"));
     }
 }

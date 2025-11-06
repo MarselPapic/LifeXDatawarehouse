@@ -15,7 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Verwaltet installierte Softwarestände, prüft Statuswerte und hält den Lucene-Index aktuell.
+ * Manages installed software states, validates status values, and keeps the Lucene index up to date.
  */
 @Service
 public class InstalledSoftwareService {
@@ -26,10 +26,10 @@ public class InstalledSoftwareService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     * Creates the service with repository and index dependencies.
      *
-     * @param repo   Repository für Installationen
-     * @param lucene Lucene-Indexdienst
+     * @param repo   repository for installations
+     * @param lucene Lucene indexing service
      */
     public InstalledSoftwareService(InstalledSoftwareRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -39,19 +39,19 @@ public class InstalledSoftwareService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle installierten Softwarestände.
+     * Returns all installed software states.
      *
-     * @return Liste aller Installationen
+     * @return list of all installations
      */
     public List<InstalledSoftware> getAllInstalledSoftware() {
         return repo.findAll();
     }
 
     /**
-     * Sucht eine Installation anhand ihrer ID.
+     * Retrieves an installation by its identifier.
      *
-     * @param id Installation-ID
-     * @return Optional mit Installation oder leer
+     * @param id installation identifier
+     * @return optional containing the installation or empty otherwise
      */
     public Optional<InstalledSoftware> getInstalledSoftwareById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -59,10 +59,10 @@ public class InstalledSoftwareService {
     }
 
     /**
-     * Liefert Installationen für eine Site.
+     * Returns installations for a site.
      *
-     * @param siteId Site-ID
-     * @return Liste der Installationen
+     * @param siteId site identifier
+     * @return list of installations
      */
     public List<InstalledSoftware> getInstalledSoftwareBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
@@ -70,10 +70,10 @@ public class InstalledSoftwareService {
     }
 
     /**
-     * Liefert Installationen zu einer Software.
+     * Returns installations for a software record.
      *
-     * @param softwareId Software-ID
-     * @return Liste der Installationen
+     * @param softwareId software identifier
+     * @return list of installations
      */
     public List<InstalledSoftware> getInstalledSoftwareBySoftware(UUID softwareId) {
         Objects.requireNonNull(softwareId, "softwareId must not be null");
@@ -83,10 +83,10 @@ public class InstalledSoftwareService {
     // ---------- Commands ----------
 
     /**
-     * Speichert eine Installation und normalisiert den Status. Indexiert nach Commit in Lucene.
+     * Saves an installation, normalizes the status, and indexes it in Lucene after the commit.
      *
-     * @param incoming Installation, die gespeichert werden soll
-     * @return gespeicherte Installation
+     * @param incoming installation to persist
+     * @return stored installation
      */
     @Transactional
     public InstalledSoftware createOrUpdateInstalledSoftware(InstalledSoftware incoming) {
@@ -102,17 +102,17 @@ public class InstalledSoftwareService {
         InstalledSoftware saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("InstalledSoftware gespeichert: id={} site={} software={} status={}",
+        log.info("InstalledSoftware saved: id={} site={} software={} status={}",
                 saved.getInstalledSoftwareID(), saved.getSiteID(), saved.getSoftwareID(), saved.getStatus());
         return saved;
     }
 
     /**
-     * Aktualisiert eine Installation und hält den Index synchron.
+     * Updates an installation and keeps the index synchronized.
      *
-     * @param id    Installation-ID
-     * @param patch Änderungen für die Installation
-     * @return Optional mit aktualisierter Installation oder leer
+     * @param id    installation identifier
+     * @param patch changes to apply to the installation
+     * @return optional containing the updated installation or empty otherwise
      */
     @Transactional
     public Optional<InstalledSoftware> updateInstalledSoftware(UUID id, InstalledSoftware patch) {
@@ -131,24 +131,24 @@ public class InstalledSoftwareService {
             InstalledSoftware saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("InstalledSoftware aktualisiert: id={} site={} software={} status={}",
+            log.info("InstalledSoftware updated: id={} site={} software={} status={}",
                     id, saved.getSiteID(), saved.getSoftwareID(), saved.getStatus());
             return saved;
         });
     }
 
     /**
-     * Löscht eine Installation.
+     * Deletes an installation.
      *
-     * @param id Installation-ID
+     * @param id installation identifier
      */
     @Transactional
     public void deleteInstalledSoftware(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(isw -> {
-            log.info("InstalledSoftware gelöscht: id={} site={} software={} status={}",
+            log.info("InstalledSoftware deleted: id={} site={} software={} status={}",
                     id, isw.getSiteID(), isw.getSoftwareID(), isw.getStatus());
-            // Optional: lucene.deleteInstalledSoftware(id.toString());
+            // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
@@ -175,9 +175,9 @@ public class InstalledSoftwareService {
                     isw.getSoftwareID() != null ? isw.getSoftwareID().toString() : null,
                     isw.getStatus()
             );
-            log.debug("InstalledSoftware in Lucene indexiert: id={}", isw.getInstalledSoftwareID());
+            log.debug("InstalledSoftware indexed in Lucene: id={}", isw.getInstalledSoftwareID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für InstalledSoftware {} fehlgeschlagen", isw.getInstalledSoftwareID(), e);
+            log.error("Lucene indexing for InstalledSoftware {} failed", isw.getInstalledSoftwareID(), e);
         }
     }
 

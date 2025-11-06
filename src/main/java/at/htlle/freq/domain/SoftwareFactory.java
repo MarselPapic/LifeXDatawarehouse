@@ -19,7 +19,7 @@ public class SoftwareFactory {
      * @return transient software entity
      */
     public Software create(String name, String release, String revision, String supportPhase,
-                           String licenseModel, String eos, String supportStart, String supportEnd) {
-        return new Software(null, name, release, revision, supportPhase, licenseModel, eos, supportStart, supportEnd);
+                           String licenseModel, boolean thirdParty, String eos, String supportStart, String supportEnd) {
+        return new Software(null, name, release, revision, supportPhase, licenseModel, thirdParty, eos, supportStart, supportEnd);
     }
 }

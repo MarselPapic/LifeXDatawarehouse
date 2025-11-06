@@ -10,10 +10,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * REST-Endpunkte für {@link Account} Stammdaten.
+ * REST endpoints for {@link Account} master data.
  *
- * <p>Delegiert alle Operationen an den {@link AccountService}, der die
- * Geschäftslogik und Persistenzkapselung übernimmt.</p>
+ * <p>Delegates all operations to {@link AccountService}, which encapsulates business logic and persistence.</p>
  */
 @RestController
 @RequestMapping("/accounts")
@@ -26,11 +25,11 @@ public class AccountController {
     }
 
     /**
-     * Liefert alle Accounts.
+     * Returns all accounts.
      *
-     * <p>Pfad: {@code GET /accounts}</p>
+     * <p>Path: {@code GET /accounts}</p>
      *
-     * @return 200 OK mit einer JSON-Liste der Accounts.
+     * @return 200 OK with a JSON list of accounts.
      */
     @GetMapping
     public List<Account> findAll() {
@@ -38,12 +37,12 @@ public class AccountController {
     }
 
     /**
-     * Liefert einen Account anhand seiner ID.
+     * Returns an account by its ID.
      *
-     * <p>Pfad: {@code GET /accounts/{id}}</p>
+     * <p>Path: {@code GET /accounts/{id}}</p>
      *
-     * @param id Account-ID als UUID Path-Variable.
-     * @return 200 OK mit dem Account oder 404, falls nicht vorhanden.
+     * @param id account ID as UUID path variable.
+     * @return 200 OK with the account or 404 if it does not exist.
      */
     @GetMapping("/{id}")
     public ResponseEntity<Account> findById(@PathVariable UUID id) {
@@ -52,17 +51,17 @@ public class AccountController {
     }
 
     /**
-     * Legt einen neuen Account an.
+     * Creates a new account.
      *
-     * <p>Pfad: {@code POST /accounts}</p>
-     * <p>Request-Body: JSON-Repräsentation eines {@link Account} inklusive {@code contactName}.</p>
+     * <p>Path: {@code POST /accounts}</p>
+     * <p>Request body: JSON representation of an {@link Account} including {@code contactName}.</p>
      *
-     * @param account Account-Payload.
-     * @return 200 OK mit dem gespeicherten Account-Datensatz.
+     * @param account account payload.
+     * @return 200 OK with the stored account record.
      */
     @PostMapping
     public Account create(@RequestBody Account account) {
-        // Hinweis: Account enthält ContactName → AccountService.createAccount(Account) setzt alles korrekt.
+        // Account already carries the contactName field; AccountService#createAccount handles it along with the rest.
         return accountService.createAccount(account);
     }
 }

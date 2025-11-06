@@ -62,10 +62,10 @@ class SearchControllerTest {
         when(suggest.suggest("ac", 8)).thenReturn(List.of("acme"));
         assertEquals(List.of("acme"), controller.suggest("ac", 8));
 
-        controller.suggest("ac", 100); // should clamp to 25
+        controller.suggest("ac", 100); // Expect the controller to clamp the upper bound to 25 suggestions
         verify(suggest).suggest("ac", 25);
 
-        controller.suggest("ac", 0); // should clamp to 1
+        controller.suggest("ac", 0); // Expect a minimum clamp of one suggestion even when zero is requested
         verify(suggest).suggest("ac", 1);
     }
 }

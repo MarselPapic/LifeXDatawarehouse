@@ -1,7 +1,7 @@
 package at.htlle.freq.application.report;
 
 /**
- * Repräsentiert einen Segmentwert für ein Tortendiagramm inklusive optionalem Hinweis.
+ * Represents a pie chart segment value including an optional hint.
  */
 public record ChartSlice(
         String label,

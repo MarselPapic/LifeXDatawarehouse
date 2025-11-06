@@ -62,7 +62,7 @@ class SoftwareServiceTest {
 
         Software saved = service.createOrUpdateSoftware(value);
         assertSame(value, saved);
-        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
+        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq(false), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
     }
 
     @Test
@@ -74,18 +74,18 @@ class SoftwareServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
+        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq(false), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
     }
 
     @Test
     void createSoftwareContinuesWhenLuceneFails() {
         Software value = software();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexSoftware(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexSoftware(any(), any(), any(), any(), any(), any(), anyBoolean(), any(), any(), any());
 
         Software saved = service.createOrUpdateSoftware(value);
         assertSame(value, saved);
-        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
+        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("Software"), eq("1.0"), eq("rev1"), eq("Production"), eq("Subscription"), eq(false), eq("2024-12-31"), eq("2024-01-01"), eq("2025-12-31"));
     }
 
     @Test
@@ -103,6 +103,7 @@ class SoftwareServiceTest {
         patch.setEndOfSalesDate("2025-01-01");
         patch.setSupportStartDate("2025-02-01");
         patch.setSupportEndDate("2026-01-01");
+        patch.setThirdParty(true);
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
             Optional<Software> updated = service.updateSoftware(UUID5, patch);
@@ -112,7 +113,7 @@ class SoftwareServiceTest {
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("New Software"), eq("2.0"), eq("rev2"), eq("Beta"), eq("License"), eq("2025-01-01"), eq("2025-02-01"), eq("2026-01-01"));
+        verify(lucene).indexSoftware(eq(UUID5.toString()), eq("New Software"), eq("2.0"), eq("rev2"), eq("Beta"), eq("License"), eq(true), eq("2025-01-01"), eq("2025-02-01"), eq("2026-01-01"));
     }
 
     @Test

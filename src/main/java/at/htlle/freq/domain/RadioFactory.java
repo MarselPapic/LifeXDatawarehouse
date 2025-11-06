@@ -6,12 +6,12 @@ import java.util.UUID;
 @Component
 public class RadioFactory {
     /**
-     * Creates a {@link Radio} that is deployed at a site and optionally bound to
-     * a client. The generated entity expects persistence to supply its
-     * identifier.
+     * Creates a {@link Radio} that is deployed at a site and optionally bound
+     * to a client workstation. The generated entity expects persistence to
+     * supply its identifier.
      *
      * @param siteID hosting site identifier
-     * @param assignedClientID optional {@link Clients} assignment
+     * @param assignedClientID optional {@link Clients} client workstation assignment
      * @param brand radio manufacturer name
      * @param serialNr device serial number
      * @param mode analog or digital classification

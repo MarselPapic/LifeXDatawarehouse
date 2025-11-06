@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Beschreibt eine tabellarische Darstellung inklusive Spalten, Zeilen und Metadaten.
+ * Describes a tabular representation including columns, rows, and metadata.
  */
 public record ReportTable(
         List<ReportColumn> columns,

@@ -12,9 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für Projekte.
+ * Fully featured CRUD controller for projects.
  *
- * <p>Die Datenzugriffe erfolgen über den {@link NamedParameterJdbcTemplate}.</p>
+ * <p>Data access is performed through {@link NamedParameterJdbcTemplate}.</p>
  */
 @RestController
 @RequestMapping("/projects")
@@ -28,18 +28,16 @@ public class ProjectController {
         this.jdbc = jdbc;
     }
 
-    // ----------------------------
-    // READ: Alle Projekte oder nach Account filtern
-    // ----------------------------
+    // READ operations: list all projects or filter by account
 
     /**
-     * Listet Projekte optional gefiltert nach Account.
+     * Lists projects and optionally filters by account.
      *
-     * <p>Pfad: {@code GET /projects}</p>
-     * <p>Query-Parameter: {@code accountId} (optional).</p>
+     * <p>Path: {@code GET /projects}</p>
+     * <p>Optional {@code accountId} query parameter narrows the result to an account.</p>
      *
-     * @param accountId optionaler Account-Fremdschlüssel.
-     * @return 200 OK mit Projektzeilen als JSON.
+     * @param accountId optional account foreign key.
+     * @return 200 OK with project rows as JSON.
      */
     @GetMapping
     public List<Map<String, Object>> findByAccount(@RequestParam(required = false) String accountId) {
@@ -57,12 +55,12 @@ public class ProjectController {
     }
 
     /**
-     * Liefert ein einzelnes Projekt.
+     * Returns a single project.
      *
-     * <p>Pfad: {@code GET /projects/{id}}</p>
+     * <p>Path: {@code GET /projects/{id}}</p>
      *
-     * @param id Projekt-ID.
-     * @return 200 OK mit den Spaltenwerten oder 404 bei unbekannter ID.
+     * @param id project ID.
+     * @return 200 OK with column values or 404 if the ID is unknown.
      */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
@@ -78,18 +76,16 @@ public class ProjectController {
         return rows.get(0);
     }
 
-    // ----------------------------
-    // CREATE
-    // ----------------------------
+    // CREATE operations
 
     /**
-     * Legt ein neues Projekt an.
+     * Creates a new project.
      *
-     * <p>Pfad: {@code POST /projects}</p>
-     * <p>Request-Body: JSON mit Projektdaten (z.B. {@code projectName}, {@code accountID}).</p>
+     * <p>Path: {@code POST /projects}</p>
+     * <p>Request body: JSON with project data such as {@code projectName} or {@code accountID}.</p>
      *
-     * @param body Eingabedaten.
-     * @throws ResponseStatusException 400 bei leerem Body oder ungültigem Lifecycle-Status.
+     * @param body input payload.
+     * @throws ResponseStatusException 400 if the body is empty or the lifecycle status is invalid.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -131,19 +127,17 @@ public class ProjectController {
         log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
-    // ----------------------------
-    // UPDATE
-    // ----------------------------
+    // UPDATE operations
 
     /**
-     * Aktualisiert ein Projekt.
+     * Updates a project.
      *
-     * <p>Pfad: {@code PUT /projects/{id}}</p>
-     * <p>Request-Body: JSON mit zu überschreibenden Spalten.</p>
+     * <p>Path: {@code PUT /projects/{id}}</p>
+     * <p>Request body: JSON with the columns to update.</p>
      *
-     * @param id   Projekt-ID.
-     * @param body Feldwerte.
-     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn nichts aktualisiert wurde.
+     * @param id   project ID.
+     * @param body field values.
+     * @throws ResponseStatusException 400 if the body is empty, 404 if nothing was updated.
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -168,17 +162,15 @@ public class ProjectController {
         log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("ProjectID", id), body.keySet());
     }
 
-    // ----------------------------
-    // DELETE
-    // ----------------------------
+    // DELETE operations
 
     /**
-     * Löscht ein Projekt.
+     * Deletes a project.
      *
-     * <p>Pfad: {@code DELETE /projects/{id}}</p>
+     * <p>Path: {@code DELETE /projects/{id}}</p>
      *
-     * @param id Projekt-ID.
-     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     * @param id project ID.
+     * @throws ResponseStatusException 404 if no row was deleted.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

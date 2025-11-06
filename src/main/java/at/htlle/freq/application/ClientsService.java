@@ -13,8 +13,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Service-Schicht für Clients (WorkingPositions)
- * Kümmert sich um DB-Operationen, Validation und Lucene-Indexierung.
+ * Service layer for clients (working positions).
+ * Handles database operations, validation, and Lucene indexing.
  */
 @Service
 public class ClientsService {
@@ -25,10 +25,10 @@ public class ClientsService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository- und Lucene-Komponenten.
+     * Creates the service with repository and Lucene components.
      *
-     * @param repo   Repository für Clients
-     * @param lucene Index-Dienst für Lucene
+     * @param repo   repository for clients
+     * @param lucene Lucene indexing service
      */
     public ClientsService(ClientsRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -40,10 +40,10 @@ public class ClientsService {
     // ----------------------------
 
     /**
-     * Liefert alle Clients einer Site.
+     * Returns all clients of a site.
      *
-     * @param siteId technische Site-ID
-     * @return Liste der Clients der Site
+     * @param siteId technical site identifier
+     * @return list of the site's clients
      */
     public List<Clients> findBySite(UUID siteId) {
         Objects.requireNonNull(siteId, "siteId must not be null");
@@ -51,19 +51,19 @@ public class ClientsService {
     }
 
     /**
-     * Liefert alle Clients ohne Filter.
+     * Returns every client without filtering.
      *
-     * @return vollständige Client-Liste
+     * @return complete client list
      */
     public List<Clients> findAll() {
         return repo.findAll();
     }
 
     /**
-     * Sucht einen Client anhand seiner ID.
+     * Looks up a client by its identifier.
      *
-     * @param id Client-ID
-     * @return Optional mit Client oder leer
+     * @param id client identifier
+     * @return optional containing the client or empty when missing
      */
     public Optional<Clients> findById(UUID id) {
         return repo.findById(id);
@@ -74,11 +74,11 @@ public class ClientsService {
     // ----------------------------
 
     /**
-     * Persistiert einen neuen Client und indexiert ihn nach Commit in Lucene.
-     * Validiert Pflichtfelder wie Site, Name und Installationsart.
+     * Persists a new client and indexes it in Lucene after the commit.
+     * Validates required fields such as site, name, and installation type.
      *
-     * @param in neuer Client
-     * @return gespeicherter Client inklusive ID
+     * @param in new client
+     * @return stored client including the generated ID
      */
     @Transactional
     public Clients create(Clients in) {
@@ -87,13 +87,13 @@ public class ClientsService {
         if (isBlank(in.getClientName())) throw new IllegalArgumentException("clientName is required");
         if (isBlank(in.getInstallType())) throw new IllegalArgumentException("installType is required (LOCAL/BROWSER)");
 
-        // persist (JdbcClientsRepository setzt die UUID via RETURNING)
+        // Persist the entity; JdbcClientsRepository assigns the UUID via RETURNING.
         repo.save(in);
 
-        // nach Commit in Lucene indexieren
+        // Index the record in Lucene after the commit.
         registerAfterCommitIndexing(in);
 
-        log.info("Client gespeichert: id={} name='{}'", in.getClientID(), in.getClientName());
+        log.info("Client saved: id={} name='{}'", in.getClientID(), in.getClientName());
         return in;
     }
 
@@ -102,11 +102,11 @@ public class ClientsService {
     // ----------------------------
 
     /**
-     * Aktualisiert einen bestehenden Client und synchronisiert den Index.
+     * Updates an existing client and synchronizes the index.
      *
-     * @param id    Client-ID
-     * @param patch Änderungswerte
-     * @return aktualisierter Client
+     * @param id    client identifier
+     * @param patch values to apply
+     * @return updated client
      */
     @Transactional
     public Clients update(UUID id, Clients patch) {
@@ -126,14 +126,14 @@ public class ClientsService {
         repo.save(existing);
         registerAfterCommitIndexing(existing);
 
-        log.info("Client aktualisiert: id={} name='{}'", id, existing.getClientName());
+        log.info("Client updated: id={} name='{}'", id, existing.getClientName());
         return existing;
     }
 
 // ----------------------------
 // DELETE
-//WÄRE EIGENTLICH WICHTIG, ABER UNSER LUCENE UNTERSTÜTZ DAS NOCH NICHT
-//DA ES NOCH NICHT IM CONTROLLER INTEGRIERT IST
+// Deletion support would be useful, but the Lucene integration cannot remove entries yet,
+// therefore the controller does not expose a delete endpoint at this time.
 // ----------------------------
 /*
     @Transactional
@@ -146,13 +146,13 @@ public class ClientsService {
         }
 
         repo.deleteById(id);
-        log.info("Client gelöscht: id={}", id);
+        log.info("Client deleted: id={}", id);
 
-        // optional: Lucene-Eintrag löschen, falls dein LuceneService das unterstützt
+        // Optionally remove the Lucene entry once the Lucene service offers delete support.
         try {
             lucene.deleteClient(id.toString());
         } catch (Exception e) {
-            log.warn("Lucene-Löschung für Client {} fehlgeschlagen", id, e);
+            log.warn("Lucene deletion for client {} failed", id, e);
         }
 
         return true;
@@ -182,10 +182,10 @@ public class ClientsService {
                     c.getClientOS(),
                     c.getInstallType()
             );
-            log.debug("Client in Lucene indexiert: id={}", c.getClientID());
+            log.debug("Client indexed in Lucene: id={}", c.getClientID());
         } catch (Exception e) {
-            // Indexierung darf DB nicht kippen
-            log.error("Lucene-Indexing für Client {} fehlgeschlagen", c.getClientID(), e);
+            // Indexing failures must not trigger a database rollback.
+            log.error("Lucene indexing for Client {} failed", c.getClientID(), e);
         }
     }
 

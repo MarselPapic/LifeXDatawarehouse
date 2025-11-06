@@ -9,9 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link Address} Entitäten, das CRUD-Operationen für die Tabelle
- * {@code Address} anbietet und die Spalten {@code AddressID}, {@code Street} und {@code CityID}
- * in die Domänenobjekte abbildet.
+ * JDBC repository for {@link Address} entities that provides CRUD operations for the
+ * {@code Address} table and maps the columns {@code AddressID}, {@code Street}, and
+ * {@code CityID} to domain objects.
  */
 @Repository
 public class JdbcAddressRepository implements AddressRepository {
@@ -46,16 +46,15 @@ public class JdbcAddressRepository implements AddressRepository {
     }
 
     /**
-     * Persistiert Adressen in der Tabelle {@code Address}.
+     * Persists addresses in the {@code Address} table.
      * <p>
-     * Neue Datensätze werden über ein INSERT mit {@code RETURNING AddressID} erstellt, wodurch
-     * die vom Datenbankserver generierte ID direkt in das Domänenobjekt zurückgeschrieben wird.
-     * Bei bestehenden Datensätzen erfolgt ein vollständiges Update, wobei die Parameter anhand
-     * der Feldnamen auf die gleichnamigen Spalten gemappt werden.
+     * New records are inserted with {@code RETURNING AddressID}, allowing the database-generated
+     * identifier to be written back into the domain object immediately. Existing entries are
+     * updated in full, with parameters mapped to columns based on the field names.
      * </p>
      *
-     * @param a Adresse, deren Attribute über {@link MapSqlParameterSource} gebunden werden.
-     * @return die gespeicherte Adresse inklusive gesetzter {@code AddressID}.
+     * @param a address whose attributes are bound via {@link MapSqlParameterSource}.
+     * @return the stored address with its {@code AddressID} set.
      */
     @Override
     public Address save(Address a) {

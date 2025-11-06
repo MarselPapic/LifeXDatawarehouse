@@ -70,7 +70,7 @@ class InstalledSoftwareServiceTest {
         InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
         assertSame(value, saved);
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
-                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+                eq(InstalledSoftwareStatus.OFFERED.dbValue()));
     }
 
     @Test
@@ -83,7 +83,7 @@ class InstalledSoftwareServiceTest {
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
-                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+                eq(InstalledSoftwareStatus.OFFERED.dbValue()));
     }
 
     @Test
@@ -95,7 +95,7 @@ class InstalledSoftwareServiceTest {
         InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
         assertSame(value, saved);
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
-                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+                eq(InstalledSoftwareStatus.OFFERED.dbValue()));
     }
 
     @Test
@@ -110,9 +110,9 @@ class InstalledSoftwareServiceTest {
         });
 
         InstalledSoftware saved = service.createOrUpdateInstalledSoftware(value);
-        assertEquals(InstalledSoftwareStatus.ACTIVE.dbValue(), saved.getStatus());
+        assertEquals(InstalledSoftwareStatus.OFFERED.dbValue(), saved.getStatus());
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(UUID4.toString()), eq(UUID5.toString()),
-                eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+                eq(InstalledSoftwareStatus.OFFERED.dbValue()));
     }
 
     @Test
@@ -142,7 +142,7 @@ class InstalledSoftwareServiceTest {
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(existing.getSiteID().toString()),
-                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.ACTIVE.dbValue()));
+                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.OFFERED.dbValue()));
     }
 
     @Test
@@ -152,17 +152,17 @@ class InstalledSoftwareServiceTest {
         when(repo.save(existing)).thenReturn(existing);
 
         InstalledSoftware patch = new InstalledSoftware();
-        patch.setStatus("retired");
+        patch.setStatus("rejected");
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
             Optional<InstalledSoftware> updated = service.updateInstalledSoftware(UUID2, patch);
             assertTrue(updated.isPresent());
-            assertEquals(InstalledSoftwareStatus.RETIRED.dbValue(), updated.get().getStatus());
+            assertEquals(InstalledSoftwareStatus.REJECTED.dbValue(), updated.get().getStatus());
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
         verify(lucene).indexInstalledSoftware(eq(UUID2.toString()), eq(existing.getSiteID().toString()),
-                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.RETIRED.dbValue()));
+                eq(existing.getSoftwareID().toString()), eq(InstalledSoftwareStatus.REJECTED.dbValue()));
     }
 
     @Test

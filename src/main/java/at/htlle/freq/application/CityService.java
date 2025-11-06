@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Verwaltet Städte, validiert Stammdaten und synchronisiert sie mit dem Lucene-Index.
+ * Manages cities, validates master data, and keeps them synchronized with the Lucene index.
  */
 @Service
 public class CityService {
@@ -27,10 +27,10 @@ public class CityService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit den erforderlichen Abhängigkeiten.
+     * Creates the service with the required dependencies.
      *
-     * @param repo   Repository für Städte
-     * @param lucene Index-Service für Lucene
+     * @param repo   repository for cities
+     * @param lucene Lucene index service
      */
     public CityService(CityRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -40,19 +40,19 @@ public class CityService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle Städte.
+     * Retrieves every city.
      *
-     * @return Liste aller Stadt-Datensätze
+     * @return list of all city records
      */
     public List<City> getAllCities() {
         return repo.findAll();
     }
 
     /**
-     * Holt eine Stadt anhand ihrer ID.
+     * Loads a city by its identifier.
      *
-     * @param id eindeutige Stadt-ID
-     * @return Optional mit der Stadt oder leer, falls nicht vorhanden
+     * @param id unique city identifier
+     * @return optional containing the city or empty if not present
      */
     public Optional<City> getCityById(String id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -60,10 +60,10 @@ public class CityService {
     }
 
     /**
-     * Liefert alle Städte eines Landes.
+     * Retrieves all cities of a given country.
      *
-     * @param countryCode ISO-Ländercode
-     * @return Liste der Städte des Landes
+     * @param countryCode ISO country code
+     * @return list of the country's cities
      */
     public List<City> getCitiesByCountry(String countryCode) {
         Objects.requireNonNull(countryCode, "countryCode must not be null");
@@ -73,11 +73,11 @@ public class CityService {
     // ---------- Commands ----------
 
     /**
-     * Speichert eine Stadt und indexiert sie nach erfolgreichem Commit in Lucene.
-     * Führt Pflichtfeldprüfungen für ID und Name durch.
+     * Persists a city and indexes it in Lucene after a successful commit.
+     * Performs mandatory field validations for ID and name.
      *
-     * @param incoming zu speichernde Stadt
-     * @return gespeicherter Stadt-Datensatz
+     * @param incoming city to store
+     * @return persisted city record
      */
     @Transactional
     public City createOrUpdateCity(City incoming) {
@@ -91,16 +91,16 @@ public class CityService {
         City saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("City gespeichert: id={} name='{}'", saved.getCityID(), saved.getCityName());
+        log.info("City saved: id={} name='{}'", saved.getCityID(), saved.getCityName());
         return saved;
     }
 
     /**
-     * Aktualisiert eine Stadt anhand einer Patch-Repräsentation.
+     * Updates a city based on a patch representation.
      *
-     * @param id    eindeutige Stadt-ID
-     * @param patch Änderungen, die übernommen werden sollen
-     * @return Optional mit der aktualisierten Stadt oder leer, falls nicht gefunden
+     * @param id    unique city identifier
+     * @param patch values to merge into the existing entity
+     * @return optional with the updated city or empty if it was not found
      */
     @Transactional
     public Optional<City> updateCity(String id, City patch) {
@@ -114,15 +114,15 @@ public class CityService {
             City saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("City aktualisiert: id={} name='{}'", id, saved.getCityName());
+            log.info("City updated: id={} name='{}'", id, saved.getCityName());
             return saved;
         });
     }
 
     /**
-     * Löscht eine Stadt dauerhaft.
+     * Permanently deletes a city.
      *
-     * @param id eindeutige Stadt-ID
+     * @param id unique city identifier
      */
     @Transactional
     public void deleteCity(String id) {
@@ -130,7 +130,7 @@ public class CityService {
         Optional<City> existing = repo.findById(id);
         repo.deleteById(id);
         existing.ifPresentOrElse(
-                c -> log.info("City gelöscht: id={} name='{}'", id, c.getCityName()),
+                c -> log.info("City deleted: id={} name='{}'", id, c.getCityName()),
                 () -> log.info("City delete requested: id={} (not found)", id)
         );
     }
@@ -157,9 +157,9 @@ public class CityService {
                     c.getCityName(),
                     c.getCountryCode()
             );
-            log.debug("City in Lucene indexiert: id={}", c.getCityID());
+            log.debug("City indexed in Lucene: id={}", c.getCityID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für City {} fehlgeschlagen", c.getCityID(), e);
+            log.error("Lucene indexing for City {} failed", c.getCityID(), e);
         }
     }
 

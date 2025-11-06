@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link PhoneIntegration}, das die Tabelle {@code PhoneIntegration}
- * anspricht und Telefonintegrationen einzelner Clients verwaltet.
+ * JDBC repository for {@link PhoneIntegration} that operates on the {@code PhoneIntegration}
+ * table and manages phone integrations for individual clients.
  */
 @Repository
 public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepository {
@@ -56,16 +56,16 @@ public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepositor
     }
 
     /**
-     * Persistiert Telefonintegrationen per INSERT oder UPDATE in der Tabelle {@code PhoneIntegration}.
+     * Persists phone integrations via INSERT or UPDATE statements on the {@code PhoneIntegration}
+     * table.
      * <p>
-     * Neue IDs werden über {@code RETURNING PhoneIntegrationID} aus der Datenbank übernommen.
-     * Alle Parameter werden explizit benannt, sodass die Zuordnung zu den Spalten und die vom
-     * {@link RowMapper} erwartete Struktur deckungsgleich bleiben.
+     * Newly generated IDs are obtained from the database through {@code RETURNING PhoneIntegrationID}.
+     * Every parameter is named explicitly to keep the column mapping and the structure expected by
+     * the {@link RowMapper} in sync.
      * </p>
      *
-     * @param p Telefonintegrationsobjekt, dessen Felder auf die gleichnamigen Spalten gemappt
-     *          werden.
-     * @return der gespeicherte Datensatz mit ID.
+     * @param p phone integration entity whose fields map to the columns of the same name.
+     * @return the stored record including its identifier.
      */
     @Override
     public PhoneIntegration save(PhoneIntegration p) {

@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Einfache Autovervollständigung über Lucene-Terms.
+ * Simple auto-complete implementation backed by Lucene terms.
  */
 @Service
 public class SuggestService {
@@ -29,13 +29,13 @@ public class SuggestService {
         this.lucene = lucene;
     }
 
-    // Felder, aus denen Vorschläge kommen sollen
+    // Fields used to source suggestion candidates
     private static final List<String> FIELDS = List.of(
-            // The aggregated search content is stored in the "content" field when indexing
+            // The aggregated search content is stored in the "content" field during indexing
             "content"
     );
 
-    /** Liefert bis zu {@code max} Vorschläge für das Präfix {@code prefix}. */
+    /** Returns up to {@code max} suggestions whose terms begin with the provided {@code prefix}. */
     public List<String> suggest(String prefix, int max) {
         if (prefix == null) return List.of();
         String pfx = prefix.toLowerCase();
@@ -59,7 +59,7 @@ public class SuggestService {
                     BytesRef br;
                     while ((br = te.next()) != null) {
                         String term = br.utf8ToString();
-                        // Case-insensitive Vergleich, Originalwert zurückgeben
+                        // Perform a case-insensitive comparison but return the original value
                         if (term.toLowerCase().startsWith(pfx)) {
                             out.add(term);
                             if (out.size() >= max) break outer;
@@ -68,8 +68,8 @@ public class SuggestService {
                 }
             }
         } catch (IOException ignored) {
-            // Optional: Logging hinzufügen, wenn gewünscht
-            // log.warn("SuggestService: Konnte Index nicht lesen", ignored);
+            // Optional: add structured logging if desired
+            // log.warn("SuggestService: Could not read index", ignored);
         }
 
         return out.stream().limit(max).collect(Collectors.toList());

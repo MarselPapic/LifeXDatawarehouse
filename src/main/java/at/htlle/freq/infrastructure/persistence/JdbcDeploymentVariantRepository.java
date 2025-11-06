@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link DeploymentVariant}, das sämtliche Zugriffe auf die Tabelle
- * {@code DeploymentVariant} bündelt und Variantendaten in Domänenobjekte mappt.
+ * JDBC repository for {@link DeploymentVariant} that centralizes all access to the
+ * {@code DeploymentVariant} table and maps the retrieved variant data to domain objects.
  */
 @Repository
 public class JdbcDeploymentVariantRepository implements DeploymentVariantRepository {
@@ -67,16 +67,16 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
     }
 
     /**
-     * Persistiert Deployment-Varianten via INSERT (mit {@code RETURNING VariantID}) oder UPDATE.
+     * Persists deployment variants via INSERT (with {@code RETURNING VariantID}) or UPDATE.
      * <p>
-     * Alle relevanten Felder werden explizit als benannte Parameter gebunden, um eine konsistente
-     * Projektion zwischen SQL-Ergebnis und {@link RowMapper} sicherzustellen und spätere
-     * Erweiterungen einfacher zu gestalten.
+     * All relevant fields are bound explicitly as named parameters to guarantee a consistent
+     * projection between the SQL result and the {@link RowMapper}, making future extensions
+     * easier to apply.
      * </p>
      *
-     * @param dv Deployment-Variante, deren Attribute direkt auf die Spalten der Tabelle
-     *           {@code DeploymentVariant} gemappt werden.
-     * @return die persistierte Variante samt Primärschlüssel.
+     * @param dv deployment variant whose attributes map directly to the columns of the
+     *           {@code DeploymentVariant} table.
+     * @return the persisted variant including its primary key.
      */
     @Override
     public DeploymentVariant save(DeploymentVariant dv) {

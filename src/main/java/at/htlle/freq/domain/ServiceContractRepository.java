@@ -3,27 +3,28 @@ package at.htlle.freq.domain;
 import java.util.*;
 
 /**
- * Repository abstraction for {@link ServiceContract} agreements.
+ * Repository abstraction for {@link ServiceContract} agreements with customer
+ * accounts.
  */
 public interface ServiceContractRepository {
     /**
-     * Finds a contract by its identifier.
+     * Finds a service contract by its identifier.
      *
      * @param id primary key
-     * @return optional contract entity
+     * @return optional service contract entity
      */
     Optional<ServiceContract> findById(UUID id);
 
     /**
-     * Retrieves all contracts owned by an account.
+     * Retrieves all contracts owned by a customer account.
      *
-     * @param accountId identifier of the {@link Account}
-     * @return list of contracts linked to the account
+     * @param accountId identifier of the customer {@link Account}
+     * @return list of contracts linked to the customer account
      */
     List<ServiceContract> findByAccount(UUID accountId);
 
     /**
-     * Persists the given contract.
+     * Persists the given service contract.
      *
      * @param contract contract to store
      * @return managed contract entity
@@ -33,7 +34,7 @@ public interface ServiceContractRepository {
     /**
      * Lists all service contracts.
      *
-     * @return snapshot of contracts
+     * @return snapshot of service contracts
      */
     List<ServiceContract> findAll();
 }

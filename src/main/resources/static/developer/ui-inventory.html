@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>LifeX – UI Inventory (Screenshot Helper)</title>
@@ -25,7 +25,7 @@
       --stage-w:900px;
       --stage-h:560px;
       --max-page-w:2560px;
-      /* Komponentenskalierung */
+      /* Component scaling */
       --ui-scale: 1; /* 1 = 100 % */
     }
     *{box-sizing:border-box}
@@ -68,7 +68,7 @@
     .stage .scene.active{display:grid;place-items:center}
     .stage.fullpage .scene.active{display:block;place-items:initial}
 
-    /* Skalierung: aktive Szene-Inhalte werden vergrößert/verkleinert */
+    /* Scaling: enlarge or shrink active scene content */
     .stage .scene.active > *{ transform: scale(var(--ui-scale)); transform-origin: center; }
 
     /* Sidebar nav */
@@ -90,7 +90,7 @@
     .quickopen button{padding:.45rem .8rem;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer}
     .quickopen small{display:block;margin-top:.4rem;color:#666}
 
-    /* Toolbar (fixiert) */
+    /* Toolbar (fixed position) */
     .toolbar{position:fixed;top:68px;left:calc(320px + 24px);right:16px;background:#fff;border:1px solid var(--border);border-radius:10px;
       box-shadow:var(--card-shadow);padding:.4rem .5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;z-index:9999;pointer-events:none}
     .toolbar > *{pointer-events:auto}
@@ -106,7 +106,7 @@
     .toolbar input[type="number"]{width:90px;padding:.2rem .35rem;border:1px solid var(--border);border-radius:6px}
     .previewOnly{display:none}
 
-    /* Fixpunkt-Skala */
+    /* Fixed-point scale */
     .scale-group{display:flex;gap:.25rem}
     .scale-group button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:.25rem .45rem;cursor:pointer;font-weight:600}
     .scale-group button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
@@ -170,61 +170,61 @@
 </head>
 <body>
 <header>
-  <button class="menu-toggle" id="toggleMenu" title="Sidebar ein-/ausblenden">☰</button>
+  <button class="menu-toggle" id="toggleMenu" title="Toggle sidebar on/off">☰</button>
   <div class="title">LifeX UI Inventory</div>
-  <div class="badge">Screenshot-Helfer • Komponentenkatalog</div>
+  <div class="badge">Screenshot helper • Component catalog</div>
 </header>
 <div id="shotBanner" class="shot-banner" style="display:none">
-  <span>Shot-Layout aktiv – Taste <strong>F</strong> oder Button zum Beenden</span>
-  <button id="shotExitBtn">Beenden</button>
+  <span>Shot layout active – press <strong>F</strong> or use the button to exit</span>
+  <button id="shotExitBtn">Exit</button>
 </div>
 
 <div class="layout">
   <!-- =================== Sidebar =================== -->
   <aside class="sidebar">
     <div class="search">
-      <input id="filter" placeholder="Komponente filtern …" />
-      <button id="clearFilter" title="Filter löschen">✕</button>
+      <input id="filter" placeholder="Filter component …" />
+      <button id="clearFilter" title="Clear filter">✕</button>
     </div>
     <nav class="menu" id="menu">
       <h4>Buttons</h4>
-      <button class="item" data-target="btn-primary"><strong>Primärer Button</strong><small>Hauptaktion</small></button>
-      <button class="item" data-target="btn-secondary"><strong>Sekundärer Button</strong><small>Standard</small></button>
-      <button class="item" data-target="btn-back"><strong>Zurück-Link</strong><small>Button-Stil</small></button>
+      <button class="item" data-target="btn-primary"><strong>Primary button</strong><small>Primary action</small></button>
+      <button class="item" data-target="btn-secondary"><strong>Secondary button</strong><small>Standard</small></button>
+      <button class="item" data-target="btn-back"><strong>Back link</strong><small>Button style</small></button>
 
       <h4>Shortcuts & Panels</h4>
-      <button class="item" data-target="shortcut-closed"><strong>Shortcut – geschlossen</strong><small>Akkordeon-Kopf</small></button>
-      <button class="item" data-target="shortcut-open"><strong>Shortcut – offen</strong><small>mit Panel-Input</small></button>
-      <button class="item" data-target="panel-input"><strong>Panel-Input</strong><small>Monospace</small></button>
+      <button class="item" data-target="shortcut-closed"><strong>Shortcut – collapsed</strong><small>Accordion header</small></button>
+      <button class="item" data-target="shortcut-open"><strong>Shortcut – expanded</strong><small>with panel input</small></button>
+      <button class="item" data-target="panel-input"><strong>Panel input</strong><small>Monospace</small></button>
 
-      <h4>Suche</h4>
-      <button class="item" data-target="searchbar"><strong>Suchfeld + Vorschläge</strong><small>mit Button</small></button>
-      <button class="item" data-target="progress"><strong>Reindex-Fortschritt</strong><small>Progress-Bar</small></button>
+      <h4>Search</h4>
+      <button class="item" data-target="searchbar"><strong>Search field + suggestions</strong><small>with button</small></button>
+      <button class="item" data-target="progress"><strong>Reindex progress</strong><small>Progress bar</small></button>
 
-      <h4>Tabellen</h4>
-      <button class="item" data-target="result-table"><strong>Ergebnis-Tabelle</strong><small>Suchresultate</small></button>
-      <button class="item" data-target="table-viewer"><strong>Tabellen-Viewer</strong><small>100-Zeilen-Preview</small></button>
-      <button class="item" data-target="kv-table"><strong>Key-Value Tabelle</strong><small>Details</small></button>
+      <h4>Tables</h4>
+      <button class="item" data-target="result-table"><strong>Result table</strong><small>Search results</small></button>
+      <button class="item" data-target="table-viewer"><strong>Table viewer</strong><small>100-row preview</small></button>
+      <button class="item" data-target="kv-table"><strong>Key-value table</strong><small>Details</small></button>
 
-      <h4>Formulare</h4>
-      <button class="item" data-target="entity-select"><strong>Entitätsauswahl</strong><small>select#entity</small></button>
-      <button class="item" data-target="project-form"><strong>Form „Project“</strong><small>Text/Number/Boolean</small></button>
+      <h4>Forms</h4>
+      <button class="item" data-target="entity-select"><strong>Entity selection</strong><small>select#entity</small></button>
+      <button class="item" data-target="project-form"><strong>Form "Project"</strong><small>Text/Number/Boolean</small></button>
 
       <h4>Feedback</h4>
-      <button class="item" data-target="alert-ok"><strong>Success-Meldung</strong><small>.success</small></button>
-      <button class="item" data-target="alert-err"><strong>Error-Meldung</strong><small>.error</small></button>
+      <button class="item" data-target="alert-ok"><strong>Success message</strong><small>.success</small></button>
+      <button class="item" data-target="alert-err"><strong>Error message</strong><small>.error</small></button>
 
       <h4>Chips</h4>
-      <button class="item" data-target="pills"><strong>Pills</strong><small>verlinkte Chips</small></button>
+      <button class="item" data-target="pills"><strong>Pills</strong><small>linked chips</small></button>
 
-      <h4>Seiten (Full Page)</h4>
-      <button class="item" data-target="page-index"><strong>Index – ganze Seite</strong><small>/index.html</small></button>
-      <button class="item" data-target="page-details"><strong>Details – ganze Seite</strong><small>/details.html</small></button>
-      <button class="item" data-target="page-create"><strong>Create – ganze Seite</strong><small>/create.html</small></button>
+      <h4>Pages (full page)</h4>
+      <button class="item" data-target="page-index"><strong>Index – full page</strong><small>/index.html</small></button>
+      <button class="item" data-target="page-details"><strong>Details – full page</strong><small>/details.html</small></button>
+      <button class="item" data-target="page-create"><strong>Create – full page</strong><small>/create.html</small></button>
 
-      <!-- Schnell-Auswahl für Details -->
+      <!-- Quick selection for details -->
       <div class="quickopen" id="quickOpen">
-        <label>Details öffnen</label>
+        <label>Open details</label>
         <div class="qo-row">
           <select id="qoType">
             <option value="account">Account</option>
@@ -237,9 +237,9 @@
             <option value="phone">Phone</option>
           </select>
           <input id="qoId" inputmode="numeric" placeholder="ID">
-          <button id="qoOpenBtn" title="Öffnen">Öffnen</button>
+          <button id="qoOpenBtn" title="Open">Open</button>
         </div>
-        <small>Lädt automatisch <code>/details.html?type=…&amp;id=…</code></small>
+        <small>Automatically loads <code>/details.html?type=…&amp;id=…</code></small>
       </div>
     </nav>
   </aside>
@@ -252,25 +252,25 @@
         <label><input type="checkbox" id="toggleGrid" checked> Grid</label>
         <span class="sep"></span>
         <label id="lblHover"><input type="checkbox" id="stateHover"> Hover</label>
-        <label id="lblFocus"><input type="checkbox" id="stateFocus"> Fokus</label>
+        <label id="lblFocus"><input type="checkbox" id="stateFocus"> Focus</label>
         <label id="lblDisabled"><input type="checkbox" id="stateDisabled"> Disabled</label>
         <span class="sep"></span>
-        <label id="lblWidth">Breite
+        <label id="lblWidth">Width
           <input type="range" id="widthRange" min="600" max="1200" step="10" value="900">
         </label>
-        <label id="lblHeight">Höhe
+        <label id="lblHeight">Height
           <input type="range" id="heightRange" min="420" max="900" step="10" value="560">
         </label>
-        <!-- Ziel-Element + Textbearbeitung -->
-        <label id="lblTarget" style="display:none">Knopf
+        <!-- Target element + text editing -->
+        <label id="lblTarget" style="display:none">Button
           <select id="targetSelect"></select>
         </label>
-        <label id="lblText" style="display:none">Text
-          <input type="text" id="textInput" placeholder="Beschriftung …">
+        <label id="lblText" style="display:none">Label
+          <input type="text" id="textInput" placeholder="Label …">
         </label>
-        <!-- Fixpunkt-Skalierung -->
-        <div id="scaleCtl" style="display:flex;align-items:center;gap:.35rem"><span>Skalierung</span>
-          <div class="scale-group" id="scaleGroup" role="tablist" aria-label="Skalierung">
+        <!-- Fixed-point scaling -->
+        <div id="scaleCtl" style="display:flex;align-items:center;gap:.35rem"><span>Scaling</span>
+          <div class="scale-group" id="scaleGroup" role="tablist" aria-label="Scaling">
             <button data-scale="0.6">60%</button>
             <button data-scale="0.8">80%</button>
             <button data-scale="1" class="active">100%</button>
@@ -291,14 +291,14 @@
         </label>
         <span class="sep"></span>
         <!-- ==== Screenshot Controls ==== -->
-        <label>Größe
-          <select id="shotPreset" title="Zielgröße für Screenshot">
-            <option value="stage">Stage (Regler)</option>
+        <label>Size
+          <select id="shotPreset" title="Target size for screenshot">
+            <option value="stage">Stage (slider)</option>
             <option value="1200x820">1200×820 (Shot)</option>
             <option value="1280x720" selected>1280×720</option>
             <option value="1600x900">1600×900</option>
             <option value="1920x1080">1920×1080</option>
-            <option value="custom">Benutzerdefiniert…</option>
+            <option value="custom">Custom…</option>
           </select>
         </label>
         <label id="customSize" style="display:none">
@@ -306,27 +306,27 @@
           H <input type="number" id="shotH" min="300" max="4000" step="10" value="1080">
         </label>
         <span class="sep"></span>
-        <label class="previewOnly">Vorschau-Zoom
+        <label class="previewOnly">Preview zoom
           <input type="range" id="previewZoom" min="50" max="110" step="1" value="90">
         </label>
         <span class="sep previewOnly"></span>
 
-        <button class="shot" id="shotBtn" title="PNG speichern (S)">📸 Screenshot</button>
-        <button class="shot" id="shotCopy" title="In Zwischenablage kopieren">📋 Kopieren</button>
-        <button class="shot" id="shotMode" title="Shot-Layout an/aus">🖼️ Shot-Layout</button>
+        <button class="shot" id="shotBtn" title="Save PNG (S)">📸 Screenshot</button>
+        <button class="shot" id="shotCopy" title="Copy to clipboard">📋 Copy</button>
+        <button class="shot" id="shotMode" title="Toggle shot layout">🖼️ Shot layout</button>
       </div>
 
       <!-- ============ SCENES (one per component) ============ -->
-      <div class="scene" id="scene-btn-primary"><button class="btn btn-primary">Neu indexieren</button></div>
-      <div class="scene" id="scene-btn-secondary"><button class="btn btn-secondary">Suchen</button></div>
-      <div class="scene" id="scene-btn-back"><a id="back" href="index.html">← zurück</a></div>
+      <div class="scene" id="scene-btn-primary"><button class="btn btn-primary">Reindex now</button></div>
+      <div class="scene" id="scene-btn-secondary"><button class="btn btn-secondary">Search</button></div>
+      <div class="scene" id="scene-btn-back"><a id="back" href="index.html">← Back</a></div>
 
       <div class="scene" id="scene-shortcut-closed">
         <div class="card" style="max-width:520px">
           <div class="shortcut">
             <div class="head" style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-              <span class="rename" title="Umbenennen">✏️</span>
-              <span class="label" style="font-weight:600">Große Projekte</span>
+              <span class="rename" title="Rename">✏️</span>
+              <span class="label" style="font-weight:600">Large projects</span>
               <span class="chev" style="margin-left:auto">▶</span>
             </div>
           </div>
@@ -337,8 +337,8 @@
         <div class="card" style="max-width:520px">
           <div class="shortcut">
             <div class="head" style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-              <span class="rename" title="Umbenennen">✏️</span>
-              <span class="label" style="font-weight:600">Große Projekte</span>
+              <span class="rename" title="Rename">✏️</span>
+              <span class="label" style="font-weight:600">Large projects</span>
               <span class="chev" style="margin-left:auto;transform:rotate(90deg)">▶</span>
             </div>
             <div class="panel" style="margin-top:.5rem">
@@ -364,27 +364,27 @@
 
       <div class="scene" id="scene-searchbar">
         <div style="display:flex;gap:.5rem;align-items:center;width:100%;max-width:780px">
-          <input id="search-input" class="input" list="sug" placeholder="Global-Suche (Lucene oder normal)" value="type:project AND Life*">
+          <input id="search-input" class="input" list="sug" placeholder="Global search (Lucene or regular)" value="type:project AND Life*">
           <datalist id="sug">
             <option>type:project AND LifeX</option>
             <option>owner:team-data</option>
             <option>status:active AND site:eu</option>
           </datalist>
-          <button id="search-btn" class="btn btn-secondary">Suchen</button>
+          <button id="search-btn" class="btn btn-secondary">Search</button>
         </div>
       </div>
 
       <div class="scene" id="scene-progress">
         <div id="idx-box">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-            <strong>Neuindexierung läuft …</strong>
+            <strong>Reindex in progress …</strong>
             <small id="progressText">35 %</small>
           </div>
           <div id="idx-bar"><span id="idx-fill" style="width:35%"></span></div>
         </div>
       </div>
 
-      <!-- Tabellen -->
+      <!-- Tables -->
       <div class="scene" id="scene-result-table">
         <div class="table-scroll">
           <table>
@@ -409,9 +409,9 @@
             <tr><th>#</th><th>CityName</th><th>PostalCode</th><th>Country</th><th>Notes</th><th>Created</th></tr>
             </thead>
             <tbody>
-            <tr><td>1</td><td>Wien</td><td>1010</td><td>AT</td><td>Hauptstadt; UTF-8 ✓</td><td>2025-05-01</td></tr>
+            <tr><td>1</td><td>Wien</td><td>1010</td><td>AT</td><td>Capital; UTF-8 ✓</td><td>2025-05-01</td></tr>
             <tr><td>2</td><td>Graz</td><td>8010</td><td>AT</td><td>—</td><td>2025-05-01</td></tr>
-            <tr><td>3</td><td>Linz</td><td>4020</td><td>AT</td><td>Lange Beschreibung, die horizontales Scrollen demonstriert …</td><td>2025-05-01</td></tr>
+            <tr><td>3</td><td>Linz</td><td>4020</td><td>AT</td><td>Long description demonstrating horizontal scrolling …</td><td>2025-05-01</td></tr>
             <tr><td>4</td><td>Salzburg</td><td>5020</td><td>AT</td><td>—</td><td>2025-05-01</td></tr>
             <tr><td>5</td><td>Innsbruck</td><td>6020</td><td>—</td><td>—</td><td>2025-05-01</td></tr>
             </tbody>
@@ -433,10 +433,10 @@
         </div>
       </div>
 
-      <!-- Formulare -->
+      <!-- Forms -->
       <div class="scene" id="scene-entity-select">
         <label class="field" style="min-width:280px">
-          <span>Entität wählen</span>
+          <span>Choose entity</span>
           <select class="select" id="entity">
             <option>Account</option>
             <option selected>Project</option>
@@ -460,10 +460,10 @@
 
       <div class="scene" id="scene-project-form">
         <form class="card" style="width:100%;max-width:560px">
-          <h3>Project anlegen</h3>
+          <h3>Create project</h3>
           <div class="field">
             <label for="p-name">Project Name</label>
-            <input id="p-name" class="input" placeholder="z. B. LifeX Onboarding">
+            <input id="p-name" class="input" placeholder="e.g. LifeX Onboarding">
           </div>
           <div class="field">
             <label for="p-owner">Owner</label>
@@ -478,17 +478,17 @@
             <input id="p-ha" class="input" placeholder="true/false" value="true">
           </div>
           <div style="display:flex;gap:.5rem;margin-top:.6rem">
-            <button type="button" class="btn btn-primary">Speichern</button>
-            <button type="button" class="btn btn-secondary">Abbrechen</button>
+            <button type="button" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary">Cancel</button>
           </div>
-          <p class="alert ok" style="margin-top:1rem;display:none" id="ok-msg">Project gespeichert.</p>
-          <p class="alert err" style="margin-top:1rem;display:none" id="err-msg">Fehler beim Speichern.</p>
+          <p class="alert ok" style="margin-top:1rem;display:none" id="ok-msg">Project saved.</p>
+          <p class="alert err" style="margin-top:1rem;display:none" id="err-msg">Error while saving.</p>
         </form>
       </div>
 
       <!-- Feedback -->
-      <div class="scene" id="scene-alert-ok"><p class="alert ok"><strong>Erfolg:</strong> Operation erfolgreich abgeschlossen.</p></div>
-      <div class="scene" id="scene-alert-err"><p class="alert err"><strong>Fehler:</strong> Eingabe ungültig oder Serverfehler.</p></div>
+      <div class="scene" id="scene-alert-ok"><p class="alert ok"><strong>Success:</strong> Operation completed successfully.</p></div>
+      <div class="scene" id="scene-alert-err"><p class="alert err"><strong>Error:</strong> Input invalid or server error.</p></div>
 
       <!-- Chips -->
       <div class="scene" id="scene-pills">
@@ -512,7 +512,7 @@
   </main>
 </div>
 
-<!-- html2canvas für saubere Screenshots -->
+<!-- html2canvas for clean screenshots -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
@@ -562,7 +562,7 @@
   const lblDisabled = document.getElementById('lblDisabled');
   const lblProgress = document.getElementById('lblProgress');
 
-  // Neue Controls
+  // New controls
   const scaleCtl = document.getElementById('scaleCtl');
   const scaleGroup = document.getElementById('scaleGroup');
   const lblTarget = document.getElementById('lblTarget');
@@ -570,7 +570,7 @@
   const targetSelect = document.getElementById('targetSelect');
   const textInput = document.getElementById('textInput');
 
-  /* ===== Capability-Matrix pro Szene ===== */
+  /* ===== Capability matrix per scene ===== */
   const CAPS = {
     'scene-btn-primary':      {hover:true,  focus:false, disabled:true,  progress:false},
     'scene-btn-secondary':    {hover:true,  focus:false, disabled:true,  progress:false},
@@ -605,7 +605,7 @@
     stage.classList.toggle('sim-disabled', disabled.checked);
   }
 
-  // Fixpunkt-Skalierung
+  // Fixed-point scaling
   let lastScale = 1;
   function setScale(f){
     lastScale = f || 1;
@@ -634,10 +634,10 @@
     if(!c.progress && progressRange){ progressRange.value = 35; if(idxFill) idxFill.style.width='35%'; if(progressText) progressText.textContent='35 %'; }
     applyStates();
 
-    // Preview-Controls nur für Full-Page (werden im HTML via .previewOnly markiert)
+    // Preview controls only for full-page (marked in the HTML via .previewOnly)
     document.querySelectorAll('.previewOnly').forEach(n => n.style.display = c.page ? '' : 'none');
 
-    // Skalierung nur für Komponenten (nicht Full-Page)
+    // Scaling only for components (not full-page)
     if (scaleCtl){
       if (c.page){
         scaleCtl.style.display = 'none';
@@ -692,34 +692,34 @@
   }
 
   function activate(id){
-    // 1) Szene aktiv schalten
+    // 1) Activate scene
     scenes.forEach(s => s.classList.remove('active'));
     const el = document.getElementById(id);
     if (el){ el.classList.add('active'); }
 
-    // 2) Toolbar-Kapazitäten je Szene anwenden
+    // 2) Apply toolbar capabilities for each scene
     applyToolbarCaps(id);
 
-    // 2b) Editierbare Ziele aktualisieren
+    // 2b) Update editable targets
     refreshEditableUI();
 
-    // 3) States + aktives Menü setzen
+    // 3) Set states + active menu
     [...menu.querySelectorAll('.item')].forEach(b=>b.classList.remove('active'));
     const btn = [...menu.querySelectorAll('.item')].find(b => map[b.dataset.target] === id);
     if (btn) btn.classList.add('active');
 
-    // 4) Full-Page Modus toggeln (für iframe-Szenen)
+    // 4) Toggle full-page mode (for iframe scenes)
     const pageMode = isPageId(id);
     stageWrap.classList.toggle('fullpage', pageMode);
     stage.classList.toggle('fullpage', pageMode);
 
-    // 5) Page-Defaults einmalig setzen
+    // 5) Apply page defaults once
     if (pageMode && !el.dataset.inited){
       applyPageDefaults(id);
       el.dataset.inited = '1';
     }
 
-    // 6) Seite in iframe laden + Preview fitten
+    // 6) Load page in iframe + fit preview
     if (pageMode){
       const frame = el.querySelector('.page-frame');
       if (frame && !frame.dataset.loaded){
@@ -820,7 +820,7 @@
     return stage.querySelector('.scene.active') || scenes[0];
   }
 
-  // ======= Filename helpers (NEU) =======
+  // ======= Filename helpers (NEW) =======
   function deburr(str){
     return (str||'')
             .normalize('NFKD')
@@ -852,14 +852,14 @@
     return (el?.textContent || el?.value || '').trim();
   }
   function getPrimaryLabelForScene(scene){
-    // Bevorzugt: ausgewähltes editierbares Target
+    // Prefer the selected editable target
     const idx = +(targetSelect?.value||0);
     const targets = targetSelect?._targets || getEditableTargets(scene);
     const t = targets?.[idx] || targets?.[0];
     const label = firstText(t);
     if (label) return label;
 
-    // Szenen-spezifisch
+    // Scene-specific
     if (scene.id === 'scene-searchbar'){
       const q = document.getElementById('search-input')?.value || '';
       return q ? `query ${q}` : 'searchbar';
@@ -914,7 +914,7 @@
     try{
       const url = new URL(frame.src, window.location.href);
       meta.urlPath = url.pathname.replace(/^\//,'').replace(/\//g,'-');
-      // Enge Auswahl an Query-Parametern (sonst werden Namen zu lang)
+      // Limit the query parameters considered so filenames stay short
       const interesting = [];
       for (const [k,v] of url.searchParams.entries()){
         if (['type','id','q','tab','view'].includes(k)) interesting.push(`${k}-${v}`);
@@ -950,12 +950,12 @@
     const nameCore = segs.join('__');
     const name = `${nameCore}__ts-${tsStamp()}.png`;
 
-    // Hard-Limit für Dateinamen (Windows/FAT etc. ~255 Zeichen). Wir kappen von hinten.
+    // Hard limit for file names (Windows/FAT etc. ~255 characters). We trim from the end.
     return name.length <= 240 ? name : (name.slice(0, 235).replace(/-+$/,'') + '.png');
   }
 
   async function html2canvasSafe(el, opts){
-    if (typeof html2canvas !== 'function') throw new Error('html2canvas nicht geladen');
+    if (typeof html2canvas !== 'function') throw new Error('html2canvas not loaded');
     await new Promise(r=>setTimeout(r, 40));
     return await html2canvas(el, opts);
   }
@@ -964,10 +964,10 @@
     try{
       const { w, h } = getTargetSize();
       const scene = activeSceneEl();
-      if(!scene) throw new Error('Keine aktive Szene.');
+      if(!scene) throw new Error('No active scene.');
 
       const wasShot = document.body.classList.contains('shot');
-      document.body.classList.add('shot'); // UI ausblenden
+      document.body.classList.add('shot'); // Hide UI
 
       const prevW = stage.style.getPropertyValue('--stage-w');
       const prevH = stage.style.getPropertyValue('--stage-h');
@@ -989,29 +989,29 @@
       if (prevH) stage.style.setProperty('--stage-h', prevH); else stage.style.removeProperty('--stage-h');
       if (!wasShot) document.body.classList.remove('shot');
 
-      // ==== Semantische Metadaten + Dateiname (NEU) ====
+      // ==== Semantic metadata + filename (NEW) ====
       const meta = collectShotMetaComponent(scene, {w, h});
       const filename = buildShotFilename(meta);
 
       canvas.toBlob(async (blob)=>{
-        if(!blob) return alert('Konnte PNG nicht erzeugen.');
+        if(!blob) return alert('Could not create PNG.');
         if (copy && navigator.clipboard && window.ClipboardItem){
           try{
             await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
-            toast('Screenshot kopiert');
+            toast('Screenshot copied');
           }catch(err){
             console.warn(err);
             downloadBlob(blob, filename);
-            toast('Konnte nicht kopieren – PNG gespeichert');
+            toast('Could not copy – saved PNG instead');
           }
         } else {
           downloadBlob(blob, filename);
-          toast('PNG gespeichert');
+          toast('PNG saved');
         }
       }, 'image/png');
     }catch(e){
       console.error(e);
-      alert('Screenshot fehlgeschlagen: '+ e.message);
+      alert('Screenshot failed: '+ e.message);
     }
   }
 
@@ -1030,7 +1030,7 @@
     setTimeout(()=>{ t.style.transition="opacity .3s"; t.style.opacity="0"; setTimeout(()=>t.remove(), 320); }, 1000);
   }
 
-  // ===== Full-Page: Vorschau + Screenshot =====
+  // ===== Full-page: preview + screenshot =====
   const pageDefaults = {
     'scene-page-index':   { preset: '1280x720', zoom: 90 },
     'scene-page-details': { preset: '1280x720', zoom: 100 },
@@ -1143,23 +1143,23 @@
         windowWidth:w, windowHeight:totalH, scrollX:0, scrollY:0, useCORS:true
       });
 
-      // ==== Metadaten + Dateiname (NEU) ====
+      // ==== Metadata + filename (NEW) ====
       const meta = collectShotMetaPage(active, {w, h: totalH});
       const filename = buildShotFilename(meta);
 
       canvas.toBlob(async (blob)=>{
-        if(!blob) return alert('Konnte PNG nicht erzeugen.');
+        if(!blob) return alert('Could not create PNG.');
         if (copy && navigator.clipboard && window.ClipboardItem){
-          try{ await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); toast('Screenshot kopiert'); }
-          catch(err){ console.warn(err); downloadBlob(blob,filename); toast('Konnte nicht kopieren – PNG gespeichert'); }
-        } else { downloadBlob(blob, filename); toast('PNG gespeichert'); }
+          try{ await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); toast('Screenshot copied'); }
+          catch(err){ console.warn(err); downloadBlob(blob,filename); toast('Could not copy – saved PNG instead'); }
+        } else { downloadBlob(blob, filename); toast('PNG saved'); }
       }, 'image/png');
-    }catch(e){ console.error(e); alert('Page-Screenshot fehlgeschlagen: '+ e.message); }
+    }catch(e){ console.error(e); alert('Page screenshot failed: '+ e.message); }
   }
 
   document.addEventListener('DOMContentLoaded', updateLivePreview);
 
-  // === QuickOpen: öffnet Details direkt ===
+  // === QuickOpen: open details directly ===
   const qoType = document.getElementById('qoType');
   const qoId = document.getElementById('qoId');
   const qoOpenBtn = document.getElementById('qoOpenBtn');
@@ -1181,7 +1181,7 @@
   qoOpenBtn.addEventListener('click', quickOpenDetails);
   qoId.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); quickOpenDetails(); } });
 
-  // default Szene + Skalierung
+  // Default scene + scaling
   activate('scene-btn-primary');
   setScale(1);
 </script>

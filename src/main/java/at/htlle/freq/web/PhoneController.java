@@ -11,9 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für Telefon-Integrationen eines Clients.
+ * Fully featured CRUD controller for client phone integrations.
  *
- * <p>Zugriff erfolgt über den {@link NamedParameterJdbcTemplate}.</p>
+ * <p>All access goes through {@link NamedParameterJdbcTemplate}.</p>
  */
 @RestController
 @RequestMapping("/phones")
@@ -27,17 +27,15 @@ public class PhoneController {
         this.jdbc = jdbc;
     }
 
-    // ----------------------------
-    // READ: Alle oder nach Client filtern
-    // ----------------------------
+    // READ operations: list all integrations or filter by client
     /**
-     * Listet Telefon-Integrationen optional gefiltert nach Client.
+     * Lists phone integrations and optionally filters by client.
      *
-     * <p>Pfad: {@code GET /phones}</p>
-     * <p>Query-Parameter: {@code clientId} (optional).</p>
+     * <p>Path: {@code GET /phones}</p>
+     * <p>Optional {@code clientId} query parameter narrows the result to a client.</p>
      *
-     * @param clientId optionale Client-ID.
-     * @return 200 OK mit einer JSON-Liste der Telefon-Integrationen.
+     * @param clientId optional client ID.
+     * @return 200 OK with a JSON list of phone integrations.
      */
     @GetMapping
     public List<Map<String, Object>> findByClient(@RequestParam(required = false) String clientId) {
@@ -58,12 +56,12 @@ public class PhoneController {
     }
 
     /**
-     * Liefert eine Telefon-Integration anhand der ID.
+     * Returns a phone integration by ID.
      *
-     * <p>Pfad: {@code GET /phones/{id}}</p>
+     * <p>Path: {@code GET /phones/{id}}</p>
      *
-     * @param id Primärschlüssel.
-     * @return 200 OK mit den Feldwerten oder 404 bei unbekannter ID.
+     * @param id primary key.
+     * @return 200 OK with the field values or 404 if the ID is unknown.
      */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
@@ -80,17 +78,15 @@ public class PhoneController {
         return rows.get(0);
     }
 
-    // ----------------------------
-    // CREATE
-    // ----------------------------
+    // CREATE operations
     /**
-     * Legt eine neue Telefon-Integration an.
+     * Creates a new phone integration.
      *
-     * <p>Pfad: {@code POST /phones}</p>
-     * <p>Request-Body: JSON mit Spaltenfeldern (z.B. {@code clientID}, {@code phoneType}).</p>
+     * <p>Path: {@code POST /phones}</p>
+     * <p>Request body: JSON with column fields such as {@code clientID} or {@code phoneType}.</p>
      *
-     * @param body Eingabedaten.
-     * @throws ResponseStatusException 400 bei leerem Body.
+     * @param body input payload.
+     * @throws ResponseStatusException 400 if the body is empty.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -109,18 +105,16 @@ public class PhoneController {
         log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
-    // ----------------------------
-    // UPDATE
-    // ----------------------------
+    // UPDATE operations
     /**
-     * Aktualisiert eine Telefon-Integration.
+     * Updates a phone integration.
      *
-     * <p>Pfad: {@code PUT /phones/{id}}</p>
-     * <p>Request-Body: JSON-Objekt mit zu überschreibenden Spaltenwerten.</p>
+     * <p>Path: {@code PUT /phones/{id}}</p>
+     * <p>Request body: JSON object with the columns to update.</p>
      *
-     * @param id   Primärschlüssel.
-     * @param body Feldwerte.
-     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn keine Zeile aktualisiert wurde.
+     * @param id   primary key.
+     * @param body field values.
+     * @throws ResponseStatusException 400 if the body is empty, 404 if no row was updated.
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -146,16 +140,14 @@ public class PhoneController {
         log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("PhoneIntegrationID", id), body.keySet());
     }
 
-    // ----------------------------
-    // DELETE
-    // ----------------------------
+    // DELETE operations
     /**
-     * Entfernt eine Telefon-Integration.
+     * Deletes a phone integration.
      *
-     * <p>Pfad: {@code DELETE /phones/{id}}</p>
+     * <p>Path: {@code DELETE /phones/{id}}</p>
      *
-     * @param id Primärschlüsselwert.
-     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     * @param id primary key value.
+     * @throws ResponseStatusException 404 if no row was deleted.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

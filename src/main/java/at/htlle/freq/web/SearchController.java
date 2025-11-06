@@ -13,10 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * REST-Controller für Such- und Suggest-Abfragen.
+ * REST controller for search and suggestion queries.
  *
- * <p>Verwendet {@link LuceneIndexService}, {@link SmartQueryBuilder} und
- * {@link SuggestService}.</p>
+ * <p>Uses {@link LuceneIndexService}, {@link SmartQueryBuilder}, and {@link SuggestService}.</p>
  */
 @RestController
 public class SearchController {
@@ -34,14 +33,14 @@ public class SearchController {
     }
 
     /**
-     * Führt eine Volltextsuche aus.
+     * Executes a full-text search.
      *
-     * <p>Pfad: {@code GET /search}</p>
-     * <p>Query-Parameter: {@code q} (optional Suchbegriff), {@code raw} (boolean, optional).</p>
+     * <p>Path: {@code GET /search}</p>
+     * <p>Query parameters: {@code q} (optional search term), {@code raw} (optional boolean).</p>
      *
-     * @param q   Suchausdruck.
-     * @param raw wenn {@code true}, wird der Ausdruck als Lucene-Query interpretiert.
-     * @return 200 OK mit einer Liste von {@link SearchHit Suchtreffern}.
+     * @param q   search expression.
+     * @param raw when {@code true}, interprets the expression as a Lucene query.
+     * @return 200 OK with a list of {@link SearchHit search hits}.
      */
     @GetMapping("/search")
     public ResponseEntity<List<SearchHit>> query(
@@ -52,26 +51,26 @@ public class SearchController {
             return ResponseEntity.ok(List.of());
         }
 
-        // Lucene-String direkt ausführen (wenn 'raw' oder klar Lucene-Syntax)
+        // Run the Lucene query verbatim when 'raw' is true or the input already uses Lucene syntax.
         if (raw || SmartQueryBuilder.looksLikeLucene(q)) {
             return ResponseEntity.ok(lucene.search(q));
         }
 
-        // "Smarte" User-Eingabe -> Lucene-Query bauen und Overload aufrufen
+        // Otherwise build a Lucene query from the user-friendly input and use the Query overload.
         Query built = smart.build(q);
         return ResponseEntity.ok(lucene.search(built));
     }
 
     // Autocomplete/Suggest
     /**
-     * Liefert Autocomplete-Vorschläge.
+     * Provides autocomplete suggestions.
      *
-     * <p>Pfad: {@code GET /search/suggest}</p>
-     * <p>Query-Parameter: {@code q} (Pflichtfeld), {@code max} (optional, 1-25).</p>
+     * <p>Path: {@code GET /search/suggest}</p>
+     * <p>Query parameters: {@code q} (required), {@code max} (optional, 1-25).</p>
      *
-     * @param q   aktueller Eingabetext.
-     * @param max maximale Anzahl Ergebnisse.
-     * @return 200 OK mit einer Liste von Vorschlags-Strings.
+     * @param q   current input text.
+     * @param max maximum number of results.
+     * @return 200 OK with a list of suggestion strings.
      */
     @GetMapping("/search/suggest")
     public List<String> suggest(

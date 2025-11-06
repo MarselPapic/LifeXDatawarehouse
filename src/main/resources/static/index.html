@@ -9,7 +9,7 @@
 <a href="#main" class="skip-link">Skip to content</a>
 
 <header>
-    <!-- Logo as decorative graphic -->
+    <!-- Brand logo shown for decorative purposes -->
     <img src="/img/LifeXDatawarehouseLogo.png" alt="">
     <nav aria-label="Main navigation">
         <a href="/index.html" aria-current="page">Dashboard</a>
@@ -19,12 +19,12 @@
 </header>
 
 <div class="layout">
-    <!-- ─────────── Sidebar ─────────── -->
+    <!-- Sidebar with shortcuts and table list -->
     <aside class="sidebar">
         <section>
             <h2>Shortcuts</h2>
 
-            <!-- 0  Accounts – Gesamtbestand -->
+            <!-- Shortcut preset 0: Accounts – complete inventory -->
             <div class="shortcut" data-id="sc0" data-default="type:account">
                 <button class="head">
                     <span class="rename">✏️</span>
@@ -34,7 +34,7 @@
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 1  Projects – active -->
+            <!-- Shortcut preset 1: Projects – active -->
             <div class="shortcut" data-id="sc1"
                  data-default='type:project AND statusactive'>
                 <button class="head">
@@ -45,7 +45,7 @@
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 2  Service contracts – In Progress -->
+            <!-- Shortcut preset 2: Service contracts – in progress -->
             <div class="shortcut" data-id="sc2"
                  data-default='type:servicecontract AND statusinprogress'>
                 <button class="head">
@@ -56,7 +56,7 @@
                 <div class="panel"><input placeholder="Lucene query (e.g. type:servicecontract AND statusinprogress)"></div>
             </div>
 
-            <!-- 3  Sites – FireZone Bravo -->
+            <!-- Shortcut preset 3: Sites – FireZone Bravo -->
             <div class="shortcut" data-id="sc3"
                  data-default='type:site AND zonebravo'>
                 <button class="head">
@@ -67,7 +67,7 @@
                 <div class="panel"><input></div>
             </div>
 
-            <!-- 4  Server – Lenovo -->
+            <!-- Shortcut preset 4: Servers – Lenovo -->
             <div class="shortcut" data-id="sc4"
                  data-default='type:server AND Lenovo'>
                 <button class="head">
@@ -79,7 +79,7 @@
             </div>
         </section>
 
-        <!-- Table overview -->
+        <!-- Table overview navigation -->
         <section class="tables">
             <h2>Tables</h2>
             <ul>
@@ -90,7 +90,7 @@
                 <li onclick="showTable('Project')">Project</li>
                 <li onclick="showTable('Site')">Site</li>
                 <li onclick="showTable('Server')">Server</li>
-                <li onclick="showTable('Clients')">Clients</li> <!-- FIXED -->
+                <li onclick="showTable('Clients')">Clients</li> <!-- Keep Clients pinned for quick access -->
                 <li onclick="showTable('Radio')">Radio</li>
                 <li onclick="showTable('AudioDevice')">AudioDevice</li>
                 <li onclick="showTable('PhoneIntegration')">PhoneIntegration</li>
@@ -103,9 +103,9 @@
         </section>
     </aside>
 
-    <!-- ─────────── Content ─────────── -->
+    <!-- Main content area -->
     <main id="main" class="content">
-        <!-- Progress bar -->
+        <!-- Progress bar showing the current indexing state -->
         <div id="idx-box" aria-live="polite">
             <div id="idx-bar">
                 <span role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
@@ -115,7 +115,7 @@
 
         <div id="search-bar">
             <label for="search-input" class="visually-hidden">Global search</label>
-            <!-- datalist remains for autocomplete, icon hidden via CSS -->
+            <!-- Keep the datalist for autocomplete; hide the native icon via CSS -->
             <input id="search-input" placeholder="Global search (Lucene or plain)" list="sug" autocomplete="off">
             <datalist id="sug"></datalist>
             <button id="search-btn">Search</button>
@@ -126,7 +126,7 @@
         </div>
     </main>
 
-    <!-- ─────────── Help ─────────── -->
+    <!-- Help sidebar -->
     <aside class="help">
         <h2>Lucene syntax</h2>
         <ul>

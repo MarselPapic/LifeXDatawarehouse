@@ -53,15 +53,15 @@
 
 <main id="main" style="max-width:1000px;margin:2rem auto">
     <div class="nav-buttons">
-        <a id="back-history" href="index.html">← Zurück</a>
+        <a id="back-history" href="index.html">← Back</a>
         <a id="back-dashboard" href="/index.html">Dashboard</a>
     </div>
     <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">loading …</div>
 
-    <!-- NEW: Parent relationships -->
+    <!-- Parent relationships section -->
     <div id="parents"></div>
 
-    <!-- Child lists -->
+    <!-- Child entity listings -->
     <div id="children"></div>
 </main>
 
@@ -776,6 +776,14 @@
         if(ctx.siteId) contextParts.push(`Site ${shortId(ctx.siteId).replace(/^##/, '#')}`);
         if(ctx.clientId) contextParts.push(`Client ${shortId(ctx.clientId).replace(/^##/, '#')}`);
         if(ctx.cityId) contextParts.push(`City ${shortId(ctx.cityId).replace(/^##/, '#')}`);
+        if(ctx.softwareId){
+            const fallbackId = shortId(ctx.softwareId).replace(/^##/, '#');
+            const rawLabel = (meta.softwareLabel ?? ctx.softwareLabel ?? '').toString().trim();
+            const cleanedLabel = rawLabel.replace(/^Software\s+/i, '').trim();
+            const baseLabel = cleanedLabel || fallbackId.replace(/^Software\s+/i, '').trim();
+            const finalLabel = baseLabel ? `Software ${baseLabel}` : 'Software';
+            contextParts.push(finalLabel.trim());
+        }
         if(contextParts.length){
             return `Create new ${label} for ${contextParts.join(' and ')}`;
         }
@@ -1714,7 +1722,7 @@
             if (pills.length) sections.push({ title: 'Belongs to', pills });
         }
 
-        // Rendern
+        // Render sections
         if (sections.length){
             sections.forEach(s => {
                 const sec = document.createElement('div');
@@ -1838,6 +1846,48 @@
                 const desc = [status, meta].filter(Boolean).join(' · ');
                 return pillLink(`/details.html?type=servicecontract&id=${encodeURIComponent(cid)}`, labelFor('servicecontract', sc), cid, desc);
             }, { entity: 'ServiceContract', label: 'ServiceContract', params: { accountId, projectId, siteId: id } });
+
+            const installedRows = await fetchJson(`/table/installedsoftware?limit=200`);
+            const installed = Array.isArray(installedRows)
+                ? installedRows.filter(isw => (val(isw,'SiteID') ?? '').toString() === (id ?? '').toString())
+                : [];
+            addSection(box, 'Installed Software', installed, isw => {
+                const installId = val(isw,'InstalledSoftwareID');
+                const label = labelFor('installedsoftware', isw);
+                const status = val(isw,'Status');
+                const softwareId = val(isw,'SoftwareID');
+                const descParts = [];
+                if(status) descParts.push(status);
+                if(softwareId) descParts.push(`Software ${shortId(softwareId).replace(/^##/, '#')}`);
+                return pillLink(
+                    `/details.html?type=installedsoftware&id=${encodeURIComponent(installId)}`,
+                    label,
+                    installId,
+                    descParts.join(' · ')
+                );
+            }, { entity: 'InstalledSoftware', label: 'Installed Software', params: { siteId: id } });
+
+            const upgradeRows = await fetchJson(`/table/upgradeplan?limit=200`);
+            const plans = Array.isArray(upgradeRows)
+                ? upgradeRows.filter(plan => (val(plan,'SiteID') ?? '').toString() === (id ?? '').toString())
+                : [];
+            addSection(box, 'Upgrade Plans', plans, plan => {
+                const planId = val(plan,'UpgradePlanID');
+                const label = labelFor('upgradeplan', plan);
+                const status = val(plan,'Status');
+                const softwareId = val(plan,'SoftwareID');
+                const window = formatDateRange(val(plan,'PlannedWindowStart'), val(plan,'PlannedWindowEnd'));
+                const descParts = [];
+                if(status) descParts.push(status);
+                if(softwareId) descParts.push(`Software ${shortId(softwareId).replace(/^##/, '#')}`);
+                if(window) descParts.push(window);
+                return pillLink(
+                    `/details.html?type=upgradeplan&id=${encodeURIComponent(planId)}`,
+                    label,
+                    planId,
+                    descParts.join(' · ')
+                );
+            }, { entity: 'UpgradePlan', label: 'Upgrade Plan', params: { siteId: id } });
         }
         else if(type==='Client'){
             const aud = await fetchJson(`/audio?clientId=${id}`);
@@ -1859,6 +1909,13 @@
             const installed = Array.isArray(installedRows)
                 ? installedRows.filter(r => (val(r,'SoftwareID') ?? '').toString() === id.toString())
                 : [];
+            const softwareContextLabel = (() => {
+                const name = val(row,'Name');
+                const release = val(row,'Release');
+                const revision = val(row,'Revision');
+                const parts = [name, release, revision].map(part => (part ?? '').toString().trim()).filter(Boolean);
+                return parts.length ? parts.join(' ') : '';
+            })();
             addSection(box, 'Installations', installed, isw => {
                 const installId = val(isw,'InstalledSoftwareID');
                 const label = labelFor('installedsoftware', isw);
@@ -1868,6 +1925,11 @@
                     descParts.push(`Site ${shortId(siteId)}`);
                 }
                 return pillLink(`/details.html?type=installedsoftware&id=${encodeURIComponent(installId)}`, label, installId, descParts.join(' · '));
+            }, {
+                entity: 'InstalledSoftware',
+                label: 'InstalledSoftware',
+                params: { softwareId: id },
+                softwareLabel: softwareContextLabel
             });
 
             const planRows = await fetchJson(`/table/upgradeplan?limit=200`);
@@ -1881,6 +1943,11 @@
                 const window = formatDateRange(val(plan,'PlannedWindowStart'), val(plan,'PlannedWindowEnd'));
                 const descParts = [status, window].filter(Boolean);
                 return pillLink(`/details.html?type=upgradeplan&id=${encodeURIComponent(planId)}`, label, planId, descParts.join(' · '));
+            }, {
+                entity: 'UpgradePlan',
+                label: 'UpgradePlan',
+                params: { softwareId: id },
+                softwareLabel: softwareContextLabel
             });
         }
     }

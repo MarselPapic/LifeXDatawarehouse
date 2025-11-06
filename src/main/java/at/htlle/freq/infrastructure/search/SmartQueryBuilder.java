@@ -6,36 +6,36 @@ import org.apache.lucene.search.Query;
 import org.springframework.stereotype.Component;
 
 /**
- * Hilfsklasse, die Nutzereingaben in Lucene-Queries übersetzt und damit den
- * {@link at.htlle.freq.web.SearchController SearchController} entlastet.
+ * Utility that translates user input into Lucene queries and offloads the
+ * {@link at.htlle.freq.web.SearchController SearchController}.
  *
- * <p>Verwendet einen {@link StandardAnalyzer}, damit Query-Parsing und Indexierung die gleiche
- * Tokenisierung nutzen. Der {@code SearchController} delegiert freie Texteingaben an diese
- * Komponente, wenn {@link #looksLikeLucene(String)} keine explizite Lucene-Syntax erkennt.</p>
+ * <p>Uses a {@link StandardAnalyzer} so parsing and indexing share the same tokenization. The
+ * {@code SearchController} delegates free-text input to this component whenever
+ * {@link #looksLikeLucene(String)} does not detect explicit Lucene syntax.</p>
  */
 @Component
 public class SmartQueryBuilder {
 
     /**
-     * Analyzer der Query-Eingaben identisch wie beim Indexieren tokenisiert, um
-     * Suchanfragen konsistent zu interpretieren.
+     * Analyzer that tokenizes query input exactly as during indexing to interpret searches
+     * consistently.
      */
     private static final StandardAnalyzer ANALYZER = new StandardAnalyzer();
 
     /**
-     * Fällt für freie Texteingaben auf das Standardfeld des Volltextindex zurück.
+     * Default field used when free-text queries are projected onto the full-text index.
      */
     private static final String DEFAULT_FIELD = "content";
 
     /**
-     * Prüft heuristisch, ob der Nutzer-String bereits eine vollständige Lucene-Query ist.
+     * Heuristically checks whether the user string already represents a complete Lucene query.
      *
-     * <p>Die Heuristiken erkennen Doppelpunkte für Feldangaben, Anführungszeichen für
-     * Phrasen, logische Operatoren ({@code AND}/{@code OR}) sowie ein abschließendes
-     * {@code *} für Präfixsuchen.</p>
+     * <p>The heuristics look for colons to denote field specifications, quotation marks for
+     * phrases, logical operators ({@code AND}/{@code OR}), and trailing {@code *} characters for
+     * prefix searches.</p>
      *
-     * @param q Roh-Eingabe des Nutzers.
-     * @return {@code true}, wenn die Heuristiken Lucene-Syntax vermuten; sonst {@code false}.
+     * @param q raw user input.
+     * @return {@code true} when the heuristics indicate Lucene syntax; otherwise {@code false}.
      */
     public static boolean looksLikeLucene(String q) {
         if (q == null) return false;
@@ -45,19 +45,18 @@ public class SmartQueryBuilder {
     }
 
     /**
-     * Baut aus einer nutzerfreundlichen Texteingabe eine Lucene-Query für den
-     * {@link at.htlle.freq.web.SearchController}, falls nicht bereits
-     * {@link #looksLikeLucene(String)} greift.
+     * Builds a Lucene query from user-friendly text input for the
+     * {@link at.htlle.freq.web.SearchController}, provided {@link #looksLikeLucene(String)} does
+     * not already apply.
      *
-     * <p>Die Eingabe wird mit dem {@link #ANALYZER} auf das {@link #DEFAULT_FIELD}
-     * projiziert, der Standardoperator auf {@code AND} gesetzt und bei leerer Eingabe eine
-     * Match-All-Query ({@code *:*}) erzeugt.</p>
+     * <p>The input is projected onto the {@link #DEFAULT_FIELD} using the {@link #ANALYZER}, the
+     * default operator is set to {@code AND}, and empty input results in a match-all query
+     * ({@code *:*}).</p>
      *
-     * @param userInput Roh-Eingabe des Nutzers, typischerweise aus dem HTTP-Parameter {@code q}.
-     * @return Geparste Lucene-Query, die an den {@code LuceneIndexService} weitergegeben werden
-     * kann.
-     * @throws IllegalArgumentException wenn die Eingabe nicht in eine gültige Lucene-Query
-     *                                  übersetzt werden kann.
+     * @param userInput raw user input, typically sourced from the HTTP parameter {@code q}.
+     * @return parsed Lucene query that can be forwarded to the {@code LuceneIndexService}.
+     * @throws IllegalArgumentException if the input cannot be transformed into a valid Lucene
+     *                                  query.
      */
     public Query build(String userInput) {
         try {
@@ -68,7 +67,7 @@ public class SmartQueryBuilder {
             }
             return p.parse(userInput.trim());
         } catch (Exception e) {
-            throw new IllegalArgumentException("Ungültige Suchanfrage: " + userInput, e);
+            throw new IllegalArgumentException("Invalid search query: " + userInput, e);
         }
     }
 }

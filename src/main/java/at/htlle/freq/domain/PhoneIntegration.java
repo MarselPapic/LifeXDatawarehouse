@@ -3,9 +3,10 @@ package at.htlle.freq.domain;
 import java.util.UUID;
 
 /**
- * Describes the telephony integration that is wired to a {@link Clients}
- * workstation. The record keeps track of device model, firmware and supported
- * emergency capabilities to align with regulatory requirements.
+ * Describes the telephony integration that is wired to a
+ * {@link Clients} client workstation. The record keeps track of device
+ * model, firmware and supported emergency capabilities to align with
+ * regulatory requirements.
  */
 public class PhoneIntegration {
     private UUID phoneIntegrationID;

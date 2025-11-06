@@ -18,10 +18,10 @@ The following guides illustrate how to use some features concretely:
 * [Building REST services with Spring](https://spring.io/guides/tutorials/rest/)
 * [Using Spring Data JDBC](https://github.com/spring-projects/spring-data-examples/tree/master/jdbc/basics)
 
-### Maven Parent overrides
+### Maven parent overrides
 
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
+Because of Maven's inheritance model, elements in the parent POM flow into the project POM by default.
+While most inherited sections are desired, items such as `<license>` and `<developers>` come along even when they should not.
+To prevent that, the project POM defines empty overrides for those sections.
+If you switch to a different parent and do want to inherit them, remove the overrides.
 

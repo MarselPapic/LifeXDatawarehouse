@@ -14,19 +14,21 @@ public class Software {
     private String revision;
     private String supportPhase;   // Preview / Production / EoL
     private String licenseModel;
+    private Boolean thirdParty;
     private String endOfSalesDate;
     private String supportStartDate;
     private String supportEndDate;
 
     public Software() {}
     public Software(UUID softwareID, String name, String release, String revision, String supportPhase,
-                    String licenseModel, String endOfSalesDate, String supportStartDate, String supportEndDate) {
+                    String licenseModel, Boolean thirdParty, String endOfSalesDate, String supportStartDate, String supportEndDate) {
         this.softwareID = softwareID;
         this.name = name;
         this.release = release;
         this.revision = revision;
         this.supportPhase = supportPhase;
         this.licenseModel = licenseModel;
+        this.thirdParty = thirdParty;
         this.endOfSalesDate = endOfSalesDate;
         this.supportStartDate = supportStartDate;
         this.supportEndDate = supportEndDate;
@@ -49,6 +51,11 @@ public class Software {
 
     public String getLicenseModel() { return licenseModel; }
     public void setLicenseModel(String licenseModel) { this.licenseModel = licenseModel; }
+
+    public Boolean getThirdParty() { return thirdParty; }
+    public boolean isThirdParty() { return Boolean.TRUE.equals(thirdParty); }
+    public void setThirdParty(Boolean thirdParty) { this.thirdParty = thirdParty; }
+    public void setThirdParty(boolean thirdParty) { this.thirdParty = thirdParty; }
 
     public String getEndOfSalesDate() { return endOfSalesDate; }
     public void setEndOfSalesDate(String endOfSalesDate) { this.endOfSalesDate = endOfSalesDate; }

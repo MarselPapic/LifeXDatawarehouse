@@ -7,9 +7,10 @@ import java.util.UUID;
 public class PhoneIntegrationFactory {
     /**
      * Constructs a {@link PhoneIntegration} tied to a {@link Clients}
-     * workstation. The returned instance awaits persistence to obtain its id.
+     * client workstation. The returned instance awaits persistence to obtain
+     * its id.
      *
-     * @param clientID identifier of the host client
+     * @param clientID identifier of the host client workstation
      * @param phoneType designation of supported call scenarios
      * @param brand hardware brand
      * @param serialNr device serial number

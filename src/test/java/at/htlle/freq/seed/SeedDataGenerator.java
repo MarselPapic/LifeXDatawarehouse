@@ -258,6 +258,7 @@ public final class SeedDataGenerator {
             int endOfSalesOffset = 180 + RANDOM.nextInt(540);
             int supportStartOffset = -240 + RANDOM.nextInt(120);
             int supportEndOffset = supportStartOffset + 365;
+            boolean thirdParty = "Edge Gateway".equals(product) || "Analytics Suite".equals(product);
             result.add(new Software(
                     generateId(EntityType.SOFTWARE),
                     product,
@@ -265,6 +266,7 @@ public final class SeedDataGenerator {
                     revision,
                     phase,
                     license,
+                    thirdParty,
                     endOfSalesOffset,
                     supportStartOffset,
                     supportEndOffset
@@ -313,7 +315,7 @@ public final class SeedDataGenerator {
         List<Site> sites = new ArrayList<>();
         int siteCounter = 0;
         for (Project project : projects) {
-            int siteCount = (siteCounter < 17) ? 2 : 1; // first 17 projects get two sites, rest one
+            int siteCount = (siteCounter < 17) ? 2 : 1; // Assign two sites to the first 17 projects and one to the remainder
             for (int i = 0; i < siteCount; i++) {
                 Address address = addresses.get((siteCounter + i) % addresses.size());
                 String name = project.projectName().replace("Project", "")
@@ -580,7 +582,7 @@ public final class SeedDataGenerator {
                 .map(variant -> row(str(variant.id()), str(variant.code()), str(variant.name()), str(variant.description()), bool(variant.active())))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "Software", List.of("SoftwareID", "Name", "Release", "Revision", "SupportPhase", "LicenseModel", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"), software.stream()
+        appendInsert(sb, "Software", List.of("SoftwareID", "Name", "Release", "Revision", "SupportPhase", "LicenseModel", "ThirdParty", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"), software.stream()
                 .map(soft -> row(
                         str(soft.id()),
                         str(soft.name()),
@@ -588,6 +590,7 @@ public final class SeedDataGenerator {
                         str(soft.revision()),
                         str(soft.supportPhase()),
                         str(soft.licenseModel()),
+                        bool(soft.thirdParty()),
                         dateOffset(soft.endOfSalesOffset()),
                         dateOffset(soft.supportStartOffset()),
                         dateOffset(soft.supportEndOffset())
@@ -799,7 +802,7 @@ public final class SeedDataGenerator {
     private record DeploymentVariant(String id, String code, String name, String description, boolean active) {
     }
 
-    private record Software(String id, String name, String release, String revision, String supportPhase, String licenseModel, int endOfSalesOffset, int supportStartOffset, int supportEndOffset) {
+    private record Software(String id, String name, String release, String revision, String supportPhase, String licenseModel, boolean thirdParty, int endOfSalesOffset, int supportStartOffset, int supportEndOffset) {
     }
 
     private record Project(String id, String sapId, String projectName, String deploymentVariantId, String bundleType, int createOffset, ProjectLifecycleStatus status, String accountId, String addressId) {

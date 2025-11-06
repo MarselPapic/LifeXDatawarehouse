@@ -1,7 +1,7 @@
 package at.htlle.freq.application.report;
 
 /**
- * Beschreibt eine Kennzahl mit Schlüssel, Anzeige-Label, Wert und optionalem Hinweis.
+ * Describes a KPI with key, display label, value, and optional hint.
  */
 public record Kpi(
         String key,

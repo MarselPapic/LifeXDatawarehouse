@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST-Controller für {@link Clients} einer Site.
+ * REST controller for {@link Clients} within a site.
  *
- * <p>Verwendet den {@link ClientsService} zur Persistenz.</p>
+ * <p>Uses {@link ClientsService} for persistence.</p>
  */
 @RestController
 @RequestMapping("/clients")
@@ -25,13 +25,13 @@ public class ClientController {
     }
 
     /**
-     * Listet Clients optional gefiltert nach Site.
+     * Lists clients, optionally filtered by site.
      *
-     * <p>Pfad: {@code GET /clients}</p>
-     * <p>Query-Parameter: {@code siteId} (optional, UUID) für die Filterung.</p>
+     * <p>Path: {@code GET /clients}</p>
+     * <p>Query parameter: {@code siteId} (optional, UUID) for filtering.</p>
      *
-     * @param siteId optionale Site-ID.
-     * @return 200 OK mit einer Liste von {@link Clients}.
+     * @param siteId optional site ID.
+     * @return 200 OK with a list of {@link Clients}.
      */
     @GetMapping
     public List<Clients> findBySite(@RequestParam(required = false) UUID siteId) {
@@ -42,13 +42,13 @@ public class ClientController {
     }
 
     /**
-     * Legt einen neuen Client an.
+     * Creates a new client.
      *
-     * <p>Pfad: {@code POST /clients}</p>
-     * <p>Request-Body: JSON-Repräsentation eines {@link Clients}.</p>
+     * <p>Path: {@code POST /clients}</p>
+     * <p>Request body: JSON representation of a {@link Clients} record validated by the service.</p>
      *
-     * @param client Client-Payload.
-     * @return 200 OK mit dem gespeicherten Datensatz oder entsprechende Fehlercodes (400/500).
+     * @param client client payload.
+     * @return HTTP 200 containing the saved entity; HTTP 400/500 with an explanatory error message otherwise.
      */
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Clients client) {

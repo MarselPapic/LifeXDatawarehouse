@@ -11,9 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für Sites.
+ * Fully featured CRUD controller for sites.
  *
- * <p>Nutzen des {@link NamedParameterJdbcTemplate} für Datenbankoperationen.</p>
+ * <p>Uses {@link NamedParameterJdbcTemplate} for database operations.</p>
  */
 @RestController
 @RequestMapping("/sites")
@@ -27,18 +27,16 @@ public class SiteController {
         this.jdbc = jdbc;
     }
 
-    // ----------------------------
-    // READ: Alle Sites oder nach Project filtern
-    // ----------------------------
+    // READ operations: list all sites or filter by project
 
     /**
-     * Listet Sites optional gefiltert nach Projekt.
+     * Lists sites, optionally filtered by project.
      *
-     * <p>Pfad: {@code GET /sites}</p>
-     * <p>Query-Parameter: {@code projectId} (optional).</p>
+     * <p>Path: {@code GET /sites}</p>
+     * <p>Optional {@code projectId} query parameter narrows the result to a project.</p>
      *
-     * @param projectId optionaler Projekt-FK.
-     * @return 200 OK mit Sites als JSON.
+     * @param projectId optional project foreign key.
+     * @return 200 OK with sites as JSON.
      */
     @GetMapping
     public List<Map<String, Object>> findByProject(@RequestParam(required = false) String projectId) {
@@ -57,12 +55,12 @@ public class SiteController {
     }
 
     /**
-     * Liefert eine Site anhand der ID.
+     * Returns a site by ID.
      *
-     * <p>Pfad: {@code GET /sites/{id}}</p>
+     * <p>Path: {@code GET /sites/{id}}</p>
      *
-     * @param id Site-ID.
-     * @return 200 OK mit Feldwerten oder 404 bei unbekannter ID.
+     * @param id site ID.
+     * @return 200 OK with the field values or 404 if the ID is unknown.
      */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
@@ -78,18 +76,16 @@ public class SiteController {
         return rows.get(0);
     }
 
-    // ----------------------------
-    // CREATE
-    // ----------------------------
+    // CREATE operations
 
     /**
-     * Legt eine Site an.
+     * Creates a site.
      *
-     * <p>Pfad: {@code POST /sites}</p>
-     * <p>Request-Body: JSON mit Feldern wie {@code siteName}, {@code projectID}.</p>
+     * <p>Path: {@code POST /sites}</p>
+     * <p>Request body: JSON with fields such as {@code siteName} or {@code projectID}.</p>
      *
-     * @param body Eingabedaten.
-     * @throws ResponseStatusException 400 bei leerem Body.
+     * @param body input payload.
+     * @throws ResponseStatusException 400 if the body is empty.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -107,19 +103,17 @@ public class SiteController {
         log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
-    // ----------------------------
-    // UPDATE
-    // ----------------------------
+    // UPDATE operations
 
     /**
-     * Aktualisiert eine Site.
+     * Updates a site.
      *
-     * <p>Pfad: {@code PUT /sites/{id}}</p>
-     * <p>Request-Body: JSON-Objekt mit zu setzenden Spalten.</p>
+     * <p>Path: {@code PUT /sites/{id}}</p>
+     * <p>Request body: JSON object with the columns to update.</p>
      *
-     * @param id   Site-ID.
-     * @param body Feldwerte.
-     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn nichts aktualisiert wurde.
+     * @param id   site ID.
+     * @param body field values.
+     * @throws ResponseStatusException 400 if the body is empty, 404 if nothing was updated.
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -143,17 +137,15 @@ public class SiteController {
         log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("SiteID", id), body.keySet());
     }
 
-    // ----------------------------
-    // DELETE
-    // ----------------------------
+    // DELETE operations
 
     /**
-     * Löscht eine Site.
+     * Deletes a site.
      *
-     * <p>Pfad: {@code DELETE /sites/{id}}</p>
+     * <p>Path: {@code DELETE /sites/{id}}</p>
      *
-     * @param id Site-ID.
-     * @throws ResponseStatusException 404, wenn kein Datensatz gelöscht wurde.
+     * @param id site ID.
+     * @throws ResponseStatusException 404 if no row was deleted.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

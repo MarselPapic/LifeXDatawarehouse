@@ -18,10 +18,9 @@ import java.util.UUID;
 /**
  * Servlet filter that enriches the logging MDC context for every incoming HTTP request.
  * <p>
- * The filter is registered at the highest precedence within the servlet filter chain so
- * that downstream filters and controllers can rely on the populated MDC keys. It stores the
- * resolved request identifier under {@value #MDC_REQUEST_ID} and the resolved user identifier
- * under {@value #MDC_USER}.
+ * The filter executes with the highest precedence so downstream filters and controllers can rely on the populated
+ * MDC keys. It stores the resolved request identifier under {@value #MDC_REQUEST_ID} and the resolved user identifier
+ * under {@value #MDC_USER}, making the metadata available to every log statement within the request scope.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -32,18 +31,16 @@ public class LoggingContextFilter extends OncePerRequestFilter {
     private static final String HEADER_REQUEST_ID = "X-Request-Id";
 
     /**
-     * Adds logging metadata for the current request and delegates to the next element of the filter
-     * chain.
+     * Adds logging metadata for the current request and delegates to the next element of the filter chain.
      * <p>
-     * The filter resolves the request identifier from the {@code X-Request-Id} header if present or
-     * generates a random UUID otherwise. The active user is determined from the {@link Principal}
-     * of the request or, as a fallback, from the {@code X-User-Id} header. Both values are exposed
-     * via MDC so that log statements within the request scope contain the populated metadata. The
-     * generated or propagated request identifier is also written back to the response header
+     * The filter resolves the request identifier from the {@code X-Request-Id} header if present or generates a random
+     * UUID otherwise. The active user is determined from the {@link Principal} of the request or, as a fallback, from the
+     * {@code X-User-Id} header. Both values are exposed via MDC so that log statements within the request scope contain the
+     * populated metadata. The generated or propagated request identifier is also written back to the response header
      * {@code X-Request-Id}.
      * <p>
-     * MDC entries are cleaned up in a {@code finally} block to prevent data leakage in case of
-     * exceptions thrown by downstream filters or servlet components.
+     * MDC entries are cleaned up in a {@code finally} block to prevent data leakage in case of exceptions thrown by
+     * downstream filters or servlet components.
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request,

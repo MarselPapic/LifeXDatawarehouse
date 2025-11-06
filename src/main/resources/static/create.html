@@ -53,7 +53,7 @@
 <main id="main" class="container" aria-live="polite">
     <h1 id="createHeading">Create data entry</h1>
 
-    <!-- Schritt 1 -->
+    <!-- Step 1: Choose the entity type to create -->
     <fieldset id="step1">
         <label for="entity">Which entity would you like to create?</label>
         <select id="entity">
@@ -77,7 +77,7 @@
         <button onclick="next()">Next</button>
     </fieldset>
 
-    <!-- Schritt 2 -->
+    <!-- Step 2: Display contextual guidance and render the dynamic form -->
     <section id="entityContext" class="entity-context hidden" aria-live="assertive" aria-atomic="true" aria-hidden="true">
         <p id="entityHint" class="entity-hint"></p>
     </section>
@@ -1175,6 +1175,7 @@
         const siteId=params.get('siteId');
         const clientId=params.get('clientId');
         const cityId=params.get('cityId');
+        const softwareId=params.get('softwareId');
 
         switch(option.value){
             case 'Address':
@@ -1228,6 +1229,30 @@
                 if(siteId){
                     await ensureAsyncValue('siteID', siteId, {lock:true});
                     context.siteId=siteId;
+                }
+                break;
+            case 'InstalledSoftware':
+                if(accountId) context.accountId=accountId;
+                if(projectId) context.projectId=projectId;
+                if(siteId){
+                    await ensureAsyncValue('siteID', siteId, {lock:true});
+                    context.siteId=siteId;
+                }
+                if(softwareId){
+                    await ensureAsyncValue('softwareID', softwareId, {lock:true});
+                    context.softwareId=softwareId;
+                }
+                break;
+            case 'UpgradePlan':
+                if(accountId) context.accountId=accountId;
+                if(projectId) context.projectId=projectId;
+                if(siteId){
+                    await ensureAsyncValue('siteID', siteId, {lock:true});
+                    context.siteId=siteId;
+                }
+                if(softwareId){
+                    await ensureAsyncValue('softwareID', softwareId, {lock:true});
+                    context.softwareId=softwareId;
                 }
                 break;
         }
@@ -1405,12 +1430,15 @@
 
             case 'Software':
                 url='/row/software';
+                const thirdPartyRaw=v('swThirdParty')||'false';
+                const thirdParty=thirdPartyRaw==='true';
                 p={
                     Name: v('swName'),
                     Release: v('swRelease'),
                     Revision: v('swRevision'),
                     SupportPhase: v('swPhase'),
                     LicenseModel: toNull(v('swLicense')),
+                    ThirdParty: thirdParty,
                     EndOfSalesDate: toNull(v('swEos')),
                     SupportStartDate: toNull(v('swSupportStart')),
                     SupportEndDate: toNull(v('swSupportEnd'))

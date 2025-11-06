@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link ServiceContract}, das Vertragsdaten in der Tabelle
- * {@code ServiceContract} ablegt und Beziehungen zu Account, Projekt und Site verwaltet.
+ * JDBC repository for {@link ServiceContract} that stores contract data in the
+ * {@code ServiceContract} table and maintains relationships to accounts, projects, and sites.
  */
 @Repository
 public class JdbcServiceContractRepository implements ServiceContractRepository {
@@ -58,15 +58,16 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
     }
 
     /**
-     * Persistiert Serviceverträge via INSERT oder UPDATE in der Tabelle {@code ServiceContract}.
+     * Persists service contracts via INSERT or UPDATE operations on the {@code ServiceContract}
+     * table.
      * <p>
-     * Über {@code RETURNING ContractID} werden neue Primärschlüssel aus der Datenbank gelesen.
-     * Sämtliche Parameter werden namentlich gebunden, um insbesondere die Fremdschlüssel sauber
-     * zuzuordnen und das RowMapper-Mapping konsistent zu halten.
+     * The {@code RETURNING ContractID} clause retrieves newly generated primary keys. All
+     * parameters are bound by name to keep foreign keys correctly assigned and aligned with the
+     * RowMapper configuration.
      * </p>
      *
-     * @param s Vertragsobjekt mit Fremdschlüsseln auf Account, Projekt und Site.
-     * @return der persistierte Servicevertrag mit {@code ContractID}.
+     * @param s contract entity with foreign keys to account, project, and site records.
+     * @return the persisted service contract including its {@code ContractID}.
      */
     @Override
     public ServiceContract save(ServiceContract s) {

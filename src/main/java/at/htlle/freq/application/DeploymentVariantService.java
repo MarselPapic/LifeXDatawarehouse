@@ -14,7 +14,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*;
 
 /**
- * Verwaltet Deployment-Varianten und orchestriert die Synchronisierung mit dem Lucene-Index.
+ * Manages deployment variants and orchestrates synchronization with the Lucene index.
  */
 @Service
 public class DeploymentVariantService {
@@ -25,10 +25,10 @@ public class DeploymentVariantService {
     private final LuceneIndexService lucene;
 
     /**
-     * Erstellt den Service mit Repository- und Index-Abhängigkeiten.
+     * Creates the service with repository and index dependencies.
      *
-     * @param repo   Repository für Deployment-Varianten
-     * @param lucene Indexdienst für Lucene
+     * @param repo   repository for deployment variants
+     * @param lucene Lucene index service
      */
     public DeploymentVariantService(DeploymentVariantRepository repo, LuceneIndexService lucene) {
         this.repo = repo;
@@ -38,19 +38,19 @@ public class DeploymentVariantService {
     // ---------- Queries ----------
 
     /**
-     * Liefert alle Deployment-Varianten.
+     * Returns every deployment variant.
      *
-     * @return Liste aller Varianten
+     * @return list of all variants
      */
     public List<DeploymentVariant> getAllVariants() {
         return repo.findAll();
     }
 
     /**
-     * Holt eine Variante anhand ihrer ID.
+     * Retrieves a variant by its identifier.
      *
-     * @param id Varianten-ID
-     * @return Optional mit Variante oder leer
+     * @param id variant identifier
+     * @return optional containing the variant or empty otherwise
      */
     public Optional<DeploymentVariant> getVariantById(UUID id) {
         Objects.requireNonNull(id, "variant id must not be null");
@@ -58,10 +58,10 @@ public class DeploymentVariantService {
     }
 
     /**
-     * Sucht eine Variante anhand ihres Codes.
+     * Searches for a variant by its code.
      *
-     * @param code eindeutiger Code
-     * @return Optional mit Variante oder leer
+     * @param code unique code
+     * @return optional containing the variant or empty otherwise
      */
     public Optional<DeploymentVariant> getVariantByCode(String code) {
         if (isBlank(code)) return Optional.empty();
@@ -69,10 +69,10 @@ public class DeploymentVariantService {
     }
 
     /**
-     * Sucht eine Variante anhand ihres Namens.
+     * Searches for a variant by its name.
      *
-     * @param name Klartextname
-     * @return Optional mit Variante oder leer
+     * @param name human readable name
+     * @return optional containing the variant or empty otherwise
      */
     public Optional<DeploymentVariant> getVariantByName(String name) {
         if (isBlank(name)) return Optional.empty();
@@ -82,11 +82,11 @@ public class DeploymentVariantService {
     // ---------- Commands ----------
 
     /**
-     * Speichert eine Deployment-Variante und indexiert sie nach erfolgreichem Commit.
-     * Validiert Pflichtfelder für Code und Name.
+     * Saves a deployment variant and indexes it after a successful commit.
+     * Validates required fields for code and name.
      *
-     * @param incoming zu speichernde Variante
-     * @return gespeicherte Variante
+     * @param incoming variant to persist
+     * @return stored variant
      */
     @Transactional
     public DeploymentVariant createOrUpdateVariant(DeploymentVariant incoming) {
@@ -100,17 +100,17 @@ public class DeploymentVariantService {
         DeploymentVariant saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("DeploymentVariant gespeichert: id={} code='{}' name='{}'",
+        log.info("DeploymentVariant saved: id={} code='{}' name='{}'",
                 saved.getVariantID(), saved.getVariantCode(), saved.getVariantName());
         return saved;
     }
 
     /**
-     * Aktualisiert eine bestehende Variante und synchronisiert den Lucene-Index.
+     * Updates an existing variant and synchronizes the Lucene index.
      *
-     * @param id    Varianten-ID
-     * @param patch Änderungen, die übernommen werden sollen
-     * @return Optional mit aktualisierter Variante oder leer
+     * @param id    variant identifier
+     * @param patch changes to merge into the stored entity
+     * @return optional containing the updated variant or empty otherwise
      */
     @Transactional
     public Optional<DeploymentVariant> updateVariant(UUID id, DeploymentVariant patch) {
@@ -126,24 +126,24 @@ public class DeploymentVariantService {
             DeploymentVariant saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("DeploymentVariant aktualisiert: id={} name='{}'",
+            log.info("DeploymentVariant updated: id={} name='{}'",
                     id, saved.getVariantName());
             return saved;
         });
     }
 
     /**
-     * Löscht eine Variante endgültig.
+     * Permanently deletes a variant.
      *
-     * @param id Varianten-ID
+     * @param id variant identifier
      */
     @Transactional
     public void deleteVariant(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(v -> {
-            log.info("DeploymentVariant gelöscht: id={} name='{}'",
+            log.info("DeploymentVariant deleted: id={} name='{}'",
                     id, v.getVariantName());
-            // Optional: lucene.deleteVariant(id.toString());
+            // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
@@ -171,9 +171,9 @@ public class DeploymentVariantService {
                     v.getDescription(),
                     Boolean.parseBoolean(Boolean.toString(v.isActive()))
             );
-            log.debug("DeploymentVariant in Lucene indexiert: id={}", v.getVariantID());
+            log.debug("DeploymentVariant indexed in Lucene: id={}", v.getVariantID());
         } catch (Exception e) {
-            log.error("Lucene-Indexing für DeploymentVariant {} fehlgeschlagen", v.getVariantID(), e);
+            log.error("Lucene indexing for DeploymentVariant {} failed", v.getVariantID(), e);
         }
     }
 

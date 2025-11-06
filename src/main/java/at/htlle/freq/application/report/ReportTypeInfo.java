@@ -1,7 +1,7 @@
 package at.htlle.freq.application.report;
 
 /**
- * Beschreibt einen auswählbaren Report-Typ für das Frontend.
+ * Describes a selectable report type for the front end.
  */
 public record ReportTypeInfo(
         String id,

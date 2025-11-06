@@ -46,7 +46,7 @@ final class TestFixtures {
 
     static Software software() {
         return new Software(UUID5, "Software", "1.0", "rev1", "Production", "Subscription",
-                "2024-12-31", "2024-01-01", "2025-12-31");
+                false, "2024-12-31", "2024-01-01", "2025-12-31");
     }
 
     static UpgradePlan upgradePlan() {
@@ -67,7 +67,7 @@ final class TestFixtures {
     }
 
     static InstalledSoftware installedSoftware() {
-        return new InstalledSoftware(UUID2, UUID4, UUID5, InstalledSoftwareStatus.ACTIVE.dbValue());
+        return new InstalledSoftware(UUID2, UUID4, UUID5, InstalledSoftwareStatus.OFFERED.dbValue());
     }
 
     static ServiceContract serviceContract() {

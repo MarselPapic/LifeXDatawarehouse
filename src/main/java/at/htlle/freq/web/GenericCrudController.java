@@ -11,10 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Generischer CRUD-Controller auf Tabellenbasis.
+ * Generic table-based CRUD controller.
  *
- * <p>Erlaubt vereinfachte Verwaltungsoperationen über den
- * {@link NamedParameterJdbcTemplate} und eine Whitelist an Tabellen.</p>
+ * <p>Enables simplified administrative operations via {@link NamedParameterJdbcTemplate} and a whitelist of tables.</p>
  */
 @RestController
 public class GenericCrudController {
@@ -27,7 +26,7 @@ public class GenericCrudController {
         this.jdbc = jdbc;
     }
 
-    // -------- Whitelist gültiger Tabellen + Aliase --------
+    // -------- Whitelist of allowed tables and aliases --------
     private static final Map<String, String> TABLES;
     private static final Map<String, String> PKS;
 
@@ -90,15 +89,15 @@ public class GenericCrudController {
     // -------- READ --------
 
     /**
-     * Liest mehrere Zeilen einer Whitelist-Tabelle.
+     * Reads multiple rows from an allowed table.
      *
-     * <p>Pfad: {@code GET /table/{name}}</p>
-     * <p>Pfadvariable: {@code name} – Tabellenalias aus der Whitelist.</p>
-     * <p>Query-Parameter: {@code limit} (optional, 1-500) begrenzt die Ergebnismenge.</p>
+     * <p>Path: {@code GET /table/{name}}</p>
+     * <p>Path variable: {@code name} – table alias from the whitelist.</p>
+     * <p>Query parameter: {@code limit} (optional, 1-500) limits the result size.</p>
      *
-     * @param name  Tabellenalias.
-     * @param limit gewünschte Anzahl Datensätze.
-     * @return 200 OK mit einer JSON-Liste von Zeilen.
+     * @param name  table alias.
+     * @param limit desired number of records.
+     * @return 200 OK with a JSON list of rows.
      */
     @GetMapping("/table/{name}")
     public List<Map<String, Object>> list(@PathVariable String name,
@@ -109,13 +108,13 @@ public class GenericCrudController {
     }
 
     /**
-     * Liest eine einzelne Zeile aus einer Whitelist-Tabelle.
+     * Reads a single row from an allowed table.
      *
-     * <p>Pfad: {@code GET /row/{name}/{id}}</p>
+     * <p>Path: {@code GET /row/{name}/{id}}</p>
      *
-     * @param name Tabellenalias.
-     * @param id   Primärschlüsselwert (als String übertragen).
-     * @return 200 OK mit der Datenzeile oder 404 bei unbekannter ID.
+     * @param name table alias.
+     * @param id   primary key value (transferred as a string).
+     * @return 200 OK with the data row or 404 if the ID is unknown.
      */
     @GetMapping("/row/{name}/{id}")
     public Map<String, Object> row(@PathVariable String name, @PathVariable String id) {
@@ -132,14 +131,14 @@ public class GenericCrudController {
 
     // -------- CREATE --------
     /**
-     * Erstellt eine neue Zeile in einer Whitelist-Tabelle.
+     * Inserts a new row into an allowed table.
      *
-     * <p>Pfad: {@code POST /row/{name}}</p>
-     * <p>Request-Body: JSON-Objekt mit Spaltennamen und Werten.</p>
+     * <p>Path: {@code POST /row/{name}}</p>
+     * <p>Request body: JSON object with column names and values.</p>
      *
-     * @param name Tabellenalias.
-     * @param body Spaltenwerte.
-     * @throws ResponseStatusException 400 bei unbekannter Tabelle oder leerem Body.
+     * @param name table alias.
+     * @param body column values.
+     * @throws ResponseStatusException 400 when the table is unknown or the body is empty.
      */
     @PostMapping("/row/{name}")
     @ResponseStatus(HttpStatus.CREATED)
@@ -167,15 +166,15 @@ public class GenericCrudController {
 
     // -------- UPDATE --------
     /**
-     * Aktualisiert eine vorhandene Zeile.
+     * Updates an existing row.
      *
-     * <p>Pfad: {@code PUT /row/{name}/{id}}</p>
-     * <p>Request-Body: JSON-Objekt mit zu setzenden Spalten.</p>
+     * <p>Path: {@code PUT /row/{name}/{id}}</p>
+     * <p>Request body: JSON object with the columns to set.</p>
      *
-     * @param name Tabellenalias.
-     * @param id   Primärschlüsselwert.
-     * @param body zu übernehmende Werte.
-     * @throws ResponseStatusException 400 bei leerem Body oder unbekannter Tabelle, 404 wenn nichts aktualisiert wurde.
+     * @param name table alias.
+     * @param id   primary key value.
+     * @param body values to apply.
+     * @throws ResponseStatusException 400 if the body is empty or the table is unknown, 404 if nothing was updated.
      */
     @PutMapping("/row/{name}/{id}")
     public void update(@PathVariable String name, @PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -201,13 +200,13 @@ public class GenericCrudController {
 
     // -------- DELETE --------
     /**
-     * Löscht eine Zeile aus einer Whitelist-Tabelle.
+     * Deletes a row from an allowed table.
      *
-     * <p>Pfad: {@code DELETE /row/{name}/{id}}</p>
+     * <p>Path: {@code DELETE /row/{name}/{id}}</p>
      *
-     * @param name Tabellenalias.
-     * @param id   Primärschlüsselwert.
-     * @throws ResponseStatusException 404 wenn kein Datensatz gelöscht wurde.
+     * @param name table alias.
+     * @param id   primary key value.
+     * @throws ResponseStatusException 404 if no record was deleted.
      */
     @DeleteMapping("/row/{name}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

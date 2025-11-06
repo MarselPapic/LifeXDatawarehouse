@@ -10,8 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link Project}, das alle Projektdaten in der Tabelle {@code Project}
- * verwaltet und die Beziehungen zu Deployment-Varianten, Accounts und Adressen abbildet.
+ * JDBC repository for {@link Project} that manages all project data in the {@code Project} table
+ * and maps relationships to deployment variants, accounts, and addresses.
  */
 @Repository
 public class JdbcProjectRepository implements ProjectRepository {
@@ -67,17 +67,17 @@ public class JdbcProjectRepository implements ProjectRepository {
     }
 
     /**
-     * Persistiert Projekte mit vollständiger Spaltenbelegung.
+     * Persists projects while setting every column explicitly.
      * <p>
-     * Das INSERT nutzt {@code RETURNING ProjectID}, um den durch die Datenbank vergebenen
-     * Primärschlüssel zu übernehmen. Für Updates werden sämtliche Attribute – inklusive optionaler
-     * {@link ProjectLifecycleStatus}-Werte – gebunden, damit das Mapping des RowMappers deckungsgleich
-     * bleibt und abhängige Fremdschlüssel synchronisiert werden.
+     * The INSERT statement leverages {@code RETURNING ProjectID} to capture the database-generated
+     * primary key. UPDATE statements bind all attributes—including optional
+     * {@link ProjectLifecycleStatus} values—to keep the RowMapper mapping aligned and to
+     * synchronize dependent foreign keys.
      * </p>
      *
-     * @param p Projekt mit referenzierten IDs, das über benannte Parameter auf die Spalten der
-     *          Tabelle {@code Project} gemappt wird.
-     * @return das persistierte Projekt samt {@code ProjectID}.
+     * @param p project entity with referenced IDs that are mapped to the columns of the
+     *          {@code Project} table via named parameters.
+     * @return the persisted project including its {@code ProjectID}.
      */
     @Override
     public Project save(Project p) {

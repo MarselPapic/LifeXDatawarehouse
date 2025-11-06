@@ -7,27 +7,27 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /*
- * Vereinheitlichte Camel-Routen für die Index-Produktion.
+ * Unified Camel routes for producing Lucene index messages.
  *
- * Datenfluss:
- *  - Timer-Quellen (alle 3 Minuten) lesen nacheinander aus den JPA-Repositories und streamen einzelne Entities.
- *  - Jede Quelle schreibt die Datensätze in die zentrale "seda:lucene-index"-Queue.
- *  - Zusätzliche Direct-Endpunkte ermöglichen ad-hoc Indexierungen (z. B. nach CRUD-Events) und landen ebenfalls in der Queue.
+ * Data flow:
+ *  - Timer sources fire every three minutes, read sequentially from the JPA repositories, and stream individual entities.
+ *  - Each source writes its records to the central "seda:lucene-index" queue.
+ *  - Direct endpoints allow ad-hoc indexing (for example after CRUD events) and also publish to the queue.
  *
- * Retry-/Locking-Aspekte:
- *  - SEDA-Queue nutzt blockWhenFull=true (vgl. Konfiguration) und verhindert damit Backpressure-Probleme.
- *  - Die eigentliche Serialisierung passiert downstream (LuceneIndexingHubRoute + LuceneIndexServiceImpl) – hier werden keine
- *    zusätzlichen Locks benötigt, da Camel die Reihenfolge innerhalb einer Route garantiert.
+ * Retry / locking considerations:
+ *  - The SEDA queue is configured with blockWhenFull=true (see configuration) to avoid backpressure issues.
+ *  - Serialization happens downstream (LuceneIndexingHubRoute + LuceneIndexServiceImpl), so no extra locks are required because
+ *    Camel preserves ordering within a route.
  *
- * Integrationspunkte:
- *  - Bezieht alle Repositories via Spring, damit Timer komplette Reindex-Läufe fahren können (siehe Log-Infos in reindexAll()).
- *  - Liefert Nachrichten an LuceneIndexingHubRoute, der wiederum die Lucene-API bedient.
+ * Integration points:
+ *  - Obtains all repositories via Spring, enabling the timers to run complete reindex jobs (see the log output in reindexAll()).
+ *  - Delivers messages to LuceneIndexingHubRoute, which in turn drives the Lucene API.
  */
 @Component("UnifiedIndexingRoutes")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
 public class UnifiedIndexingRoutes extends RouteBuilder {
 
-    // --- Repositories: alle als Dependencies einsammeln ---
+    // --- Repositories: capture every dependency ---
     private final AccountRepository accountRepo;
     private final AddressRepository addressRepo;
     private final AudioDeviceRepository audioDeviceRepo;
@@ -81,12 +81,12 @@ public class UnifiedIndexingRoutes extends RouteBuilder {
 
     @Override
     /**
-     * Verkabelt Timer und Direct-Endpunkte zur gemeinsamen SEDA-Queue.
-     * Scheduling: jeder Timer tickt alle 180 Sekunden und streamt Entities, sodass auch große Tabellen verarbeitet werden.
+     * Wires timers and direct endpoints to the shared SEDA queue.
+     * Each timer fires every 180 seconds and streams entities so even large tables are processed incrementally.
      */
     public void configure() {
 
-        // ===== Timer-Reindex für alle Entities → in gemeinsame SEDA-Queue =====
+        // ===== Timer-based reindex for every entity, routed into the shared SEDA queue =====
         from("timer://idxAccounts?period=180000").routeId("ReindexAccounts")
                 .bean(accountRepo, "findAll").split(body()).streaming()
                 .to("seda:lucene-index?size=2000&blockWhenFull=true");
@@ -151,7 +151,7 @@ public class UnifiedIndexingRoutes extends RouteBuilder {
                 .bean(upgradePlanRepo, "findAll").split(body()).streaming()
                 .to("seda:lucene-index?size=2000&blockWhenFull=true");
 
-        // ===== Single-Index-Endpoints → ebenfalls in die Queue =====
+        // ===== Single index endpoints, also routed into the queue =====
         from("direct:index-single-account").routeId("IndexSingleAccount").to("seda:lucene-index");
         from("direct:index-single-address").routeId("IndexSingleAddress").to("seda:lucene-index");
         from("direct:index-single-audioDevice").routeId("IndexSingleAudioDevice").to("seda:lucene-index");

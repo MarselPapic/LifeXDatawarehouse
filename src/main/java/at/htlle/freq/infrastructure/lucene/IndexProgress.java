@@ -6,42 +6,42 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /*
- * Fortschritts-Drehscheibe für das Lucene-Reindexing.
+ * Progress hub for Lucene reindexing.
  *
- * Datenfluss:
- *  - reindexAll() lädt Totals aus sämtlichen Repositories und ruft start() auf.
- *  - Während Camel/Scheduler die indexXxx()-Methoden abarbeiten, erhöhen diese via IndexProgress.inc() die jeweiligen Zähler.
- *  - REST-/UI-Ebene liest status() aus (siehe IndexProgressController) und zeigt Prozentzahlen an.
+ * Data flow:
+ *  - reindexAll() loads totals from every repository and calls start().
+ *  - While Camel/schedulers execute the indexXxx() methods they increment the counters through IndexProgress.inc().
+ *  - REST/UI layers read status() (see IndexProgressController) and display percentage values.
  *
- * Retry-/Locking-Aspekte:
- *  - start()/finish() sind synchronized und sichern, dass parallele Reindex-Läufe den Zustand nicht überschreiben.
- *  - done-Map nutzt ConcurrentHashMap + AtomicInteger, wodurch inkrementelle Updates ohne globale Sperren möglich sind.
+ * Retry / locking considerations:
+ *  - start()/finish() are synchronized to prevent concurrent reindex runs from overwriting the state.
+ *  - The done map uses ConcurrentHashMap + AtomicInteger so incremental updates are possible without global locks.
  *
- * Integrationspunkte:
- *  - Wird von LuceneIndexServiceImpl, Camel-Timern und dem IndexProgressController genutzt.
- *  - Der Status wird im Log ausgegeben, sobald reindexAll() fertig ist (vgl. log.info in LuceneIndexServiceImpl).
+ * Integration points:
+ *  - Used by LuceneIndexServiceImpl, Camel timers, and the IndexProgressController.
+ *  - The status is logged once reindexAll() completes (see the log.info in LuceneIndexServiceImpl).
  */
 
 /**
- * Thread-sicherer, sehr einfacher Fortschritt-Tracker für das Reindexing.
+ * Thread-safe, lightweight progress tracker for reindexing.
  *
- * <p>Nutzung:</p>
+ * <p>Usage:</p>
  * <pre>{@code
  * IndexProgress p = IndexProgress.get();
- * p.start(totalsMap);  // Map<Tabelle, Gesamtanzahl>
- * p.inc("Account");    // pro indexiertem Datensatz
- * p.totalDone();       // Summe Done
- * p.finish();          // Ende markieren
+ * p.start(totalsMap);  // Map<table, total count>
+ * p.inc("Account");    // per indexed record
+ * p.totalDone();       // sum of completed records
+ * p.finish();          // mark completion
  * }</pre>
  *
- * <p>Status kann als JSON via Controller ausgeliefert werden.</p>
+ * <p>The status can be exposed as JSON via the controller.</p>
  */
 public final class IndexProgress {
 
     private static final IndexProgress INSTANCE = new IndexProgress();
     public static IndexProgress get() { return INSTANCE; }
 
-    private volatile Map<String, Integer> totals = Map.of();              // Reihenfolge behalten
+    private volatile Map<String, Integer> totals = Map.of();              // preserve insertion order
     private final Map<String, AtomicInteger> done = new ConcurrentHashMap<>();
     private volatile long startedAtMs = 0L;
     private volatile boolean active = false;
@@ -49,11 +49,11 @@ public final class IndexProgress {
     private IndexProgress() { }
 
     /**
-     * Setzt neue Gesamtsummen und startet eine neue Messung.
-     * Synchronisiert, damit parallele Scheduler-Läufe nicht konkurrierend start() aufrufen können.
+     * Sets new totals and begins a fresh measurement.
+     * Synchronized so parallel scheduler runs cannot race when calling start().
      */
     public synchronized void start(Map<String, Integer> totals) {
-        LinkedHashMap<String, Integer> copy = new LinkedHashMap<>(totals); // stabile Reihenfolge
+        LinkedHashMap<String, Integer> copy = new LinkedHashMap<>(totals); // stable ordering
         this.totals = copy;
         this.done.clear();
         for (String k : copy.keySet()) {
@@ -64,21 +64,21 @@ public final class IndexProgress {
     }
 
     /**
-     * Erhöht den Zähler für eine Tabelle. Unbekannte Keys werden on-the-fly angelegt.
-     * Thread-sicher dank {@link ConcurrentHashMap} + {@link AtomicInteger}; wird parallel aus unterschiedlichen Camel-Threads genutzt.
+     * Increments the counter for a table. Unknown keys are created on the fly.
+     * Thread-safe thanks to {@link ConcurrentHashMap} + {@link AtomicInteger}; used concurrently from various Camel threads.
      */
     public void inc(String key) {
         done.computeIfAbsent(key, k -> new AtomicInteger()).incrementAndGet();
     }
 
-    /** Gesamte erledigte Datensätze (über alle Tabellen). */
+    /** Total number of completed records across all tables. */
     public int totalDone() {
         int sum = 0;
         for (AtomicInteger ai : done.values()) sum += ai.get();
         return sum;
     }
 
-    /** Gesamtsoll (über alle Tabellen). */
+    /** Overall target count across all tables. */
     public int grandTotal() {
         int sum = 0;
         for (Integer v : totals.values()) sum += (v == null ? 0 : v);
@@ -86,10 +86,9 @@ public final class IndexProgress {
     }
 
     /**
-     * Markiert den Durchlauf als beendet.
-     * Zusätzlich werden die "done"-Zähler auf die jeweiligen Totals gesetzt,
-     * damit die UI garantiert 100% sieht, sobald der Lauf abgeschlossen ist.
-     * Nebenwirkung: active=false verhindert weitere status()-Updates durch laufende Timer.
+     * Marks the run as finished.
+     * Additionally copies the done counters to their totals so the UI reliably sees 100% when the run is complete.
+     * Side effect: active=false prevents further status() updates from ongoing timers.
      */
     public synchronized void finish() {
         for (Map.Entry<String, Integer> e : totals.entrySet()) {
@@ -100,17 +99,17 @@ public final class IndexProgress {
         this.active = false;
     }
 
-    /** Gibt an, ob aktuell ein Lauf aktiv ist. */
+    /** Indicates whether a run is currently active. */
     public boolean isActive() {
         return active;
     }
 
     /**
-     * Liefert eine Momentaufnahme für die UI/REST.
-     * Nutzt defensive Kopien in Einfügereihenfolge, damit der REST-Controller deterministische JSON-Ausgaben liefern kann.
+     * Provides a snapshot for UI/REST consumption.
+     * Uses defensive copies in insertion order so the REST controller returns deterministic JSON.
      */
     public Status status() {
-        // Done-Snapshot in gleicher Reihenfolge wie totals
+        // Done snapshot in the same order as totals
         LinkedHashMap<String, Integer> doneSnap = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> e : totals.entrySet()) {
             doneSnap.put(e.getKey(), done.getOrDefault(e.getKey(), new AtomicInteger()).get());
@@ -133,7 +132,7 @@ public final class IndexProgress {
         );
     }
 
-    /** Kompaktes Status-Record; wird von Jackson problemlos als JSON serialisiert. */
+    /** Compact status record; Jackson serializes it as JSON without additional configuration. */
     public static record Status(
             boolean active,
             Map<String, Integer> totals,

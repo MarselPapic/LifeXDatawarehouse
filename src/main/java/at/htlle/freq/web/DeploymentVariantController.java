@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST-Controller für {@link DeploymentVariant} Datensätze.
+ * REST controller for {@link DeploymentVariant} records.
  *
- * <p>Verwendet den {@link DeploymentVariantService} für Geschäftslogik und Persistenz.</p>
+ * <p>Uses {@link DeploymentVariantService} for business logic and persistence.</p>
  */
 @RestController
 @RequestMapping("/deployment-variants")
@@ -25,11 +25,11 @@ public class DeploymentVariantController {
     }
 
     /**
-     * Listet alle Deployment-Varianten.
+     * Lists all deployment variants.
      *
-     * <p>Pfad: {@code GET /deployment-variants}</p>
+     * <p>Path: {@code GET /deployment-variants}</p>
      *
-     * @return 200 OK mit einer Liste von {@link DeploymentVariant}.
+     * @return 200 OK with a list of {@link DeploymentVariant}.
      */
     @GetMapping
     public List<DeploymentVariant> list() {
@@ -37,12 +37,12 @@ public class DeploymentVariantController {
     }
 
     /**
-     * Liefert eine Variante anhand der ID.
+     * Returns a variant by ID.
      *
-     * <p>Pfad: {@code GET /deployment-variants/{id}}</p>
+     * <p>Path: {@code GET /deployment-variants/{id}}</p>
      *
-     * @param id Variant-ID als UUID.
-     * @return 200 OK mit der Variante oder 404 bei unbekannter ID.
+     * @param id variant ID as UUID.
+     * @return 200 OK with the variant or 404 if the ID is unknown.
      */
     @GetMapping("/{id}")
     public DeploymentVariant byId(@PathVariable UUID id) {
@@ -51,13 +51,13 @@ public class DeploymentVariantController {
     }
 
     /**
-     * Legt eine Variante an bzw. aktualisiert sie.
+     * Creates or updates a variant.
      *
-     * <p>Pfad: {@code POST /deployment-variants}</p>
-     * <p>Request-Body: JSON-Repräsentation einer {@link DeploymentVariant}.</p>
+     * <p>Path: {@code POST /deployment-variants}</p>
+     * <p>Request body: JSON representation of a {@link DeploymentVariant}.</p>
      *
-     * @param payload Variante inkl. Identifier.
-     * @return 201 Created mit der gespeicherten Variante.
+     * @param payload variant including identifier.
+     * @return 201 Created with the stored variant.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

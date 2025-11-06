@@ -15,7 +15,7 @@ class IndexProgressTest {
     @BeforeEach
     void setUp() {
         progress = IndexProgress.get();
-        progress.finish(); // reset active flag and counters
+        progress.finish(); // Reset the singleton state so each test starts from a clean slate
     }
 
     @Test

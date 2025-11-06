@@ -6,7 +6,7 @@ import java.util.UUID;
 @Component
 public class ProjectFactory {
     /**
-     * Builds a new {@link Project} aggregate that links to its account,
+     * Builds a new {@link Project} aggregate that links to its customer account,
      * deployment variant and optional headquarters address. The identifier is
      * left {@code null} to be filled by the persistence layer.
      *
@@ -16,7 +16,7 @@ public class ProjectFactory {
      * @param bundleType commercial bundle selection
      * @param createDateTime creation timestamp captured as string
      * @param lifecycleStatus lifecycle position of the project
-     * @param accountID owning {@link Account} identifier
+     * @param accountID owning customer {@link Account} identifier
      * @param addressID headquarters {@link Address} identifier
      * @return transient project entity
      */

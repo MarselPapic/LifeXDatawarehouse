@@ -9,9 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-gestütztes Repository für {@link City}, das CRUD-Zugriffe auf die Tabelle {@code City}
- * bereitstellt und die Spalten {@code CityID}, {@code CityName} sowie {@code CountryCode}
- * in Domänenobjekte überführt.
+ * JDBC-backed repository for {@link City} that provides CRUD access to the {@code City} table and
+ * maps the columns {@code CityID}, {@code CityName}, and {@code CountryCode} to domain objects.
  */
 @Repository
 public class JdbcCityRepository implements CityRepository {
@@ -47,22 +46,20 @@ public class JdbcCityRepository implements CityRepository {
     }
 
     /**
-     * Realisiert ein Upsert-Verhalten für Städte.
+     * Implements upsert behavior for cities.
      * <p>
-     * Zunächst wird via {@code SELECT COUNT(*)} geprüft, ob der Primärschlüssel bereits in der
-     * Tabelle {@code City} existiert. Auf Basis dieses Ergebnisses wird entweder ein INSERT oder
-     * ein vollständiges UPDATE ausgeführt. Die Parameterzuordnung erfolgt über
-     * {@link MapSqlParameterSource} und stellt sicher, dass die Felder 1:1 den Spaltennamen
-     * entsprechen.
+     * A {@code SELECT COUNT(*)} first checks whether the primary key already exists in the
+     * {@code City} table. Depending on the result, the method performs an INSERT or a full UPDATE.
+     * {@link MapSqlParameterSource} keeps the parameter mapping aligned 1:1 with the column names.
      * </p>
      *
-     * @param c Stadtobjekt, dessen Attribute auf {@code CityID}, {@code CityName} und
-     *          {@code CountryCode} gemappt werden.
-     * @return die gespeicherte Stadt.
+     * @param c city entity whose attributes map to {@code CityID}, {@code CityName}, and
+     *          {@code CountryCode}.
+     * @return the stored city record.
      */
     @Override
     public City save(City c) {
-        // Upsert über EXISTS
+        // Upsert by checking for an existing record first
         String existsSql = "SELECT COUNT(*) FROM City WHERE CityID = :id";
         Integer count = jdbc.queryForObject(existsSql, new MapSqlParameterSource("id", c.getCityID()), Integer.class);
         boolean exists = count != null && count > 0;

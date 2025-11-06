@@ -11,10 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Vollständiger CRUD-Controller für AudioDevices (Audio-Peripherie).
+ * Fully featured CRUD controller for audio devices (peripherals).
  *
- * <p>Die Daten werden direkt über den {@link NamedParameterJdbcTemplate} abgefragt
- * und manipuliert.</p>
+ * <p>Data is read and mutated directly via {@link NamedParameterJdbcTemplate}.</p>
  */
 @RestController
 @RequestMapping("/audio")
@@ -29,17 +28,15 @@ public class AudioDeviceController {
         this.jdbc = jdbc;
     }
 
-    // ----------------------------
-    // READ: Alle oder nach Client filtern
-    // ----------------------------
+    // READ operations: list all devices or filter by client
     /**
-     * Listet Audio-Geräte auf und kann optional nach Client filtern.
+     * Lists audio devices and optionally filters by client.
      *
-     * <p>Pfad: {@code GET /audio}</p>
-     * <p>Query-Parameter: {@code clientId} (optional, String) für die Filterung nach Client.</p>
+     * <p>Path: {@code GET /audio}</p>
+     * <p>Optional {@code clientId} query parameter narrows the result to a client.</p>
      *
-     * @param clientId optionale Client-ID.
-     * @return 200 OK mit einer JSON-Liste der Geräterepräsentationen.
+     * @param clientId optional client ID.
+     * @return 200 OK with a JSON list of device representations.
      */
     @GetMapping
     public List<Map<String, Object>> findByClient(@RequestParam(required = false) String clientId) {
@@ -60,12 +57,12 @@ public class AudioDeviceController {
     }
 
     /**
-     * Holt ein Audio-Gerät anhand der ID.
+     * Retrieves an audio device by its ID.
      *
-     * <p>Pfad: {@code GET /audio/{id}}</p>
+     * <p>Path: {@code GET /audio/{id}}</p>
      *
-     * @param id Primärschlüssel der Zeile.
-     * @return 200 OK mit einer Map der Spaltenwerte oder 404 bei unbekannter ID.
+     * @param id primary key of the row.
+     * @return 200 OK with a map of column values or 404 if the ID is unknown.
      */
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
@@ -82,17 +79,15 @@ public class AudioDeviceController {
         return rows.get(0);
     }
 
-    // ----------------------------
-    // CREATE
-    // ----------------------------
+    // CREATE operations
     /**
-     * Legt ein Audio-Gerät an.
+     * Creates an audio device.
      *
-     * <p>Pfad: {@code POST /audio}</p>
-     * <p>Request-Body: JSON-Objekt mit Spaltenfeldern (z.B. {@code clientID}, {@code audioDeviceBrand}).</p>
+     * <p>Path: {@code POST /audio}</p>
+     * <p>Request body: JSON object with column fields such as {@code clientID} or {@code audioDeviceBrand}.</p>
      *
-     * @param body Eingabedaten.
-     * @throws ResponseStatusException 400 bei leerem Body oder ungültigem DeviceType.
+     * @param body input payload.
+     * @throws ResponseStatusException 400 if the body is empty or the device type is invalid.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -113,18 +108,16 @@ public class AudioDeviceController {
         log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
     }
 
-    // ----------------------------
-    // UPDATE
-    // ----------------------------
+    // UPDATE operations
     /**
-     * Aktualisiert ein Audio-Gerät.
+     * Updates an audio device.
      *
-     * <p>Pfad: {@code PUT /audio/{id}}</p>
-     * <p>Request-Body: JSON-Objekt mit zu überschreibenden Spaltenwerten.</p>
+     * <p>Path: {@code PUT /audio/{id}}</p>
+     * <p>Request body: JSON object with the columns to update.</p>
      *
-     * @param id   Primärschlüssel.
-     * @param body Feldwerte für das Update.
-     * @throws ResponseStatusException 400 bei leerem Body, 404 wenn nichts aktualisiert wird.
+     * @param id   primary key.
+     * @param body field values for the update.
+     * @throws ResponseStatusException 400 if the body is empty, 404 if nothing is updated.
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
@@ -152,16 +145,14 @@ public class AudioDeviceController {
         log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("AudioDeviceID", id), body.keySet());
     }
 
-    // ----------------------------
-    // DELETE
-    // ----------------------------
+    // DELETE operations
     /**
-     * Löscht ein Audio-Gerät.
+     * Deletes an audio device.
      *
-     * <p>Pfad: {@code DELETE /audio/{id}}</p>
+     * <p>Path: {@code DELETE /audio/{id}}</p>
      *
-     * @param id Primärschlüssel.
-     * @throws ResponseStatusException 404, wenn keine Zeile gelöscht wurde.
+     * @param id primary key.
+     * @throws ResponseStatusException 404 if no row was deleted.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

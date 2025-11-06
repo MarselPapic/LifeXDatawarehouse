@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 
 /**
- * JDBC-Repository für {@link Site}, das Standortdaten in der Tabelle {@code Site} verwaltet und
- * die Beziehungen zu Projekten sowie Adressen mappt.
+ * JDBC repository for {@link Site} that manages location data in the {@code Site} table and maps
+ * relations to projects and addresses.
  */
 @Repository
 public class JdbcSiteRepository implements SiteRepository {
@@ -25,7 +25,7 @@ public class JdbcSiteRepository implements SiteRepository {
             rs.getObject("ProjectID", UUID.class),
             rs.getObject("AddressID", UUID.class),
             rs.getString("FireZone"),
-            (Integer) rs.getObject("TenantCount") // nullable
+            (Integer) rs.getObject("TenantCount") // nullable column
     );
 
     @Override
@@ -54,15 +54,15 @@ public class JdbcSiteRepository implements SiteRepository {
     }
 
     /**
-     * Persistiert Standorte durch INSERT oder UPDATE in der Tabelle {@code Site}.
+     * Persists sites through INSERT or UPDATE statements executed on the {@code Site} table.
      * <p>
-     * Die Anweisung bindet sämtliche Spalten einschließlich optionaler Felder wie
-     * {@code TenantCount}, um ein konsistentes Mapping mit dem {@link RowMapper} sicherzustellen.
-     * Über {@code RETURNING SiteID} wird bei neuen Standorten der Primärschlüssel übernommen.
+     * Every column, including optional fields such as {@code TenantCount}, is bound explicitly to
+     * maintain a consistent mapping with the {@link RowMapper}. The {@code RETURNING SiteID}
+     * clause retrieves the primary key for newly created locations.
      * </p>
      *
-     * @param s Standortobjekt, dessen Attribute auf die gleichnamigen Spalten gemappt werden.
-     * @return der persistierte Standort mit {@code SiteID}.
+     * @param s site entity whose attributes map directly to the table columns of the same name.
+     * @return the persisted site including its {@code SiteID}.
      */
     @Override
     public Site save(Site s) {

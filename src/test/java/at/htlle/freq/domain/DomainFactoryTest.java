@@ -54,7 +54,7 @@ class DomainFactoryTest {
         InstalledSoftware installedSoftware = installedSoftwareFactory.create(UUID1, UUID2);
         assertEquals(UUID1, installedSoftware.getSiteID());
         assertEquals(UUID2, installedSoftware.getSoftwareID());
-        assertEquals(InstalledSoftwareStatus.ACTIVE.dbValue(), installedSoftware.getStatus());
+        assertEquals(InstalledSoftwareStatus.OFFERED.dbValue(), installedSoftware.getStatus());
 
         PhoneIntegrationFactory phoneIntegrationFactory = new PhoneIntegrationFactory();
         PhoneIntegration phoneIntegration = phoneIntegrationFactory.create(UUID1, "TYPE", "Brand", "SN", "FW");
@@ -87,9 +87,10 @@ class DomainFactoryTest {
         assertEquals(10, site.getTenantCount());
 
         SoftwareFactory softwareFactory = new SoftwareFactory();
-        Software software = softwareFactory.create("Name", "1.0", "1", "Phase", "License", "2024-01-01", "2024-01-02", "2024-12-31");
+        Software software = softwareFactory.create("Name", "1.0", "1", "Phase", "License", true, "2024-01-01", "2024-01-02", "2024-12-31");
         assertEquals("Name", software.getName());
         assertEquals("License", software.getLicenseModel());
+        assertTrue(software.isThirdParty());
 
         UpgradePlanFactory upgradePlanFactory = new UpgradePlanFactory();
         UpgradePlan upgradePlan = upgradePlanFactory.create(UUID1, UUID2, "2024-01-01", "2024-01-02", "Planned", "Alice", "System");

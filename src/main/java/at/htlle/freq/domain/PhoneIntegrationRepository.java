@@ -15,9 +15,9 @@ public interface PhoneIntegrationRepository {
     Optional<PhoneIntegration> findById(UUID id);
 
     /**
-     * Retrieves all phone integrations assigned to a client.
+     * Retrieves all phone integrations assigned to a client workstation.
      *
-     * @param clientId owner client identifier
+     * @param clientId owner client workstation identifier
      * @return list of matching phone integrations
      */
     List<PhoneIntegration> findByClient(UUID clientId);

@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Aggregiert Reporting-Daten, bereitet sie für UI und Exporte auf und rendert CSV/PDF-Ausgaben.
+ * Aggregates reporting data, prepares it for the UI and exports, and renders CSV/PDF outputs.
  */
 @Service
 public class ReportService {
@@ -43,9 +43,9 @@ public class ReportService {
     }
 
     /**
-     * Erstellt den Service mit dem benötigten JDBC-Template.
+     * Creates the service with the required JDBC template.
      *
-     * @param jdbc Datenzugriff für Reporting-Abfragen
+     * @param jdbc data access component for reporting queries
      */
     public ReportService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -81,18 +81,18 @@ public class ReportService {
 
     private Map<String, String> defaultPeriods() {
         Map<String, String> periods = new LinkedHashMap<>();
-        periods.put("last7", "Letzte 7 Tage");
-        periods.put("last30", "Letzte 30 Tage");
-        periods.put("quarter", "Dieses Quartal");
-        periods.put("custom", "Benutzerdefiniert");
+        periods.put("last7", "Last 7 days");
+        periods.put("last30", "Last 30 days");
+        periods.put("quarter", "This quarter");
+        periods.put("custom", "Custom");
         return periods;
     }
 
     /**
-     * Generiert einen Report basierend auf den übergebenen Filterkriterien.
+     * Generates a report based on the provided filter criteria.
      *
-     * @param filter Report-Filter mit Typ, Zeitraum und weiteren Parametern
-     * @return aufbereitete Reportdaten inklusive Tabelle und Kennzahlen
+     * @param filter report filter including type, period, and additional parameters
+     * @return prepared report data including table and KPIs
      * Dispatches to a specialised builder based on the requested {@link ReportType}.
      * <p>
      * Each builder hits dedicated tables (e.g. {@code InstalledSoftware}, {@code UpgradePlan},
@@ -110,10 +110,10 @@ public class ReportService {
     }
 
     /**
-     * Serialisiert einen Report in das CSV-Format.
+     * Serialises a report into CSV format.
      *
-     * @param report zuvor generierter Report
-     * @return CSV-Inhalt als String
+     * @param report previously generated report
+     * @return CSV content as a string
      * Converts a {@link ReportResponse} table into the semicolon-separated CSV export.
      * <p>
      * Keeps the column layout defined by the builder and escapes values so that controlling can
@@ -123,7 +123,7 @@ public class ReportService {
     public String renderCsv(ReportResponse report) {
         StringBuilder sb = new StringBuilder();
         sb.append("Report;").append(report.type().label()).append('\n');
-        sb.append("Generiert am;").append(report.generatedAt()).append('\n');
+        sb.append("Generated at;").append(report.generatedAt()).append('\n');
         sb.append('\n');
 
         List<ReportColumn> columns = report.table().columns();
@@ -142,10 +142,10 @@ public class ReportService {
     }
 
     /**
-     * Rendert einen Report als PDF mithilfe von PDFBox.
+     * Renders a report as PDF using PDFBox.
      *
-     * @param report zuvor generierter Report
-     * @return Byte-Array des PDF-Dokuments
+     * @param report previously generated report
+     * @return byte array of the PDF document
      * Renders the headline KPIs, table snippet and chart summary of a report into an A4 PDF.
      * <p>
      * The PDF writer enforces the reporting guideline that only the first 45 table rows should be
@@ -155,12 +155,12 @@ public class ReportService {
     public byte[] renderPdf(ReportResponse report) {
         try (PDDocument document = new PDDocument(); PdfPageWriter writer = new PdfPageWriter(document)) {
             writer.writeLine(PDType1Font.HELVETICA_BOLD, 16, "LifeX Report – " + report.type().label());
-            writer.writeLine(PDType1Font.HELVETICA, 10, "Generiert am " + report.generatedAt());
+            writer.writeLine(PDType1Font.HELVETICA, 10, "Generated on " + report.generatedAt());
             writer.blankLine();
 
-            writer.writeLine(PDType1Font.HELVETICA_BOLD, 12, "Kennzahlen");
+            writer.writeLine(PDType1Font.HELVETICA_BOLD, 12, "KPIs");
             if (report.kpis().isEmpty()) {
-                writer.writeLine(PDType1Font.HELVETICA, 10, "Keine Kennzahlen verfügbar.");
+                writer.writeLine(PDType1Font.HELVETICA, 10, "No KPIs available.");
             } else {
                 for (Kpi kpi : report.kpis()) {
                     String hint = (kpi.hint() != null && !kpi.hint().isBlank()) ? " (" + kpi.hint() + ")" : "";
@@ -188,7 +188,7 @@ public class ReportService {
                     printed++;
                     if (printed >= 45) {
                         // Hard limit ensures the PDF stays within the 45-row specification for printouts.
-                        writer.writeLine(PDType1Font.HELVETICA_OBLIQUE, 9, "… weitere Datensätze im CSV-Export …");
+                        writer.writeLine(PDType1Font.HELVETICA_OBLIQUE, 9, "… more records available in the CSV export …");
                         break;
                     }
                 }
@@ -213,7 +213,7 @@ public class ReportService {
     }
 
     /**
-     * Compiles the Soll-/Ist-Abgleich by comparing installed software with latest releases.
+     * Compiles the target-versus-actual comparison by analysing installed software versus the latest releases.
      * <p>
      * Joins {@code InstalledSoftware}, {@code Site}, {@code Project}, {@code DeploymentVariant},
      * {@code Software} plus helper CTEs for planned upgrades and allows filtering by variant,
@@ -287,34 +287,34 @@ public class ReportService {
 
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> mapDifferenceRow(rs, now));
 
-        long outdated = rows.stream().filter(r -> "Abweichung".equals(r.get("compliance"))).count();
-        long critical = rows.stream().filter(r -> "Kritisch".equals(r.get("severity"))).count();
-        long expiring = rows.stream().filter(r -> "Ablauf <45 Tage".equals(r.get("severity"))).count();
+        long outdated = rows.stream().filter(r -> "Deviation".equals(r.get("compliance"))).count();
+        long critical = rows.stream().filter(r -> "Critical".equals(r.get("severity"))).count();
+        long expiring = rows.stream().filter(r -> "Expiry <45 days".equals(r.get("severity"))).count();
         int total = rows.size();
         double compliance = total == 0 ? 1.0 : (double) (total - outdated) / total;
 
         List<Kpi> kpis = List.of(
-                new Kpi("records", "Datensätze", formatInt(total), null),
-                new Kpi("outdated", "Abweichungen", formatInt(outdated), outdated > 0 ? "prüfen" : "OK"),
-                new Kpi("critical", "Kritisch / Ablauf", formatInt(critical + expiring), critical > 0 ? "sofort handeln" : "beobachten"),
+                new Kpi("records", "Records", formatInt(total), null),
+                new Kpi("outdated", "Deviations", formatInt(outdated), outdated > 0 ? "review" : "OK"),
+                new Kpi("critical", "Critical / Expiring", formatInt(critical + expiring), critical > 0 ? "act immediately" : "monitor"),
                 new Kpi("compliance", "Compliance", formatPercent(compliance), null)
         );
 
         List<ReportColumn> columns = List.of(
-                new ReportColumn("project", "Projekt", "left"),
+                new ReportColumn("project", "Project", "left"),
                 new ReportColumn("site", "Site", "left"),
-                new ReportColumn("variant", "Variante", "left"),
+                new ReportColumn("variant", "Variant", "left"),
                 new ReportColumn("software", "Software", "left"),
-                new ReportColumn("currentVersion", "Ist-Version", "left"),
-                new ReportColumn("targetVersion", "Soll-Version", "left"),
-                new ReportColumn("supportEnd", "Support-Ende", "left"),
-                new ReportColumn("status", "Installationsstatus", "left"),
-                new ReportColumn("compliance", "Abgleich", "left"),
+                new ReportColumn("currentVersion", "Current version", "left"),
+                new ReportColumn("targetVersion", "Target version", "left"),
+                new ReportColumn("supportEnd", "Support end", "left"),
+                new ReportColumn("status", "Installation status", "left"),
+                new ReportColumn("compliance", "Match status", "left"),
                 new ReportColumn("severity", "Severity", "left"),
-                new ReportColumn("notes", "Hinweis", "left")
+                new ReportColumn("notes", "Note", "left")
         );
 
-        List<String> severityOrder = List.of("Kritisch", "Warnung", "Beobachten", "Ablauf <45 Tage", "OK");
+        List<String> severityOrder = List.of("Critical", "Warning", "Monitor", "Expiry <45 days", "OK");
         Map<String, Long> severityCounts = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             String severity = Objects.toString(row.get("severity"), "OK");
@@ -326,9 +326,9 @@ public class ReportService {
                 .collect(Collectors.toList());
 
         ReportTable table = new ReportTable(columns, freezeRows(rows),
-                "Soll-/Ist-Abgleich nach Standort", "Keine Abweichungen im gewählten Zeitraum.");
+                "Target vs. actual comparison by site", "No deviations in the selected period.");
 
-        return new ReportResponse(filter.type(), kpis, table, chart, "Verteilung nach Severity",
+        return new ReportResponse(filter.type(), kpis, table, chart, "Distribution by severity",
                 DATE_TIME_FMT.format(LocalDateTime.now()));
     }
 
@@ -348,7 +348,7 @@ public class ReportService {
         try {
             installStatusEnum = InstalledSoftwareStatus.from(installStatusRaw);
         } catch (IllegalArgumentException ex) {
-            installStatusEnum = InstalledSoftwareStatus.ACTIVE;
+            installStatusEnum = InstalledSoftwareStatus.OFFERED;
         }
         String installStatus = installStatusEnum.dbValue();
         LocalDate targetSupport = getLocalDate(rs, "target_support_end");
@@ -356,33 +356,33 @@ public class ReportService {
 
         boolean upToDate = targetRelease == null ||
                 (Objects.equals(currentRelease, targetRelease) && Objects.equals(currentRevision, targetRevision));
-        String compliance = upToDate ? "Aktuell" : "Abweichung";
+        String compliance = upToDate ? "Up to date" : "Deviation";
         String severity;
         if (!upToDate) {
             if (supportEnd != null && supportEnd.isBefore(now)) {
-                severity = "Kritisch";
+                severity = "Critical";
             } else if (supportEnd != null && supportEnd.isBefore(now.plusDays(45))) {
-                severity = "Warnung";
+                severity = "Warning";
             } else {
-                severity = "Beobachten";
+                severity = "Monitor";
             }
         } else if (supportEnd != null && supportEnd.isBefore(now.plusDays(45))) {
-            severity = "Ablauf <45 Tage";
+            severity = "Expiry <45 days";
         } else {
             severity = "OK";
         }
 
         StringBuilder notes = new StringBuilder();
         if (upToDate) {
-            notes.append("Konfiguration im Zielstand");
+            notes.append("Configuration at target level");
         } else {
-            notes.append("Abweichung zum Zielstand");
+            notes.append("Deviation from target level");
         }
         if (nextWindow != null) {
-            notes.append("; Upgrade geplant ab ").append(formatDate(nextWindow));
+            notes.append("; Upgrade planned from ").append(formatDate(nextWindow));
         }
         if (targetSupport != null) {
-            notes.append("; Ziel-Support bis ").append(formatDate(targetSupport));
+            notes.append("; Target support until ").append(formatDate(targetSupport));
         }
 
         LinkedHashMap<String, Object> row = new LinkedHashMap<>();
@@ -401,7 +401,7 @@ public class ReportService {
     }
 
     /**
-     * Builds the Wartungsfenster & Upgrades view from maintenance planning tables.
+     * Builds the maintenance windows and upgrades view from the planning tables.
      * <p>
      * Uses {@code UpgradePlan} joined with {@code Site}, {@code Project}, {@code DeploymentVariant}
      * and {@code Software} to highlight overdue and upcoming tasks. Supports query, variant and
@@ -443,7 +443,7 @@ public class ReportService {
         }
         sql.append(" ORDER BY up.PlannedWindowStart");
 
-        int[] totals = new int[4]; // overdue, dueSoon, completed, total
+        int[] totals = new int[4]; // Array indices represent overdue, due soon, completed, and total counts.
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> {
             LocalDate start = getLocalDate(rs, "PlannedWindowStart");
             LocalDate end = getLocalDate(rs, "PlannedWindowEnd");
@@ -452,18 +452,18 @@ public class ReportService {
             long daysUntil = start != null ? ChronoUnit.DAYS.between(now, start) : 0;
 
             String severity;
-            if ("Abgeschlossen".equals(status) || "Abgebrochen".equals(status)) {
+            if ("Completed".equals(status) || "Canceled".equals(status)) {
                 severity = status;
             } else if (start != null && start.isBefore(now)) {
-                severity = "Überfällig";
+                severity = "Overdue";
                 totals[0]++;
             } else if (start != null && start.isBefore(now.plusDays(7))) {
-                severity = "Fällig ≤7 Tage";
+                severity = "Due ≤7 days";
                 totals[1]++;
             } else {
-                severity = "Geplant";
+                severity = "Scheduled";
             }
-            if ("Abgeschlossen".equals(status)) {
+            if ("Completed".equals(status)) {
                 totals[2]++;
             }
 
@@ -484,35 +484,35 @@ public class ReportService {
             row.put("severity", severity);
             StringBuilder notes = new StringBuilder();
             if (start != null) {
-                notes.append(daysUntil >= 0 ? "Start in " + daysUntil + " Tagen" : "Beginn vor " + Math.abs(daysUntil) + " Tagen");
+                notes.append(daysUntil >= 0 ? "Starts in " + daysUntil + " days" : "Started " + Math.abs(daysUntil) + " days ago");
             }
             if (supportEnd != null) {
                 if (!notes.isEmpty()) {
                     notes.append("; ");
                 }
-                notes.append("Support-Ende ").append(formatDate(supportEnd));
+                notes.append("Support end ").append(formatDate(supportEnd));
             }
             row.put("notes", notes.isEmpty() ? "" : notes.toString());
             return row;
         });
 
         List<Kpi> kpis = List.of(
-                new Kpi("total", "Wartungsfenster", formatInt(rows.size()), null),
-                new Kpi("overdue", "Überfällig", formatInt(totals[0]), totals[0] > 0 ? "priorisieren" : "OK"),
-                new Kpi("soon", "Fällig ≤7 Tage", formatInt(totals[1]), totals[1] > 0 ? "planen" : ""),
-                new Kpi("done", "Abgeschlossen", formatInt(totals[2]), null)
+                new Kpi("total", "Maintenance windows", formatInt(rows.size()), null),
+                new Kpi("overdue", "Overdue", formatInt(totals[0]), totals[0] > 0 ? "prioritize" : "OK"),
+                new Kpi("soon", "Due ≤7 days", formatInt(totals[1]), totals[1] > 0 ? "plan" : ""),
+                new Kpi("done", "Completed", formatInt(totals[2]), null)
         );
 
         List<ReportColumn> columns = List.of(
-                new ReportColumn("project", "Projekt", "left"),
+                new ReportColumn("project", "Project", "left"),
                 new ReportColumn("site", "Site", "left"),
-                new ReportColumn("variant", "Variante", "left"),
+                new ReportColumn("variant", "Variant", "left"),
                 new ReportColumn("software", "Software", "left"),
-                new ReportColumn("window", "Wartungsfenster", "left"),
+                new ReportColumn("window", "Maintenance window", "left"),
                 new ReportColumn("status", "Status", "left"),
-                new ReportColumn("days", "Tage", "right"),
-                new ReportColumn("severity", "Priorität", "left"),
-                new ReportColumn("notes", "Hinweis", "left")
+                new ReportColumn("days", "Days", "right"),
+                new ReportColumn("severity", "Priority", "left"),
+                new ReportColumn("notes", "Note", "left")
         );
 
         Map<String, Long> statusCounts = rows.stream()
@@ -522,14 +522,14 @@ public class ReportService {
                 .collect(Collectors.toList());
 
         ReportTable table = new ReportTable(columns, freezeRows(rows),
-                "Wartungsfenster & Upgrades", "Keine Wartungsaktivitäten im gewählten Zeitraum.");
+                "Maintenance windows & upgrades", "No maintenance activity in the selected period.");
 
-        return new ReportResponse(filter.type(), kpis, table, chart, "Statusübersicht",
+        return new ReportResponse(filter.type(), kpis, table, chart, "Status overview",
                 DATE_TIME_FMT.format(LocalDateTime.now()));
     }
 
     /**
-     * Aggregates configuration KPIs per site for the Konfigurationsübersicht.
+     * Aggregates configuration KPIs per site for the configuration overview.
      * <p>
      * Summarises {@code Server}, {@code Clients}, {@code Radio}, {@code AudioDevice} and
      * {@code PhoneIntegration} counts alongside {@code Site}/{@code Project}/{@code DeploymentVariant}
@@ -614,7 +614,7 @@ public class ReportService {
         }
         sql.append(" ORDER BY s.SiteName");
 
-        int[] totals = new int[4]; // servers, ha, clients, local
+        int[] totals = new int[4]; // Array indices represent servers, high-availability servers, total clients, and local clients.
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> {
             int serverCount = rs.getInt("server_count");
             int haServers = rs.getInt("ha_servers");
@@ -652,21 +652,21 @@ public class ReportService {
         double haShare = totalServers == 0 ? 0.0 : (double) totals[1] / totalServers;
 
         List<Kpi> kpis = List.of(
-                new Kpi("sites", "Standorte", formatInt(totalSites), null),
-                new Kpi("servers", "Server gesamt", formatInt(totalServers), "HA " + formatInt(totals[1])),
-                new Kpi("clients", "Clients gesamt", formatInt(totalClients), "LOCAL " + formatInt(localClients)),
-                new Kpi("haShare", "HA-Anteil", formatPercent(haShare), null)
+                new Kpi("sites", "Sites", formatInt(totalSites), null),
+                new Kpi("servers", "Servers total", formatInt(totalServers), "HA " + formatInt(totals[1])),
+                new Kpi("clients", "Clients total", formatInt(totalClients), "LOCAL " + formatInt(localClients)),
+                new Kpi("haShare", "HA share", formatPercent(haShare), null)
         );
 
         List<ReportColumn> columns = List.of(
                 new ReportColumn("site", "Site", "left"),
-                new ReportColumn("project", "Projekt", "left"),
-                new ReportColumn("variant", "Variante", "left"),
-                new ReportColumn("servers", "Server", "left"),
+                new ReportColumn("project", "Project", "left"),
+                new ReportColumn("variant", "Variant", "left"),
+                new ReportColumn("servers", "Servers", "left"),
                 new ReportColumn("clients", "Clients", "right"),
-                new ReportColumn("installations", "Installationen", "left"),
-                new ReportColumn("radios", "Funk", "left"),
-                new ReportColumn("communications", "Kommunikation", "left"),
+                new ReportColumn("installations", "Installations", "left"),
+                new ReportColumn("radios", "Radio", "left"),
+                new ReportColumn("communications", "Communication", "left"),
                 new ReportColumn("serverOs", "Server OS", "left"),
                 new ReportColumn("clientOs", "Client OS", "left")
         );
@@ -677,14 +677,14 @@ public class ReportService {
         );
 
         ReportTable table = new ReportTable(columns, freezeRows(rows),
-                "Konfigurationsübersicht pro Standort", "Keine Standorte im gewählten Zeitraum.");
+                "Configuration overview per site", "No sites in the selected period.");
 
-        return new ReportResponse(filter.type(), kpis, table, chart, "Client-Installationen",
+        return new ReportResponse(filter.type(), kpis, table, chart, "Client installations",
                 DATE_TIME_FMT.format(LocalDateTime.now()));
     }
 
     /**
-     * Creates the asset Bestandsübersicht across all filtered sites.
+     * Creates the asset inventory overview across all filtered sites.
      * <p>
      * Resolves site IDs via {@code Site}, {@code Project} and {@code DeploymentVariant} joins before
      * aggregating asset quantities from category tables ({@code Server}, {@code Clients},
@@ -718,19 +718,19 @@ public class ReportService {
 
         if (siteIds.isEmpty()) {
             ReportTable table = new ReportTable(List.of(
-                    new ReportColumn("type", "Kategorie", "left"),
-                    new ReportColumn("label", "Bezeichnung", "left"),
-                    new ReportColumn("count", "Anzahl", "right"),
-                    new ReportColumn("sites", "Standorte", "right")
-            ), List.of(), "Bestandsübersicht", "Keine Bestandsdaten im gewählten Zeitraum.");
+                    new ReportColumn("type", "Category", "left"),
+                    new ReportColumn("label", "Description", "left"),
+                    new ReportColumn("count", "Quantity", "right"),
+                    new ReportColumn("sites", "Sites", "right")
+            ), List.of(), "Inventory overview", "No inventory data in the selected period.");
 
             List<Kpi> kpis = List.of(
-                    new Kpi("assets", "Assets gesamt", "0", null),
-                    new Kpi("servers", "Server", "0", null),
+                    new Kpi("assets", "Assets total", "0", null),
+                    new Kpi("servers", "Servers", "0", null),
                     new Kpi("clients", "Clients", "0", null),
-                    new Kpi("software", "Softwarepakete", "0", null)
+                    new Kpi("software", "Software packages", "0", null)
             );
-            return new ReportResponse(filter.type(), kpis, table, List.of(), "Assets nach Kategorie",
+            return new ReportResponse(filter.type(), kpis, table, List.of(), "Assets by category",
                     DATE_TIME_FMT.format(LocalDateTime.now()));
         }
 
@@ -739,26 +739,26 @@ public class ReportService {
 
         List<InventoryEntry> entries = new ArrayList<>();
         entries.addAll(queryInventory("Server",
-                "SELECT COALESCE(ServerBrand, 'Unbekannt') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
-                        "FROM Server WHERE SiteID IN (:siteIds) GROUP BY COALESCE(ServerBrand, 'Unbekannt') ORDER BY label",
+                "SELECT COALESCE(ServerBrand, 'Unknown') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
+                        "FROM Server WHERE SiteID IN (:siteIds) GROUP BY COALESCE(ServerBrand, 'Unknown') ORDER BY label",
                 assetParams));
         entries.addAll(queryInventory("Client",
-                "SELECT COALESCE(ClientBrand, 'Unbekannt') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
-                        "FROM Clients WHERE SiteID IN (:siteIds) GROUP BY COALESCE(ClientBrand, 'Unbekannt') ORDER BY label",
+                "SELECT COALESCE(ClientBrand, 'Unknown') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
+                        "FROM Clients WHERE SiteID IN (:siteIds) GROUP BY COALESCE(ClientBrand, 'Unknown') ORDER BY label",
                 assetParams));
         entries.addAll(queryInventory("Radio",
-                "SELECT COALESCE(RadioBrand, 'Unbekannt') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
-                        "FROM Radio WHERE SiteID IN (:siteIds) GROUP BY COALESCE(RadioBrand, 'Unbekannt') ORDER BY label",
+                "SELECT COALESCE(RadioBrand, 'Unknown') AS label, COUNT(*) AS qty, COUNT(DISTINCT SiteID) AS sites " +
+                        "FROM Radio WHERE SiteID IN (:siteIds) GROUP BY COALESCE(RadioBrand, 'Unknown') ORDER BY label",
                 assetParams));
         entries.addAll(queryInventory("AudioDevice",
-                "SELECT COALESCE(ad.AudioDeviceBrand, 'Unbekannt') AS label, COUNT(*) AS qty, COUNT(DISTINCT c.SiteID) AS sites " +
+                "SELECT COALESCE(ad.AudioDeviceBrand, 'Unknown') AS label, COUNT(*) AS qty, COUNT(DISTINCT c.SiteID) AS sites " +
                         "FROM AudioDevice ad JOIN Clients c ON c.ClientID = ad.ClientID " +
-                        "WHERE c.SiteID IN (:siteIds) GROUP BY COALESCE(ad.AudioDeviceBrand, 'Unbekannt') ORDER BY label",
+                        "WHERE c.SiteID IN (:siteIds) GROUP BY COALESCE(ad.AudioDeviceBrand, 'Unknown') ORDER BY label",
                 assetParams));
         entries.addAll(queryInventory("PhoneIntegration",
-                "SELECT COALESCE(ph.PhoneBrand, 'Unbekannt') AS label, COUNT(*) AS qty, COUNT(DISTINCT c.SiteID) AS sites " +
+                "SELECT COALESCE(ph.PhoneBrand, 'Unknown') AS label, COUNT(*) AS qty, COUNT(DISTINCT c.SiteID) AS sites " +
                         "FROM PhoneIntegration ph JOIN Clients c ON c.ClientID = ph.ClientID " +
-                        "WHERE c.SiteID IN (:siteIds) GROUP BY COALESCE(ph.PhoneBrand, 'Unbekannt') ORDER BY label",
+                        "WHERE c.SiteID IN (:siteIds) GROUP BY COALESCE(ph.PhoneBrand, 'Unknown') ORDER BY label",
                 assetParams));
         Map<String, Object> softwareParams = new HashMap<>(assetParams);
         StringBuilder softwareSql = new StringBuilder(
@@ -790,10 +790,10 @@ public class ReportService {
         int totalSoftware = sumByType(entries, "Software");
 
         List<Kpi> kpis = List.of(
-                new Kpi("assets", "Assets gesamt", formatInt(totalAssets), null),
-                new Kpi("servers", "Server", formatInt(totalServers), null),
+                new Kpi("assets", "Assets total", formatInt(totalAssets), null),
+                new Kpi("servers", "Servers", formatInt(totalServers), null),
                 new Kpi("clients", "Clients", formatInt(totalClients), null),
-                new Kpi("software", "Softwarepakete", formatInt(totalSoftware), null)
+                new Kpi("software", "Software packages", formatInt(totalSoftware), null)
         );
 
         Map<String, Integer> typeTotals = new LinkedHashMap<>();
@@ -805,16 +805,16 @@ public class ReportService {
                 .collect(Collectors.toList());
 
         List<ReportColumn> columns = List.of(
-                new ReportColumn("type", "Kategorie", "left"),
-                new ReportColumn("label", "Bezeichnung", "left"),
-                new ReportColumn("count", "Anzahl", "right"),
-                new ReportColumn("sites", "Standorte", "right")
+                new ReportColumn("type", "Category", "left"),
+                new ReportColumn("label", "Description", "left"),
+                new ReportColumn("count", "Quantity", "right"),
+                new ReportColumn("sites", "Sites", "right")
         );
 
         ReportTable table = new ReportTable(columns, freezeRows(rows),
-                "Bestandsübersicht", "Keine Bestandsdaten im gewählten Zeitraum.");
+                "Inventory overview", "No inventory data in the selected period.");
 
-        return new ReportResponse(filter.type(), kpis, table, chart, "Assets nach Kategorie",
+        return new ReportResponse(filter.type(), kpis, table, chart, "Assets by category",
                 DATE_TIME_FMT.format(LocalDateTime.now()));
     }
 
@@ -896,11 +896,11 @@ public class ReportService {
 
     private String translateType(String type) {
         return switch (type) {
-            case "Server" -> "Server";
+            case "Server" -> "Servers";
             case "Client" -> "Clients";
-            case "Radio" -> "Funkgeräte";
-            case "AudioDevice" -> "Audio";
-            case "PhoneIntegration" -> "Telefonie";
+            case "Radio" -> "Radio devices";
+            case "AudioDevice" -> "Audio devices";
+            case "PhoneIntegration" -> "Telephony";
             case "Software" -> "Software";
             default -> type;
         };
@@ -911,11 +911,11 @@ public class ReportService {
             return "";
         }
         return switch (status) {
-            case "Planned" -> "Geplant";
-            case "Approved" -> "Freigegeben";
-            case "InProgress" -> "In Bearbeitung";
-            case "Done" -> "Abgeschlossen";
-            case "Canceled" -> "Abgebrochen";
+            case "Planned" -> "Planned";
+            case "Approved" -> "Approved";
+            case "InProgress" -> "In progress";
+            case "Done" -> "Completed";
+            case "Canceled" -> "Canceled";
             default -> status;
         };
     }

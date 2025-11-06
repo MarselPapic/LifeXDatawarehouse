@@ -45,16 +45,16 @@ class GenericCrudControllerTest {
 
     @Test
     void rowFetchesByPrimaryKeyAndHandlesNotFound() {
-        // Arrange: the row exists for the first call
+        // Arrange: configure the JDBC template to return a single row for the first lookup
         when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(Map.of("AccountID", "1")));
-        // Act
+        // Act: load the record through the controller
         Map<String, Object> row = controller.row("account", "1");
-        // Assert
+        // Assert: confirm the fetched row matches the stubbed response
         assertEquals("1", row.get("AccountID"));
 
-        // Arrange: the row is missing so the controller must throw
+        // Arrange: simulate a missing row on the next lookup so the controller must fail
         when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of());
-        // Act + Assert
+        // Act & Assert: expect the controller to convert the miss into a 404 status
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.row("account", "1"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
@@ -73,16 +73,16 @@ class GenericCrudControllerTest {
 
     @Test
     void updateBuildsUpdateStatementAndChecksAffectedRows() {
-        // Arrange: pretend the update affects one row
+        // Arrange: stub the update to report a single affected row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
-        // Act
+        // Act: issue an update request through the controller
         controller.update("account", "1", Map.of("AccountName", "Acme"));
-        // Assert
+        // Assert: verify the controller forwards a proper UPDATE statement to JDBC
         verify(jdbc).update(startsWith("UPDATE Account"), any(MapSqlParameterSource.class));
 
-        // Arrange: emulate an update miss
+        // Arrange: now force the update to report zero affected rows
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
-        // Act + Assert
+        // Act & Assert: ensure a 404 is propagated when nothing was updated
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.update("account", "1", Map.of("AccountName", "Acme")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -90,16 +90,16 @@ class GenericCrudControllerTest {
 
     @Test
     void deleteBuildsDeleteStatementAndChecksAffectedRows() {
-        // Arrange
+        // Arrange: allow the delete to acknowledge one removed row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
-        // Act
+        // Act: trigger the delete endpoint
         controller.delete("account", "1");
-        // Assert
+        // Assert: confirm the delete statement was issued once
         verify(jdbc).update(startsWith("DELETE FROM Account"), any(MapSqlParameterSource.class));
 
-        // Arrange: emulate a delete miss
+        // Arrange: mimic a delete that affects zero rows
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
-        // Act + Assert
+        // Act & Assert: verify the controller responds with a 404 when nothing was deleted
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.delete("account", "1"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
