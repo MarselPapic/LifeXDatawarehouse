@@ -3,6 +3,7 @@ package at.htlle.freq.domain;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -90,6 +91,9 @@ class DomainPojoTest {
         }
         if (type == Boolean.class) {
             return Boolean.TRUE;
+        }
+        if (type == LocalDate.class) {
+            return LocalDate.parse("2024-01-01");
         }
         return null;
     }

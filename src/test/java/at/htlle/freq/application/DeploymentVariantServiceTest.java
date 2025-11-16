@@ -6,6 +6,7 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Optional;
@@ -95,6 +96,21 @@ class DeploymentVariantServiceTest {
     }
 
     @Test
+    void createVariantDefaultsInactiveWhenNull() {
+        DeploymentVariant value = new DeploymentVariant();
+        value.setVariantCode("CODE");
+        value.setVariantName("Variant");
+        when(repo.save(any(DeploymentVariant.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DeploymentVariant saved = service.createOrUpdateVariant(value);
+
+        assertSame(value, saved);
+        assertEquals(Boolean.FALSE, value.getActive());
+        verify(repo).save(argThat(v -> Boolean.FALSE.equals(v.getActive())));
+        verify(lucene).indexDeploymentVariant(isNull(), eq("CODE"), eq("Variant"), isNull(), eq(false));
+    }
+
+    @Test
     void updateVariantAppliesPatch() {
         DeploymentVariant existing = deploymentVariant();
         when(repo.findById(UUID2)).thenReturn(Optional.of(existing));
@@ -104,7 +120,7 @@ class DeploymentVariantServiceTest {
         patch.setVariantCode("NEW");
         patch.setVariantName("New Variant");
         patch.setDescription("New Description");
-        patch.setActive(false);
+        patch.setActive(Boolean.FALSE);
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
             Optional<DeploymentVariant> updated = service.updateVariant(UUID2, patch);
@@ -119,15 +135,37 @@ class DeploymentVariantServiceTest {
     }
 
     @Test
+    void updateVariantKeepsActiveWhenPatchOmitted() {
+        DeploymentVariant existing = deploymentVariant();
+        when(repo.findById(UUID2)).thenReturn(Optional.of(existing));
+        when(repo.save(existing)).thenReturn(existing);
+
+        DeploymentVariant patch = new DeploymentVariant();
+        patch.setVariantName("Updated Variant");
+        patch.setDescription("Updated Description");
+
+        List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
+            Optional<DeploymentVariant> updated = service.updateVariant(UUID2, patch);
+            assertTrue(updated.isPresent());
+            assertTrue(existing.isActive());
+        });
+        synchronizations.forEach(TransactionSynchronization::afterCommit);
+
+        verify(lucene).indexDeploymentVariant(eq(UUID2.toString()), eq(existing.getVariantCode()), eq("Updated Variant"), eq("Updated Description"), eq(true));
+    }
+
+    @Test
     void updateVariantReturnsEmptyWhenUnknown() {
         when(repo.findById(UUID2)).thenReturn(Optional.empty());
         assertTrue(service.updateVariant(UUID2, deploymentVariant()).isEmpty());
     }
 
     @Test
-    void deleteVariantLoadsOptional() {
+    void deleteVariantDeletesWhenPresent() {
         when(repo.findById(UUID2)).thenReturn(Optional.of(deploymentVariant()));
         service.deleteVariant(UUID2);
-        verify(repo).findById(UUID2);
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById(UUID2);
+        order.verify(repo).deleteById(UUID2);
     }
 }

@@ -6,7 +6,9 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -108,10 +110,10 @@ class UpgradePlanServiceTest {
         UpgradePlan patch = new UpgradePlan();
         patch.setSiteID(UUID.randomUUID());
         patch.setSoftwareID(UUID.randomUUID());
-        patch.setPlannedWindowStart("2025-01-01");
-        patch.setPlannedWindowEnd("2025-01-02");
+        patch.setPlannedWindowStart(LocalDate.parse("2025-01-01"));
+        patch.setPlannedWindowEnd(LocalDate.parse("2025-01-02"));
         patch.setStatus("Approved");
-        patch.setCreatedAt("2024-02-01");
+        patch.setCreatedAt(LocalDate.parse("2024-02-01"));
         patch.setCreatedBy("Bob");
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
@@ -132,9 +134,11 @@ class UpgradePlanServiceTest {
     }
 
     @Test
-    void deleteUpgradePlanLoadsOptional() {
+    void deleteUpgradePlanDeletesWhenPresent() {
         when(repo.findById(UUID3)).thenReturn(Optional.of(upgradePlan()));
         service.deleteUpgradePlan(UUID3);
-        verify(repo).findById(UUID3);
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById(UUID3);
+        order.verify(repo).deleteById(UUID3);
     }
 }

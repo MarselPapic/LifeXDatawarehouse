@@ -231,6 +231,9 @@ CREATE TABLE InstalledSoftware (
                                    SiteID              UUID NOT NULL,
                                    SoftwareID          UUID NOT NULL,
                                    Status              VARCHAR(12) NOT NULL DEFAULT 'Offered',
+                                   OfferedDate         DATE,
+                                   InstalledDate       DATE,
+                                   RejectedDate        DATE,
                                    CONSTRAINT fk_instsw_site FOREIGN KEY (SiteID)
                                        REFERENCES Site(SiteID),
                                    CONSTRAINT fk_instsw_software FOREIGN KEY (SoftwareID)

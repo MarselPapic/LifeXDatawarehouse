@@ -24,7 +24,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
             rs.getString("VariantCode"),
             rs.getString("VariantName"),
             rs.getString("Description"),
-            rs.getBoolean("IsActive")
+            rs.getObject("IsActive", Boolean.class)
     );
 
     @Override
@@ -66,6 +66,12 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         return jdbc.query(sql, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM DeploymentVariant WHERE VariantID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists deployment variants via INSERT (with {@code RETURNING VariantID}) or UPDATE.
      * <p>
@@ -91,7 +97,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
                     .addValue("code", dv.getVariantCode())
                     .addValue("name", dv.getVariantName())
                     .addValue("desc", dv.getDescription())
-                    .addValue("active", dv.isActive());
+                    .addValue("active", Boolean.TRUE.equals(dv.getActive()));
             UUID id = jdbc.queryForObject(sql, params, UUID.class);
             dv.setVariantID(id);
         } else {
@@ -108,7 +114,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
                     .addValue("code",  dv.getVariantCode())
                     .addValue("name",  dv.getVariantName())
                     .addValue("desc",  dv.getDescription())
-                    .addValue("active",dv.isActive());
+                    .addValue("active", Boolean.TRUE.equals(dv.getActive()));
             jdbc.update(sql, params);
         }
         return dv;

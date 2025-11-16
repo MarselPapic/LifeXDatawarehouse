@@ -4,7 +4,9 @@ import at.htlle.freq.application.AccountService;
 import at.htlle.freq.domain.Account;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,11 +59,18 @@ public class AccountController {
      * <p>Request body: JSON representation of an {@link Account} including {@code contactName}.</p>
      *
      * @param account account payload.
-     * @return 200 OK with the stored account record.
+     * @return 201 Created with the stored account record.
      */
     @PostMapping
-    public Account create(@RequestBody Account account) {
+    public ResponseEntity<Account> create(@RequestBody Account account) {
         // Account already carries the contactName field; AccountService#createAccount handles it along with the rest.
-        return accountService.createAccount(account);
+        Account created = accountService.createAccount(account);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(created.getAccountID())
+                .toUri();
+
+        return ResponseEntity.created(location).body(created);
     }
 }

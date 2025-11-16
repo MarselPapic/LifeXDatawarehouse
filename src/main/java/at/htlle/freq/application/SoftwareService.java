@@ -139,6 +139,7 @@ public class SoftwareService {
     public void deleteSoftware(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(sw -> {
+            repo.deleteById(id);
             log.info("Software deleted: id={} name='{}' release='{}'",
                     id, sw.getName(), sw.getRelease());
             // Optionally remove the entry from Lucene once delete support exists.

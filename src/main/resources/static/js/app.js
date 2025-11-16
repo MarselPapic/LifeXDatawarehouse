@@ -5,12 +5,14 @@ const API = {
     search:   '/search',               // GET /search?q=...
     suggest:  '/search/suggest',       // GET /search/suggest?q=...
     table:    '/table',                // GET /table/{name}
+    siteSoftwareSummary: '/sites/software-summary',
 };
 
 /* ===================== DOM references ===================== */
 const resultArea  = document.getElementById('resultArea');
 const searchInput = document.getElementById('search-input');
 const searchBtn   = document.getElementById('search-btn');
+const searchScopeIndicator = document.getElementById('search-scope-indicator');
 
 const idxBox  = document.getElementById('idx-box');
 const idxBar  = document.querySelector('#idx-bar > span');
@@ -18,6 +20,39 @@ const idxText = document.getElementById('idx-text');
 const idxBtnSide = document.getElementById('idx-reindex-side');
 
 const sugList = document.getElementById('sug');
+
+const SEARCH_SCOPE_OPTIONS = {
+    all: { key: 'all', label: 'All', type: null },
+};
+
+const SCOPE_ALIAS_LOOKUP = new Map();
+SCOPE_ALIAS_LOOKUP.set('all', 'all');
+
+let searchScopeKey = 'all';
+
+const appIdUtils = (typeof window !== 'undefined' && window.appIdUtils) || {};
+
+function normalizeSiteIdValue(value) {
+    if (appIdUtils.normalizeUuid) {
+        return appIdUtils.normalizeUuid(value);
+    }
+    if (value === undefined || value === null) {
+        return null;
+    }
+    const str = String(value).trim();
+    return str ? str.toLowerCase() : null;
+}
+
+function getNormalizedSiteId(record) {
+    if (appIdUtils.resolveNormalizedSiteId) {
+        return appIdUtils.resolveNormalizedSiteId(record);
+    }
+    if (!record || typeof record !== 'object') {
+        return null;
+    }
+    const raw = record.SITEID ?? record.siteID ?? record.SiteID ?? record.siteId ?? record.siteid;
+    return normalizeSiteIdValue(raw);
+}
 
 /* ===================== Utils ===================== */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -28,6 +63,89 @@ function escapeHtml(s){ return (s??'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<'
 function setBusy(el, busy){ if(!el) return; busy ? el.setAttribute('aria-busy','true') : el.removeAttribute('aria-busy'); }
 
 const shortcutCache = new Map();
+
+function resolveScopeKey(value) {
+    const normalized = normalizeTypeKey(value);
+    if (!normalized) return null;
+    if (SEARCH_SCOPE_OPTIONS[normalized]) return normalized;
+    const aliasTarget = SCOPE_ALIAS_LOOKUP.get(normalized);
+    if (aliasTarget && SEARCH_SCOPE_OPTIONS[aliasTarget]) return aliasTarget;
+    return null;
+}
+
+function normalizeScopeKey(value) {
+    return resolveScopeKey(value) || 'all';
+}
+
+function getScopeOption(key) {
+    const resolved = resolveScopeKey(key);
+    if (resolved && SEARCH_SCOPE_OPTIONS[resolved]) {
+        return SEARCH_SCOPE_OPTIONS[resolved];
+    }
+    return SEARCH_SCOPE_OPTIONS.all;
+}
+
+function getScopeTypeValue() {
+    const option = getScopeOption(searchScopeKey);
+    return option ? option.type : null;
+}
+
+function isScopeSelectable(value) {
+    const resolved = resolveScopeKey(value);
+    return !!resolved && resolved !== 'all' && !!SEARCH_SCOPE_OPTIONS[resolved];
+}
+
+function updateScopeIndicator() {
+    if (!searchScopeIndicator) return;
+    const option = getScopeOption(searchScopeKey);
+    searchScopeIndicator.textContent = option.label;
+    const filtered = option.type !== null;
+    searchScopeIndicator.classList.toggle('is-filtered', filtered);
+    searchScopeIndicator.classList.toggle('is-resettable', filtered);
+    searchScopeIndicator.setAttribute('aria-pressed', filtered ? 'true' : 'false');
+    searchScopeIndicator.dataset.scope = option.key;
+    if (filtered) {
+        searchScopeIndicator.title = 'Click to reset the filter';
+    } else {
+        searchScopeIndicator.removeAttribute('title');
+    }
+}
+
+function setSearchScope(nextKey, options = {}) {
+    const normalized = normalizeScopeKey(nextKey);
+    const changed = normalized !== searchScopeKey;
+    if (changed) {
+        searchScopeKey = normalized;
+    }
+    updateScopeIndicator();
+    if (options.syncUrl !== false) {
+        updateUrlState(options.queryOverride);
+    }
+    return changed;
+}
+
+function updateUrlState(overrideQuery) {
+    if (typeof window === 'undefined' || !window?.history?.replaceState) return;
+    const params = new URLSearchParams(window.location.search);
+    const query = (overrideQuery !== undefined && overrideQuery !== null)
+        ? String(overrideQuery)
+        : (searchInput ? searchInput.value : '');
+    const trimmed = query.trim();
+    if (trimmed) {
+        params.set('q', trimmed);
+    } else {
+        params.delete('q');
+    }
+    const scopeOption = getScopeOption(searchScopeKey);
+    if (scopeOption.type) {
+        params.set('type', scopeOption.key);
+    } else {
+        params.delete('type');
+    }
+    const newQuery = params.toString();
+    const newUrl = `${window.location.pathname}${newQuery ? '?' + newQuery : ''}`;
+    window.history.replaceState(null, '', newUrl);
+}
 
 const shortcutStorage = (() => {
     const prefix = 'sc:';
@@ -72,6 +190,17 @@ if (resultArea) {
             target = target.parentElement;
         }
         if (!target || typeof target.closest !== 'function') return;
+        const typeButton = target.closest('.search-type-pill');
+        if (typeButton) {
+            const type = typeButton.dataset.searchType;
+            event.preventDefault();
+            setSearchScope(type, { syncUrl: false });
+            if (searchInput && typeof searchInput.focus === 'function') {
+                searchInput.focus();
+            }
+            runSearch(searchInput ? searchInput.value : '', { skipUrlUpdate: false });
+            return;
+        }
         const button = target.closest('.table-quick-filter');
         if (!button) return;
         const query = button.dataset.query;
@@ -284,6 +413,19 @@ function buildUserQuery(raw){
     return s.split(/\s+/).map(tok => /[*?]$/.test(tok) ? tok : (tok + '*')).join(' ');
 }
 
+function buildScopedQuery(raw, scopeType) {
+    const prepared = buildUserQuery(raw);
+    const query = (prepared ?? '').trim();
+    if (!scopeType) {
+        return query;
+    }
+    const typeClause = `type:${scopeType}`;
+    if (!query) {
+        return typeClause;
+    }
+    return `${typeClause} AND (${query})`;
+}
+
 /* ===================== Result preview (enrichment) ===================== */
 const entityTypeRegistry = window.EntityTypeRegistry || null;
 
@@ -296,53 +438,187 @@ function normalizeTypeKey(value) {
 }
 
 const ENTITY_TYPE_MAP = entityTypeRegistry?.ENTITY_TYPE_MAP || {
-    account: { detailType: 'account', typeToken: 'type:account', table: 'Account', aliases: ['account', 'accounts'] },
-    project: { detailType: 'project', typeToken: 'type:project', table: 'Project', aliases: ['project', 'projects'] },
-    site:    { detailType: 'site',    typeToken: 'type:site',    table: 'Site',    aliases: ['site', 'sites'] },
-    server:  { detailType: 'server',  typeToken: 'type:server',  table: 'Server',  aliases: ['server', 'servers'] },
-    client:  { detailType: 'client',  typeToken: 'type:client',  table: 'WorkingPosition', aliases: ['client', 'clients', 'workingposition'] },
-    radio:   { detailType: 'radio',   typeToken: 'type:radio',   table: 'Radio',   aliases: ['radio', 'radios'] },
-    audio:   { detailType: 'audio',   typeToken: 'type:audio',   table: 'AudioDevice', aliases: ['audio', 'audiodevice', 'audiodevices'] },
-    phone:   { detailType: 'phone',   typeToken: 'type:phone',   table: 'PhoneIntegration', aliases: ['phone', 'phoneintegration', 'phoneintegrations'] },
-    country: { detailType: 'country', typeToken: 'type:country', table: 'Country', aliases: ['country', 'countries'] },
-    city:    { detailType: 'city',    typeToken: 'type:city',    table: 'City',    aliases: ['city', 'cities'] },
-    address: { detailType: 'address', typeToken: 'type:address', table: 'Address', aliases: ['address', 'addresses'] },
+    account: {
+        detailType: 'account',
+        typeToken: 'type:account',
+        table: 'Account',
+        detailTable: 'Account',
+        aliases: ['account', 'accounts'],
+    },
+    project: {
+        detailType: 'project',
+        typeToken: 'type:project',
+        table: 'Project',
+        detailTable: 'Project',
+        aliases: ['project', 'projects'],
+    },
+    site: {
+        detailType: 'site',
+        typeToken: 'type:site',
+        table: 'Site',
+        detailTable: 'Site',
+        aliases: ['site', 'sites'],
+    },
+    server: {
+        detailType: 'server',
+        typeToken: 'type:server',
+        table: 'Server',
+        detailTable: 'Server',
+        aliases: ['server', 'servers'],
+    },
+    client: {
+        detailType: 'client',
+        typeToken: 'type:client',
+        table: 'WorkingPosition',
+        detailTable: 'Clients',
+        aliases: ['client', 'clients', 'workingposition', 'workingpositions'],
+    },
+    radio: {
+        detailType: 'radio',
+        typeToken: 'type:radio',
+        table: 'Radio',
+        detailTable: 'Radio',
+        aliases: ['radio', 'radios'],
+    },
+    audio: {
+        detailType: 'audio',
+        typeToken: 'type:audio',
+        table: 'AudioDevice',
+        detailTable: 'AudioDevice',
+        aliases: ['audio', 'audiodevice', 'audiodevices'],
+    },
+    phone: {
+        detailType: 'phone',
+        typeToken: 'type:phone',
+        table: 'PhoneIntegration',
+        detailTable: 'PhoneIntegration',
+        aliases: ['phone', 'phoneintegration', 'phoneintegrations'],
+    },
+    country: {
+        detailType: 'country',
+        typeToken: 'type:country',
+        table: 'Country',
+        detailTable: 'Country',
+        aliases: ['country', 'countries'],
+    },
+    city: {
+        detailType: 'city',
+        typeToken: 'type:city',
+        table: 'City',
+        detailTable: 'City',
+        aliases: ['city', 'cities'],
+    },
+    address: {
+        detailType: 'address',
+        typeToken: 'type:address',
+        table: 'Address',
+        detailTable: 'Address',
+        aliases: ['address', 'addresses'],
+    },
     deploymentvariant: {
         detailType: 'deploymentvariant',
         typeToken: 'type:deploymentvariant',
         table: 'DeploymentVariant',
-        aliases: ['deploymentvariant', 'variant', 'deploymentvariants', 'variants']
+        detailTable: 'DeploymentVariant',
+        aliases: ['deploymentvariant', 'variant', 'deploymentvariants', 'variants'],
     },
     software: {
         detailType: 'software',
         typeToken: 'type:software',
         table: 'Software',
-        aliases: ['software', 'softwares']
-    },
-    installedsoftware: {
-        detailType: 'installedsoftware',
-        typeToken: 'type:installedsoftware',
-        table: 'InstalledSoftware',
-        aliases: ['installedsoftware', 'installations']
+        detailTable: 'Software',
+        aliases: ['software', 'softwares'],
     },
     upgradeplan: {
         detailType: 'upgradeplan',
         typeToken: 'type:upgradeplan',
         table: 'UpgradePlan',
-        aliases: ['upgradeplan', 'upgradeplans']
+        detailTable: 'UpgradePlan',
+        aliases: ['upgradeplan', 'upgradeplans'],
     },
     servicecontract: {
         detailType: 'servicecontract',
         typeToken: 'type:servicecontract',
         table: 'ServiceContract',
-        aliases: ['servicecontract', 'servicecontracts', 'contract', 'contracts']
+        detailTable: 'ServiceContract',
+        aliases: ['servicecontract', 'servicecontracts', 'contract', 'contracts'],
     },
 };
+
+initializeScopeOptionsFromEntityTypes();
+
+function initializeScopeOptionsFromEntityTypes() {
+    if (!ENTITY_TYPE_MAP) return;
+    Object.entries(ENTITY_TYPE_MAP).forEach(([entryKey, info]) => {
+        if (!info) return;
+        const canonicalKey = normalizeTypeKey(info.detailType || entryKey);
+        if (!canonicalKey || canonicalKey === 'all') return;
+        const backendType = info.detailType || canonicalKey;
+        const label = deriveScopeLabel(info, entryKey);
+        SEARCH_SCOPE_OPTIONS[canonicalKey] = {
+            key: canonicalKey,
+            label,
+            type: backendType,
+        };
+        registerScopeAlias(canonicalKey, canonicalKey);
+        registerScopeAlias(entryKey, canonicalKey);
+        registerScopeAlias(info.detailType, canonicalKey);
+        registerScopeAlias(info.typeToken, canonicalKey);
+        registerScopeAlias(info.table, canonicalKey);
+        registerScopeAlias(info.detailTable, canonicalKey);
+        if (Array.isArray(info.aliases)) {
+            info.aliases.forEach(alias => registerScopeAlias(alias, canonicalKey));
+        }
+    });
+}
+
+function registerScopeAlias(value, canonicalKey) {
+    if (!canonicalKey) return;
+    const normalized = normalizeTypeKey(value);
+    if (normalized && normalized !== 'all') {
+        const existing = SCOPE_ALIAS_LOOKUP.get(normalized);
+        if (!existing) {
+            SCOPE_ALIAS_LOOKUP.set(normalized, canonicalKey);
+        } else if (existing !== canonicalKey) {
+            return;
+        }
+    }
+    if (value === undefined || value === null) return;
+    const raw = String(value).trim();
+    if (!raw || raw.startsWith('type:')) return;
+    const luceneAlias = normalizeTypeKey(`type:${raw}`);
+    if (luceneAlias && !SCOPE_ALIAS_LOOKUP.has(luceneAlias)) {
+        SCOPE_ALIAS_LOOKUP.set(luceneAlias, canonicalKey);
+    }
+}
+
+function deriveScopeLabel(info, fallbackKey) {
+    const labelSource = info?.detailTable || info?.table || info?.detailType || fallbackKey;
+    const label = humanizeScopeLabel(labelSource);
+    if (label) return label;
+    const fallback = humanizeScopeLabel(fallbackKey);
+    return fallback || (fallbackKey ? String(fallbackKey) : '');
+}
+
+function humanizeScopeLabel(value) {
+    if (value === undefined || value === null) return '';
+    const trimmed = String(value).trim();
+    if (!trimmed) return '';
+    const spaced = trimmed
+        .replace(/[_\s]+/g, ' ')
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+    return spaced
+        .split(' ')
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ');
+}
 
 const TABLE_NAME_LOOKUP = entityTypeRegistry?.TABLE_NAME_LOOKUP || (() => {
     const lookup = {};
     Object.entries(ENTITY_TYPE_MAP).forEach(([key, info]) => {
-        const aliases = new Set([key, info.table, info.detailType, ...(info.aliases || [])]);
+        const aliases = new Set([key, info.table, info.detailType, info.detailTable, ...(info.aliases || [])]);
         aliases.forEach(alias => {
             const normalized = normalizeTypeKey(alias);
             if (normalized) lookup[normalized] = info;
@@ -370,8 +646,6 @@ const COLUMN_DETAIL_TYPE_OVERRIDE_SUFFIXES = [
     ['assignedclientid', 'client'],
     ['clientguid', 'client'],
     ['clientid', 'client'],
-    ['installedsoftwareguid', 'installedsoftware'],
-    ['installedsoftwareid', 'installedsoftware'],
     ['softwareguid', 'software'],
     ['softwareid', 'software'],
     ['countrycode', 'country'],
@@ -484,9 +758,6 @@ function formatPreview(type, row){
         if (vendor !== undefined) {
             parts.push(parseBool(vendor) ? 'Third-party' : 'First-party');
         }
-    } else if (t==='installedsoftware'){
-        const siteId = val(row,'SiteID'); if (siteId) parts.push(`Site ${shortUuid(siteId)}`);
-        const swId = val(row,'SoftwareID'); if (swId) parts.push(`Software ${shortUuid(swId)}`);
     } else if (t==='upgradeplan'){
         const status = val(row,'Status'); if (status) parts.push(status);
         const window = formatDateRange(val(row,'PlannedWindowStart'), val(row,'PlannedWindowEnd')); if (window) parts.push(window);
@@ -517,6 +788,15 @@ async function enrichRows(hits){
 function wireEvents() {
     // Primary search (button)
     searchBtn.onclick = () => runSearch(searchInput.value);
+
+    if (searchScopeIndicator) {
+        searchScopeIndicator.addEventListener('click', () => {
+            if (searchScopeKey !== 'all') {
+                setSearchScope('all');
+                runSearch(searchInput ? searchInput.value : '', { skipUrlUpdate: false });
+            }
+        });
+    }
 
     // Enter → search | Tab → accept top suggestion + search immediately
     searchInput.addEventListener('keydown', (e) => {
@@ -558,7 +838,33 @@ function wireEvents() {
     // Initialize shortcuts including ARIA
     setupShortcuts();
 }
-document.addEventListener('DOMContentLoaded', wireEvents);
+
+function bootstrapSearchFromUrl() {
+    updateScopeIndicator();
+    if (typeof window === 'undefined' || !window?.location) return;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const typeParam = params.get('type');
+        const queryParam = params.get('q');
+        const hasQuery = !!(queryParam && queryParam.trim());
+        const scopeChanged = typeParam ? setSearchScope(typeParam, { syncUrl: false }) : false;
+        if (hasQuery && searchInput) {
+            searchInput.value = queryParam;
+            runSearch(queryParam, { skipUrlUpdate: true });
+        } else if (scopeChanged && searchScopeKey !== 'all') {
+            runSearch('', { skipUrlUpdate: true });
+        } else if (!typeParam) {
+            updateScopeIndicator();
+        }
+    } catch {
+        updateScopeIndicator();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    bootstrapSearchFromUrl();
+    wireEvents();
+});
 
 // Find/apply top suggestion (case-insensitive); true = applied
 function completeFromSuggestions(){
@@ -685,9 +991,22 @@ function setupShortcuts() {
 }
 
 /* ===================== Search ===================== */
-function runSearch(raw){
-    const prepared = buildUserQuery(raw);
-    runLucene(prepared);
+function runSearch(raw, options = {}) {
+    const text = (raw ?? '').toString();
+    if (options.updateInput !== false && searchInput) {
+        searchInput.value = text;
+    }
+    const scopeOption = getScopeOption(searchScopeKey);
+    const scopeType = scopeOption ? scopeOption.type : null;
+    const prepared = buildScopedQuery(text, scopeType);
+    if (!prepared) {
+        if (!options.skipUrlUpdate) updateUrlState(text);
+        return;
+    }
+    if (!options.skipUrlUpdate) {
+        updateUrlState(text);
+    }
+    runLucene(prepared, scopeOption);
 }
 
 function shortUuid(value) {
@@ -722,19 +1041,53 @@ function renderIdDisplay(value) {
     return { inner: safeText, title: fallback };
 }
 
-async function runLucene(q) {
+function renderTypeCell(typeValue) {
+    const resolved = resolveScopeKey(typeValue);
+    if (resolved && resolved !== 'all') {
+        const option = getScopeOption(resolved);
+        if (option && option.key !== 'all') {
+            const label = option.label;
+            return `<button type="button" class="search-type-pill" data-search-type="${option.key}">${escapeHtml(label)}</button>`;
+        }
+    }
+    return escapeHtml(typeValue ?? '');
+}
+
+function filterHitsByScope(hits, scopeKey) {
+    if (!Array.isArray(hits)) return [];
+    const canonicalScope = resolveScopeKey(scopeKey);
+    if (!canonicalScope || canonicalScope === 'all') return hits;
+    return hits.filter(hit => resolveScopeKey(hit?.type) === canonicalScope);
+}
+
+async function runLucene(q, scopeOption) {
     const query = (q ?? '').trim();
-    if (!query) return;
+    if (!query) {
+        resultArea.textContent = '(no matches)';
+        return;
+    }
     try {
         setBusy(resultArea, true);
-        const res  = await fetch(`${API.search}?q=${encodeURIComponent(query)}`);
+        const url = (typeof window !== 'undefined' && window?.location)
+            ? new URL(API.search, window.location.origin)
+            : new URL(API.search, 'http://localhost');
+        url.searchParams.set('q', query);
+        const scopeType = scopeOption?.type || null;
+        const scopeKey = scopeOption?.key || null;
+        if (scopeType) {
+            url.searchParams.set('type', scopeType);
+        } else {
+            url.searchParams.delete('type');
+        }
+        const res  = await fetch(url.toString());
         const hits = await res.json();
-        if (!Array.isArray(hits) || !hits.length) {
+        const filteredHits = filterHitsByScope(hits, scopeKey);
+        if (!Array.isArray(filteredHits) || !filteredHits.length) {
             resultArea.textContent = '(no matches)';
             return;
         }
 
-        const rows = hits.map((h, i) => {
+        const rows = filteredHits.map((h, i) => {
             const snippet = (h.snippet ?? '').trim();
             const snippetHtml = snippet ? `<div class="hit-snippet"><small>${escapeHtml(snippet)}</small></div>` : '';
             const typeArg = JSON.stringify(h.type ?? '');
@@ -742,7 +1095,7 @@ async function runLucene(q) {
             const idDisplay = renderIdDisplay(h.id);
             return `
       <tr onclick='toDetails(${typeArg},${idArg})' style="cursor:pointer">
-        <td>${escapeHtml(h.type)}</td>
+        <td>${renderTypeCell(h.type)}</td>
         <td title="${escapeHtml(idDisplay.title)}">${idDisplay.inner}</td>
         <td><div class="hit-text">${escapeHtml(h.text ?? '')}</div>${snippetHtml}</td>
         <td id="info-${i}"></td>
@@ -757,7 +1110,7 @@ async function runLucene(q) {
         </table>
       </div>`;
 
-        enrichRows(hits);
+        enrichRows(filteredHits);
 
     } catch (e) {
         resultArea.innerHTML = `<p id="error" role="alert">Error: ${e}</p>`;
@@ -812,6 +1165,104 @@ function tableQuickFilterQuery(typeToken, columnKey, rawValue) {
     return typeFilter ? `${typeFilter} AND ${prepared}` : prepared;
 }
 
+async function fetchSiteSoftwareSummary(statusKey) {
+    const params = new URLSearchParams();
+    if (statusKey) {
+        params.set('status', statusKey);
+    }
+    const query = params.toString();
+    const url = query ? `${API.siteSoftwareSummary}?${query}` : API.siteSoftwareSummary;
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+function toSiteSoftwareSummaryMap(entries) {
+    const map = new Map();
+    if (!Array.isArray(entries)) {
+        return map;
+    }
+    entries.forEach(entry => {
+        if (!entry) return;
+        const normalizedSiteId = getNormalizedSiteId(entry);
+        if (!normalizedSiteId) return;
+        const countRaw = entry.count ?? entry.statusCount ?? entry.total ?? 0;
+        const parsed = Number(countRaw);
+        map.set(normalizedSiteId, Number.isFinite(parsed) ? parsed : 0);
+    });
+    return map;
+}
+
+async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tableName) {
+    const name = tableName || 'Site';
+
+    setBusy(resultArea, true);
+
+    let summaryEntries = [];
+    let summaryError = null;
+    try {
+        summaryEntries = await fetchSiteSoftwareSummary('Installed');
+    } catch (err) {
+        summaryError = err;
+        console.error('Site software summary could not be loaded', err);
+    }
+
+    try {
+        const summaryMap = toSiteSoftwareSummaryMap(summaryEntries);
+        const columnLabel = 'Software – Installed';
+        const allColumns = [...baseColumns, columnLabel];
+
+        const formattedRows = rows.map(row => {
+            const siteIdKey = getNormalizedSiteId(row);
+            const count = siteIdKey ? summaryMap.get(siteIdKey) : undefined;
+            let display;
+            if (summaryError) {
+                display = 'Unavailable';
+            } else if (!Number.isFinite(count)) {
+                display = '0 records';
+            } else if (count === 0) {
+                display = '0 records';
+            } else if (count === 1) {
+                display = '1 record';
+            } else {
+                display = `${count} records`;
+            }
+            return {
+                ...row,
+                [columnLabel]: display,
+            };
+        });
+
+        const hdr = allColumns.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+        const body = formattedRows
+            .map(r => `<tr>${allColumns.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`)
+            .join('');
+
+        const safeName = escapeHtml(name);
+        const titleQuery = tableTypeInfo.typeToken ? escapeHtml(tableTypeInfo.typeToken) : null;
+        const titleControl = titleQuery
+            ? `<button type="button" class="table-quick-filter" data-query="${titleQuery}">${safeName}</button>`
+            : safeName;
+
+        const statusMessage = summaryError
+            ? '<div class="empty" role="status">Software summary unavailable.</div>'
+            : '';
+
+        resultArea.innerHTML = `
+            <h2>${titleControl}</h2>
+            ${statusMessage}
+            <div class="table-scroll">
+                <table>
+                    <tr>${hdr}</tr>${body}
+                </table>
+            </div>`;
+    } finally {
+        setBusy(resultArea, false);
+    }
+}
+
 function renderTableCell(tableName, columnName, value) {
     const key = (columnName === undefined || columnName === null) ? '' : String(columnName);
     const raw = (value === undefined || value === null) ? '' : String(value);
@@ -851,9 +1302,17 @@ async function showTable(name) {
         if (!Array.isArray(rows) || !rows.length) { resultArea.textContent = '(empty)'; return; }
 
         const cols = Object.keys(rows[0]);
+        const tableTypeInfo = getTableTypeInfo(name);
+        if (tableTypeInfo.detailType && isScopeSelectable(tableTypeInfo.detailType)) {
+            setSearchScope(tableTypeInfo.detailType);
+        }
+        if (name && name.toLowerCase() === 'site') {
+            await renderSiteTableWithSummary(rows, cols, tableTypeInfo, name);
+            return;
+        }
         const hdr  = cols.map(c => `<th>${escapeHtml(c)}</th>`).join('');
         const body = rows.map(r => `<tr>${cols.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`).join('');
-        const { typeToken } = getTableTypeInfo(name);
+        const { typeToken } = tableTypeInfo;
         const safeName = escapeHtml(name);
         const titleQuery = typeToken ? escapeHtml(typeToken) : null;
         const titleControl = titleQuery

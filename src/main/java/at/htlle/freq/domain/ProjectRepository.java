@@ -37,4 +37,11 @@ public interface ProjectRepository {
      * @return snapshot of every project
      */
     List<Project> findAll();
+
+    /**
+     * Deletes a project by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

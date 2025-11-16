@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Create data entry</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
@@ -64,7 +65,6 @@
             <option value="WorkingPosition">Client (WorkingPosition)</option>
             <option value="Country">Country</option>
             <option value="DeploymentVariant">DeploymentVariant</option>
-            <option value="InstalledSoftware">InstalledSoftware</option>
             <option value="PhoneIntegration">PhoneIntegration</option>
             <option value="Project">Project</option>
             <option value="Radio">Radio</option>
@@ -97,7 +97,6 @@
         WorkingPosition:'Create client',
         Country:'Create country',
         DeploymentVariant:'Create deployment variant',
-        InstalledSoftware:'Create installed software',
         PhoneIntegration:'Create phone integration',
         Project:'Create project',
         Radio:'Create radio',
@@ -107,6 +106,18 @@
         Software:'Create software',
         UpgradePlan:'Create upgrade plan'
     };
+
+    const SOFTWARE_STATUS_OPTIONS=[
+        {value:'Offered',label:'Offered'},
+        {value:'Installed',label:'Installed'},
+        {value:'Rejected',label:'Rejected'}
+    ];
+
+    const SOFTWARE_DATE_FIELDS=[
+        {idSuffix:'offered',label:'Offered on',prop:'offeredDate'},
+        {idSuffix:'installed',label:'Installed on',prop:'installedDate'},
+        {idSuffix:'rejected',label:'Rejected on',prop:'rejectedDate'}
+    ];
 
     function updateCreateHeading(entityKey){
         const heading=document.getElementById('createHeading');
@@ -167,8 +178,10 @@
         const attributes={
             id,
             name:config?.name||id,
-            type:config?.type||'text'
+            type:config?.inputType||config?.type||'text'
         };
+
+        const wrapperClass=config?.wrapperClass||'form-field';
 
         const optionalKeys=['placeholder','pattern','maxlength','minlength','min','max','step','autocomplete','inputmode','list'];
         optionalKeys.forEach(key=>{
@@ -192,7 +205,7 @@
         if(!config||config.required!==false) attributes.required=true;
 
         const extra=config&&config.attrs?` ${config.attrs.trim()}`:'';
-        return `<label class="form-field" for="${id}"><span class="form-field__label">${lbl}</span><input${renderAttributes(attributes)}${extra}></label>`;
+        return `<label class="${wrapperClass}" for="${id}"><span class="form-field__label">${lbl}</span><input${renderAttributes(attributes)}${extra}></label>`;
     };
 
     const toChoices=choices=>{
@@ -607,6 +620,7 @@
         const config=(opts&&typeof opts==='object'&&!Array.isArray(opts))?{...opts}:{required:opts};
         if(config.required===undefined) config.required=true;
         const placeholder=config.placeholder??'Please select';
+        const wrapperClass=config.wrapperClass||'form-field';
         const values=Array.isArray(choices)?toChoices(choices):toChoices([]);
         const selectedValue=config.value??'';
         const comboHtml=createFilterableSelect(id,{
@@ -617,8 +631,175 @@
             value:selectedValue,
             emptyText:config.emptyText||'No matches'
         });
-        return `<label class="form-field" for="${escapeAttr(id)}-input"><span class="form-field__label">${lbl}</span>${comboHtml}</label>`;
+        return `<label class="${wrapperClass}" for="${escapeAttr(id)}-input"><span class="form-field__label">${lbl}</span>${comboHtml}</label>`;
     };
+
+    let softwareEntrySeed=0;
+
+    function renderSoftwareListField(config={}){
+        const fieldId=config.id||`software-list-${Date.now()}`;
+        const label=config.label||'Software entries';
+        const hint=config.hint?`<p class="software-list__hint">${escapeHtml(config.hint)}</p>`:'';
+        const addLabel=config.addLabel||'Add software entry';
+        const emptyLabel=config.emptyLabel||'No software entries added yet.';
+        const wrapperClass=config.wrapperClass||'form-field form-field--block';
+        return `
+            <div class="${escapeAttr(wrapperClass)}" data-field-wrapper="${escapeAttr(fieldId)}">
+                <span class="form-field__label">${escapeHtml(label)}</span>
+                <div class="software-list" data-component="software-list" data-field="${escapeAttr(fieldId)}">
+                    ${hint}
+                    <p class="software-list__empty">${escapeHtml(emptyLabel)}</p>
+                    <div class="software-list__items" id="${escapeAttr(fieldId)}-items"></div>
+                    <button type="button" class="software-list__add" data-action="add-software">${escapeHtml(addLabel)}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateSoftwareListEmptyState(container){
+        if(!container) return;
+        const items=container.querySelector('.software-list__items');
+        const empty=container.querySelector('.software-list__empty');
+        if(!items||!empty) return;
+        empty.classList.toggle('hidden', items.children.length>0);
+    }
+
+    function createSoftwareEntry(container){
+        const baseId=`${container?.dataset.field||'software'}-${Date.now()}-${softwareEntrySeed++}`;
+        const entry=document.createElement('div');
+        entry.className='software-entry';
+        const softwareFieldId=`${baseId}-softwareId`;
+        const statusFieldId=`${baseId}-status`;
+        entry.dataset.softwareIdField=softwareFieldId;
+        entry.dataset.statusField=statusFieldId;
+        entry.dataset.asyncFieldId=softwareFieldId;
+        const dateMarkup=SOFTWARE_DATE_FIELDS.map(field=>{
+            const fieldId=`${baseId}-${field.idSuffix}`;
+            entry.dataset[`${field.prop}Field`]=fieldId;
+            return add(fieldId,field.label,{inputType:'date',required:false,name:field.prop,wrapperClass:'software-entry__field'});
+        }).join('');
+        const softwareHtml=renderAsyncSelect(softwareFieldId,'Software','software',{allowManual:false,placeholder:'Select software',name:'softwareId',wrapperClass:'software-entry__field'});
+        const statusHtml=addSel(statusFieldId,'Status',SOFTWARE_STATUS_OPTIONS,{placeholder:'Select status',name:'status',wrapperClass:'software-entry__field'});
+        entry.innerHTML=`
+            <div class="software-entry__grid">
+                ${softwareHtml}
+                ${statusHtml}
+                ${dateMarkup}
+            </div>
+            <div class="software-entry__actions">
+                <button type="button" class="software-entry__remove">Remove software</button>
+            </div>
+        `;
+        return entry;
+    }
+
+    function initializeSoftwareLists(form){
+        (form.querySelectorAll?.('[data-component="software-list"]')||[]).forEach(container=>{
+            const items=container.querySelector('.software-list__items');
+            const addButton=container.querySelector('.software-list__add');
+            if(addButton && !addButton.dataset.bound){
+                addButton.addEventListener('click',()=>{
+                    if(!items) return;
+                    const entry=createSoftwareEntry(container);
+                    items.appendChild(entry);
+                    updateSoftwareListEmptyState(container);
+                    initializeFilterableSelects(entry);
+                    initializeAsyncSelects(entry);
+                    applyInputEnhancements(entry);
+                    applyValidationMessages(entry);
+                    const focusTarget=entry.querySelector('input,select,button');
+                    focusTarget?.focus();
+                });
+                addButton.dataset.bound='true';
+            }
+            container.addEventListener('click',event=>{
+                const removeBtn=event.target.closest('.software-entry__remove');
+                if(!removeBtn) return;
+                const entry=removeBtn.closest('.software-entry');
+                if(entry){
+                    const asyncId=entry.dataset.asyncFieldId;
+                    if(asyncId){
+                        delete asyncSelectConfigs[asyncId];
+                    }
+                    entry.remove();
+                    updateSoftwareListEmptyState(container);
+                }
+            });
+            updateSoftwareListEmptyState(container);
+        });
+    }
+
+    function resetSoftwareLists(form){
+        (form.querySelectorAll?.('[data-component="software-list"]')||[]).forEach(container=>{
+            const items=container.querySelector('.software-list__items');
+            if(items){
+                Array.from(items.querySelectorAll('.software-entry')).forEach(entry=>{
+                    const asyncId=entry.dataset.asyncFieldId;
+                    if(asyncId){
+                        delete asyncSelectConfigs[asyncId];
+                    }
+                });
+                items.innerHTML='';
+            }
+            updateSoftwareListEmptyState(container);
+        });
+    }
+
+    function collectSoftwareEntries(form){
+        const container=form.querySelector('[data-component="software-list"]');
+        if(!container){
+            return {entries:[]};
+        }
+        const entryNodes=Array.from(container.querySelectorAll('.software-entry'));
+        if(entryNodes.length===0){
+            return {entries:[]};
+        }
+        const isoDatePattern=/^\d{4}-\d{2}-\d{2}$/;
+        const entries=[];
+        for(let i=0;i<entryNodes.length;i+=1){
+            const entry=entryNodes[i];
+            const position=i+1;
+            const getValue=id=>document.getElementById(id)?.value?.trim()||'';
+            const softwareId=getValue(entry.dataset.softwareIdField);
+            if(!softwareId){
+                return {error:`Software selection is required for entry #${position}.`};
+            }
+            const status=getValue(entry.dataset.statusField);
+            if(!status){
+                return {error:`Status is required for entry #${position}.`};
+            }
+            const offered=getValue(entry.dataset.offeredDateField);
+            const installed=getValue(entry.dataset.installedDateField);
+            const rejected=getValue(entry.dataset.rejectedDateField);
+            const dateChecks=[
+                {value:offered,label:'Offered date'},
+                {value:installed,label:'Installed date'},
+                {value:rejected,label:'Rejected date'}
+            ];
+            for(const {value,label} of dateChecks){
+                if(value && !isoDatePattern.test(value)){
+                    return {error:`${label} for entry #${position} must be a valid date in YYYY-MM-DD format.`};
+                }
+            }
+            if(offered && installed && offered>installed){
+                return {error:`Offered date must be on or before the installed date for entry #${position}.`};
+            }
+            if(installed && rejected && installed>rejected){
+                return {error:`Installed date must be on or before the rejected date for entry #${position}.`};
+            }
+            if(offered && rejected && offered>rejected){
+                return {error:`Offered date must be on or before the rejected date for entry #${position}.`};
+            }
+            entries.push({
+                softwareId: softwareId,
+                status,
+                offeredDate: offered||null,
+                installedDate: installed||null,
+                rejectedDate: rejected||null
+            });
+        }
+        return {entries};
+    }
 
     const formConfig = window.FormConfig || {getFields:()=>[], getGuidance:()=>undefined, asyncSources:{}, getMessage:()=>undefined};
 
@@ -646,9 +827,13 @@
                 required: config.required!==false,
                 placeholder: config.placeholder,
                 name: config.name,
-                value: config.value
+                value: config.value,
+                wrapperClass: config.wrapperClass||'form-field'
             };
             return addSel(config.id, config.label, config.options||[], opts);
+        }
+        if(component==='softwarelist'){
+            return renderSoftwareListField(config);
         }
         if(component==='asyncselect'){
             return renderAsyncSelect(config.id, config.label, config.source, {
@@ -658,7 +843,8 @@
                 dependsOn: config.dependsOn||null,
                 emptyText: config.emptyText,
                 name: config.name,
-                value: config.value
+                value: config.value,
+                wrapperClass: config.wrapperClass||'form-field'
             });
         }
         const inputConfig={
@@ -675,7 +861,8 @@
             inputmode: config.inputmode,
             dataset: config.dataset,
             name: config.name,
-            value: config.value
+            value: config.value,
+            wrapperClass: config.wrapperClass||'form-field'
         };
         return add(config.id, config.label, inputConfig);
     }
@@ -774,7 +961,17 @@
     }
 
     function renderAsyncSelect(id,label,sourceKey,options={}){
-        const {required=true, allowManual=false, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
+        const {
+            required=true,
+            allowManual=false,
+            placeholder='Please select',
+            dependsOn=null,
+            emptyText='No entries available',
+            filter=null,
+            name=null,
+            value=null,
+            wrapperClass='form-field'
+        } = options;
         asyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
         const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter free text</button>` : '';
         const manualValue = value ?? '';
@@ -787,7 +984,7 @@
             value:value??'',
             emptyText
         });
-        return `<label class="form-field" for="${escapeAttr(id)}-input"><span class="form-field__label">${label}</span>
+        return `<label class="${wrapperClass}" for="${escapeAttr(id)}-input"><span class="form-field__label">${label}</span>
             <div class="async-select" data-field="${id}" data-source="${sourceKey}" data-required="${required}"${dependsOn?` data-depends-on="${dependsOn}"`:''}>
                 ${comboHtml}
                 ${manualInput}
@@ -795,7 +992,6 @@
             </div>
         </label>`;
     }
-
     async function fetchJson(url){
         if(!url) return [];
         const res = await fetch(url);
@@ -1135,6 +1331,7 @@
         initializeAsyncSelects(f);
         applyInputEnhancements(f);
         applyValidationMessages(f);
+        initializeSoftwareLists(f);
         showEntityMessage(t, {});
         if(t==='Radio') wireRadioLogic();
     }
@@ -1231,18 +1428,6 @@
                     context.siteId=siteId;
                 }
                 break;
-            case 'InstalledSoftware':
-                if(accountId) context.accountId=accountId;
-                if(projectId) context.projectId=projectId;
-                if(siteId){
-                    await ensureAsyncValue('siteID', siteId, {lock:true});
-                    context.siteId=siteId;
-                }
-                if(softwareId){
-                    await ensureAsyncValue('softwareID', softwareId, {lock:true});
-                    context.softwareId=softwareId;
-                }
-                break;
             case 'UpgradePlan':
                 if(accountId) context.accountId=accountId;
                 if(projectId) context.projectId=projectId;
@@ -1264,11 +1449,12 @@
         e.preventDefault();
         const t=e.target.dataset.type; result.textContent=''; result.setAttribute('aria-busy','true');
         const fail=msg=>{
-            result.innerHTML=`<p class="error" role="alert">${msg}</p>`;
+            result.innerHTML=`<p class="error" role="alert">${escapeHtml(msg)}</p>`;
             result.removeAttribute('aria-busy');
             return true;
         };
         let url='',p={};
+        let siteSoftwareEntries=[];
 
         switch(t){
             case 'Account':
@@ -1311,12 +1497,19 @@
                     fail('TenantCount must be a number.');
                     return;
                 }
+                const softwareCollection=collectSoftwareEntries(e.target);
+                if(softwareCollection.error){
+                    fail(softwareCollection.error);
+                    return;
+                }
+                siteSoftwareEntries=softwareCollection.entries;
                 p={
                     projectID: v('pId'),
                     siteName: v('name'),
                     addressID: v('addrId'),
                     fireZone: toNull(v('zone')),
-                    tenantCount
+                    tenantCount,
+                    softwareAssignments: siteSoftwareEntries
                 };
                 break;
 
@@ -1420,14 +1613,6 @@
                 };
                 break;
 
-            case 'InstalledSoftware':
-                url='/row/installedsoftware';
-                p={
-                    SiteID: v('siteID'),
-                    SoftwareID: v('softwareID')
-                };
-                break;
-
             case 'Software':
                 url='/row/software';
                 const thirdPartyRaw=v('swThirdParty')||'false';
@@ -1491,17 +1676,37 @@
 
         try{
             const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+            const responseText=await r.text();
             if(r.ok){
-                result.innerHTML=`<p class="success">✔ ${t} created.</p>`;
                 e.target.reset();
+                resetSoftwareLists(e.target);
                 const ids=Object.keys(asyncSelectConfigs);
                 for(const id of ids){
                     await loadOptionsForField(id);
                 }
+                const trimmed=responseText?.trim();
+                let successMessage=`${t} created.`;
+                if(t==='Site'){
+                    const count=siteSoftwareEntries.length;
+                    if(count>0){
+                        const noun=count===1?'software entry':'software entries';
+                        successMessage=`${t} created with ${count} ${noun}.`;
+                    }else{
+                        successMessage=`${t} created. No software entries were submitted.`;
+                    }
+                }
+                if(trimmed){
+                    successMessage+=` (${trimmed})`;
+                }
+                result.innerHTML=`<p class="success">✔ ${escapeHtml(successMessage)}</p>`;
+            }else{
+                const trimmed=responseText?.trim();
+                const errorMessage=trimmed?`${trimmed} (HTTP ${r.status})`:`Request failed (HTTP ${r.status})`;
+                result.innerHTML=`<p class="error" role="alert">✖ ${escapeHtml(errorMessage)}</p>`;
             }
-            else   {result.innerHTML=`<p class="error" role="alert">${await r.text()}</p>`;}
-        }catch{
-            result.innerHTML=`<p class="error" role="alert">Network error.</p>`;
+        }catch(err){
+            console.error(err);
+            result.innerHTML=`<p class="error" role="alert">✖ Network error.</p>`;
         }finally{
             result.removeAttribute('aria-busy');
         }

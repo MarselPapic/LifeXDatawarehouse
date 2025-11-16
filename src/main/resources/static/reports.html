@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LifeX – Reports</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LifeX – Support end reports</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -17,102 +18,50 @@
     </nav>
 </header>
 
-<div class="layout">
-    <aside class="sidebar">
-        <section>
-            <h2>Report Types</h2>
-            <ul id="type-list" class="report-type-list" role="list"></ul>
-        </section>
+<main id="main" class="content content--narrow" aria-live="polite">
+    <h1>Support end overview</h1>
+    <p>Select a date window to find software whose <strong>SupportEndDate</strong> is due within that period. Use quick presets or enter a custom start and end date.</p>
 
-        <section class="tables">
-            <h2>Quick Links</h2>
-            <ul>
-                <li><button class="quick-link" data-type="DIFFERENCE" data-period="last30">Variances (30 days)</button></li>
-                <li><button class="quick-link" data-type="MAINTENANCE" data-period="quarter">Maintenance current quarter</button></li>
-                <li><button class="quick-link" data-type="INVENTORY" data-period="quarter">Inventory overview</button></li>
-            </ul>
-        </section>
-    </aside>
-
-    <main id="main" class="content" aria-live="polite">
-        <h1>Reports</h1>
-
-        <section class="filters" aria-labelledby="filters-title">
-            <h2 id="filters-title">Filters</h2>
-            <form id="filter-form">
-                <div class="field">
-                    <label for="period">Period</label>
-                    <select id="period" name="period"></select>
-                </div>
-                <div class="field">
-                    <label for="query">Project / Site</label>
-                    <input id="query" name="query" placeholder="e.g. project name, SAP ID or site">
-                </div>
-                <div class="field">
-                    <label for="variant">Deployment variant</label>
-                    <select id="variant" name="variant">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="install-status">Installation status</label>
-                    <select id="install-status" name="installStatus">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="field field--custom" id="custom-range" hidden>
-                    <label for="from">From</label>
-                    <input type="date" id="from" name="from">
-                    <label for="to">To</label>
-                    <input type="date" id="to" name="to">
-                </div>
-                <div class="filter-actions">
-                    <button type="submit" class="btn-primary">Apply</button>
-                    <button type="button" id="reset-filter">Reset</button>
-                </div>
-            </form>
-            <div id="filter-info" class="filter-info" role="status" aria-live="polite"></div>
-        </section>
-
-        <section aria-labelledby="kpi-title" id="kpi-section">
-            <h2 id="kpi-title" class="visually-hidden">Key metrics</h2>
-            <div id="kpi-grid" class="kpi-grid"></div>
-        </section>
-
-        <div class="tabnav" role="tablist" aria-label="Report views" id="tabbar"></div>
-
-        <section id="report-panel" class="report-panel" role="tabpanel" aria-labelledby="" aria-busy="false">
-            <div id="chart" class="report-chart" aria-live="polite"></div>
-            <div class="toolbar">
-                <div class="report-meta">
-                    <span id="chart-title" class="chart-title"></span>
-                    <span id="generated-at" class="generated-at"></span>
-                </div>
-                <span class="spacer"></span>
-                <a id="export-csv" class="btn" href="#">Export CSV</a>
+    <section class="filters" aria-labelledby="filters-title">
+        <h2 id="filters-title">Date range</h2>
+        <form id="range-form" class="filter-grid">
+            <div class="field">
+                <label for="range">Preset</label>
+                <select id="range" name="range">
+                    <option value="next30">Next 30 days</option>
+                    <option value="next90">Next 90 days</option>
+                    <option value="next180">Next 180 days</option>
+                    <option value="custom">Custom</option>
+                </select>
             </div>
-            <div id="table-wrapper" class="table-scroll"></div>
-            <div id="report-status" role="status" aria-live="polite"></div>
-        </section>
-    </main>
+            <div class="field" id="custom-range" hidden>
+                <label for="start-date">Start date</label>
+                <input type="date" id="start-date" name="startDate">
+            </div>
+            <div class="field" id="custom-range-end" hidden>
+                <label for="end-date">End date</label>
+                <input type="date" id="end-date" name="endDate">
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">Apply</button>
+                <button type="button" id="reset">Reset</button>
+            </div>
+        </form>
+        <div id="selection-info" class="filter-info" role="status" aria-live="polite"></div>
+    </section>
 
-    <aside class="help">
-        <h2>Guidance</h2>
-        <ul id="help-hints">
-            <li>Apply filters to restrict data sources to the relevant period.</li>
-            <li>Exports provide the currently filtered view as CSV.</li>
-            <li>Address configuration variances early to reduce service windows.</li>
-        </ul>
-        <hr>
-        <h3>Next steps</h3>
-        <ol>
-            <li>Review and confirm maintenance plans regularly.</li>
-            <li>Export the inventory overview for audits.</li>
-            <li>Escalate high-priority variances.</li>
-        </ol>
-        <p id="refresh-info" class="help-note"></p>
-    </aside>
-</div>
+    <section class="report-panel" id="report-panel" aria-busy="false">
+        <div class="toolbar">
+            <div class="report-meta">
+                <span id="generated-at" class="generated-at"></span>
+            </div>
+            <span class="spacer"></span>
+            <a id="export-csv" class="btn" href="#">Download CSV</a>
+        </div>
+        <div id="table-wrapper" class="table-scroll"></div>
+        <div id="report-status" role="status" aria-live="polite"></div>
+    </section>
+</main>
 
 <script src="/js/reports.js"></script>
 </body>

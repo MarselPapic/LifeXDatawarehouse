@@ -115,10 +115,29 @@ class AccountServiceTest {
     }
 
     @Test
-    void deleteAccountDelegatesToRepository() {
+    void deleteAccountDelegatesToRepositoryAndLucene() {
         UUID id = UUID.randomUUID();
         service.deleteAccount(id);
         verify(repo).deleteById(id);
+        verify(lucene).deleteDocument(id.toString());
+    }
+
+    @Test
+    void deleteAccountRegistersAfterCommitWhenTransactionActive() {
+        UUID id = UUID.randomUUID();
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.deleteAccount(id);
+            List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, synchronizations.size());
+            verify(lucene, never()).deleteDocument(anyString());
+            synchronizations.forEach(TransactionSynchronization::afterCommit);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        verify(lucene).deleteDocument(id.toString());
     }
 
     @Test

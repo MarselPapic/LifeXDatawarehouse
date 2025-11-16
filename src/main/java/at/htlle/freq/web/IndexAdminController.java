@@ -4,6 +4,7 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,9 +23,11 @@ public class IndexAdminController {
     private static final Logger LOG = LoggerFactory.getLogger(IndexAdminController.class);
 
     private final LuceneIndexService lucene;
+    private final TaskExecutor taskExecutor;
 
-    public IndexAdminController(LuceneIndexService lucene) {
+    public IndexAdminController(LuceneIndexService lucene, TaskExecutor taskExecutor) {
         this.lucene = lucene;
+        this.taskExecutor = taskExecutor;
     }
 
     /**
@@ -51,7 +54,7 @@ public class IndexAdminController {
             }
         };
 
-        new Thread(task, "manual-reindex").start();
+        taskExecutor.execute(task);
     }
 
     private String resolveActor(Principal principal) {

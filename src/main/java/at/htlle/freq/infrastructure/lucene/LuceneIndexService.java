@@ -44,6 +44,13 @@ public interface LuceneIndexService {
     void indexAccount(String accountId, String accountName, String country, String contactEmail);
 
     /**
+     * Removes a previously indexed document from the Lucene index using its identifier.
+     * Implementations should silently ignore unknown identifiers while ensuring the delete
+     * operation is committed so search results remain in sync immediately after a transaction.
+     */
+    void deleteDocument(String id);
+
+    /**
      * Indexes an address document linking it to the respective city reference for search operations.
      */
     void indexAddress(String addressId, String street, String cityId);
@@ -74,9 +81,10 @@ public interface LuceneIndexService {
     void indexDeploymentVariant(String variantId, String variantCode, String variantName, String description, boolean active);
 
     /**
-     * Indexes installed software references for a site, reflecting current rollout status.
+     * Indexes installed software references for a site, reflecting current rollout status including lifecycle timestamps.
      */
-    void indexInstalledSoftware(String installedSoftwareId, String siteId, String softwareId, String status);
+    void indexInstalledSoftware(String installedSoftwareId, String siteId, String softwareId, String status,
+                                String offeredDate, String installedDate, String rejectedDate);
 
     /**
      * Indexes phone integration hardware assigned to clients for operational tracking.

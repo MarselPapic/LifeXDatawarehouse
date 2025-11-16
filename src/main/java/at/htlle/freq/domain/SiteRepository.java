@@ -36,4 +36,11 @@ public interface SiteRepository {
      * @return snapshot of sites
      */
     List<Site> findAll();
+
+    /**
+     * Deletes a site by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

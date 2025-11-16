@@ -6,6 +6,7 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +54,15 @@ class SiteServiceTest {
     void createSiteRequiresProjectId() {
         Site value = new Site();
         value.setSiteName("Site");
+        assertThrows(IllegalArgumentException.class, () -> service.createOrUpdateSite(value));
+    }
+
+    @Test
+    void createSiteRequiresAddressId() {
+        Site value = new Site();
+        value.setSiteName("Site");
+        value.setProjectID(UUID.randomUUID());
+
         assertThrows(IllegalArgumentException.class, () -> service.createOrUpdateSite(value));
     }
 
@@ -115,15 +125,33 @@ class SiteServiceTest {
     }
 
     @Test
+    void updateSiteIgnoresNullAddressPatch() {
+        Site existing = site();
+        when(repo.findById(UUID4)).thenReturn(Optional.of(existing));
+        when(repo.save(existing)).thenReturn(existing);
+
+        Site patch = new Site();
+        patch.setSiteName("NewName");
+
+        Optional<Site> updated = service.updateSite(UUID4, patch);
+        assertTrue(updated.isPresent());
+        assertEquals(UUID5, existing.getAddressID());
+
+        verify(lucene).indexSite(eq(UUID4.toString()), eq(existing.getProjectID().toString()), eq(UUID5.toString()), eq("NewName"), any(), any());
+    }
+
+    @Test
     void updateSiteReturnsEmptyWhenUnknown() {
         when(repo.findById(UUID4)).thenReturn(Optional.empty());
         assertTrue(service.updateSite(UUID4, site()).isEmpty());
     }
 
     @Test
-    void deleteSiteLoadsOptional() {
+    void deleteSiteDeletesWhenPresent() {
         when(repo.findById(UUID4)).thenReturn(Optional.of(site()));
         service.deleteSite(UUID4);
-        verify(repo).findById(UUID4);
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById(UUID4);
+        order.verify(repo).deleteById(UUID4);
     }
 }

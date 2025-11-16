@@ -63,6 +63,12 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         return jdbc.query(sql, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM Software WHERE SoftwareID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists software entries via INSERT or UPDATE in the {@code Software} table.
      * <p>

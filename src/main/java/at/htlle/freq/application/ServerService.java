@@ -119,7 +119,9 @@ public class ServerService {
             existing.setPatchLevel(nvl(patch.getPatchLevel(), existing.getPatchLevel()));
             existing.setVirtualPlatform(nvl(patch.getVirtualPlatform(), existing.getVirtualPlatform()));
             existing.setVirtualVersion(nvl(patch.getVirtualVersion(), existing.getVirtualVersion()));
-            existing.setHighAvailability(patch.isHighAvailability());
+            if (patch.getHighAvailability() != null) {
+                existing.setHighAvailability(patch.getHighAvailability());
+            }
 
             Server saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
@@ -138,6 +140,7 @@ public class ServerService {
     public void deleteServer(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(s -> {
+            repo.deleteById(id);
             log.info("Server deleted: id={} name='{}' brand='{}'", id, s.getServerName(), s.getServerBrand());
             // Optionally remove the entry from Lucene once delete support exists.
         });

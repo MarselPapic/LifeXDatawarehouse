@@ -70,4 +70,10 @@ public class JdbcCountryRepository implements CountryRepository {
     public List<Country> findAll() {
         return jdbc.query("SELECT CountryCode, CountryName FROM Country", mapper);
     }
+
+    @Override
+    public void deleteById(String code) {
+        String sql = "DELETE FROM Country WHERE CountryCode = :code";
+        jdbc.update(sql, new MapSqlParameterSource("code", code));
+    }
 }

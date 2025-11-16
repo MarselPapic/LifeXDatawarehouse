@@ -12,7 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * beans and external integrations.</p>
  */
 @SpringBootTest
-class LifeXDatawrehouseAppApplicationTests {
+class LifeXDatawarehouseAppApplicationTests {
 
     /**
      * Loads the full Spring context to detect common misconfigurations such as

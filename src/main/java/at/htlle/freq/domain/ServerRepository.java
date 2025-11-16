@@ -36,4 +36,11 @@ public interface ServerRepository {
      * @return snapshot of every server
      */
     List<Server> findAll();
+
+    /**
+     * Deletes a server by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

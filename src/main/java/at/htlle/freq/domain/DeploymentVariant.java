@@ -13,16 +13,16 @@ public class DeploymentVariant {
     private String variantCode;
     private String variantName;
     private String description;
-    private boolean isActive;
+    private Boolean active;
 
     public DeploymentVariant() {}
     public DeploymentVariant(UUID variantID, String variantCode, String variantName,
-                             String description, boolean isActive) {
+                             String description, Boolean active) {
         this.variantID = variantID;
         this.variantCode = variantCode;
         this.variantName = variantName;
         this.description = description;
-        this.isActive = isActive;
+        this.active = active;
     }
 
     public UUID getVariantID() { return variantID; }
@@ -37,6 +37,9 @@ public class DeploymentVariant {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public boolean isActive() { return isActive; }
-    public void setActive(boolean active) { isActive = active; }
+    public boolean isActive() { return Boolean.TRUE.equals(active); }
+
+    public Boolean getActive() { return active; }
+
+    public void setActive(Boolean active) { this.active = active; }
 }

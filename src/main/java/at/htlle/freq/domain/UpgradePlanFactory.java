@@ -1,6 +1,8 @@
 package at.htlle.freq.domain;
 
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Component
@@ -15,11 +17,11 @@ public class UpgradePlanFactory {
      * @param windowEnd planned maintenance window end
      * @param status workflow status of the plan
      * @param createdBy user who authored the plan
-     * @param createdAt timestamp string of creation
+     * @param createdAt creation date
      * @return transient upgrade plan entity
      */
-    public UpgradePlan create(UUID siteID, UUID softwareID, String windowStart, String windowEnd,
-                              String status, String createdBy, String createdAt) {
+    public UpgradePlan create(UUID siteID, UUID softwareID, LocalDate windowStart, LocalDate windowEnd,
+                              String status, String createdBy, LocalDate createdAt) {
         return new UpgradePlan(null, siteID, softwareID, windowStart, windowEnd, status, createdAt, createdBy);
     }
 }

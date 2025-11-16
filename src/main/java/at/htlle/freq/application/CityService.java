@@ -87,6 +87,8 @@ public class CityService {
             throw new IllegalArgumentException("CityID is required");
         if (isBlank(incoming.getCityName()))
             throw new IllegalArgumentException("CityName is required");
+        if (isBlank(incoming.getCountryCode()))
+            throw new IllegalArgumentException("CountryCode must not be blank");
 
         City saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
@@ -109,7 +111,8 @@ public class CityService {
 
         return repo.findById(id).map(existing -> {
             existing.setCityName(nvl(patch.getCityName(), existing.getCityName()));
-            existing.setCountryCode(nvl(patch.getCountryCode(), existing.getCountryCode()));
+            String normalizedCountryCode = isBlank(patch.getCountryCode()) ? null : patch.getCountryCode();
+            existing.setCountryCode(nvl(normalizedCountryCode, existing.getCountryCode()));
 
             City saved = repo.save(existing);
             registerAfterCommitIndexing(saved);

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LifeX – Dashboard</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -96,7 +97,6 @@
                 <li onclick="showTable('PhoneIntegration')">PhoneIntegration</li>
                 <li onclick="showTable('DeploymentVariant')">DeploymentVariant</li>
                 <li onclick="showTable('Software')">Software</li>
-                <li onclick="showTable('InstalledSoftware')">InstalledSoftware</li>
                 <li onclick="showTable('UpgradePlan')">UpgradePlan</li>
                 <li onclick="showTable('ServiceContract')">ServiceContract</li>
             </ul>
@@ -113,12 +113,15 @@
             <div id="idx-text"></div>
         </div>
 
-        <div id="search-bar">
-            <label for="search-input" class="visually-hidden">Global search</label>
-            <!-- Keep the datalist for autocomplete; hide the native icon via CSS -->
-            <input id="search-input" placeholder="Global search (Lucene or plain)" list="sug" autocomplete="off">
-            <datalist id="sug"></datalist>
-            <button id="search-btn">Search</button>
+        <div class="search-shell">
+            <button type="button" id="search-scope-indicator" class="search-scope-badge" aria-live="polite" aria-label="Active search scope">All</button>
+            <div id="search-bar">
+                <label for="search-input" class="visually-hidden">Global search</label>
+                <!-- Keep the datalist for autocomplete; hide the native icon via CSS -->
+                <input id="search-input" placeholder="Global search (Lucene or plain)" list="sug" autocomplete="off">
+                <datalist id="sug"></datalist>
+                <button id="search-btn">Search</button>
+            </div>
         </div>
 
         <div id="resultArea" role="status" aria-live="polite" aria-atomic="true">
@@ -145,6 +148,7 @@
 </div>
 
 <script src="/js/entity-type-map.js"></script>
+<script src="/js/id-utils.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>

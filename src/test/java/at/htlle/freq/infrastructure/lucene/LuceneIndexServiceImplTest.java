@@ -81,6 +81,17 @@ class LuceneIndexServiceImplTest {
     }
 
     @Test
+    void deleteDocumentRemovesEntriesFromIndex() throws Exception {
+        service.indexAccount("acc-del", "Delete Me", null, null);
+        Query query = new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer()).parse("delete");
+        assertFalse(service.search(query).isEmpty());
+
+        service.deleteDocument("acc-del");
+
+        assertTrue(service.search(query).isEmpty());
+    }
+
+    @Test
     void safeHandlesNullValuesWhenIndexing() throws Exception {
         // Arrange: index an account where all optional fields are null
         service.indexAccount("acc-3", null, null, null);

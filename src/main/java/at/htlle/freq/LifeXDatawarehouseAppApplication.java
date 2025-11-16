@@ -15,7 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * </p>
  */
 @SpringBootApplication
-public class LifeXDatawrehouseAppApplication {
+public class LifeXDatawarehouseAppApplication {
 
         /** Launches the Spring Boot application.
          * <p>
@@ -25,6 +25,6 @@ public class LifeXDatawrehouseAppApplication {
          * </p>
          */
         public static void main(String[] args) {
-                SpringApplication.run(LifeXDatawrehouseAppApplication.class, args);
+                SpringApplication.run(LifeXDatawarehouseAppApplication.class, args);
         }
 }

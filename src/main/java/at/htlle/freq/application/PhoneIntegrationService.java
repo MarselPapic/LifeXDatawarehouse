@@ -131,6 +131,7 @@ public class PhoneIntegrationService {
     public void deletePhoneIntegration(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(p -> {
+            repo.deleteById(id);
             log.info("PhoneIntegration deleted: id={} client={} type='{}'",
                     id, p.getClientID(), p.getPhoneType());
             // Optionally remove the entry from Lucene once delete support exists.

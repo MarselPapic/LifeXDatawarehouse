@@ -97,6 +97,10 @@ public class DeploymentVariantService {
         if (isBlank(incoming.getVariantName()))
             throw new IllegalArgumentException("VariantName is required");
 
+        if (incoming.getActive() == null) {
+            incoming.setActive(Boolean.FALSE);
+        }
+
         DeploymentVariant saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
@@ -121,7 +125,9 @@ public class DeploymentVariantService {
             existing.setVariantCode(nvl(patch.getVariantCode(), existing.getVariantCode()));
             existing.setVariantName(nvl(patch.getVariantName(), existing.getVariantName()));
             existing.setDescription(nvl(patch.getDescription(), existing.getDescription()));
-            existing.setActive(patch.isActive());
+            if (patch.getActive() != null) {
+                existing.setActive(patch.getActive());
+            }
 
             DeploymentVariant saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
@@ -141,6 +147,7 @@ public class DeploymentVariantService {
     public void deleteVariant(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(v -> {
+            repo.deleteById(id);
             log.info("DeploymentVariant deleted: id={} name='{}'",
                     id, v.getVariantName());
             // Optionally remove the entry from Lucene once delete support exists.
@@ -169,7 +176,7 @@ public class DeploymentVariantService {
                     v.getVariantCode(),
                     v.getVariantName(),
                     v.getDescription(),
-                    Boolean.parseBoolean(Boolean.toString(v.isActive()))
+                    v.isActive()
             );
             log.debug("DeploymentVariant indexed in Lucene: id={}", v.getVariantID());
         } catch (Exception e) {

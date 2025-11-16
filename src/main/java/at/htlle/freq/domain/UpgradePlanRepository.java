@@ -36,4 +36,11 @@ public interface UpgradePlanRepository {
      * @return snapshot of upgrade planning records
      */
     List<UpgradePlan> findAll();
+
+    /**
+     * Deletes an upgrade plan by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

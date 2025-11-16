@@ -23,6 +23,14 @@ public interface InstalledSoftwareRepository {
     List<InstalledSoftware> findBySite(UUID siteId);
 
     /**
+     * Retrieves overview rows for a site's installed software enriched with software metadata.
+     *
+     * @param siteId identifier of the {@link Site}
+     * @return list of projection rows containing installation and software details
+     */
+    List<SiteSoftwareOverview> findOverviewBySite(UUID siteId);
+
+    /**
      * Lists installations for a specific software package.
      *
      * @param softwareId identifier of the {@link Software}
@@ -44,4 +52,11 @@ public interface InstalledSoftwareRepository {
      * @return list of all entries
      */
     List<InstalledSoftware> findAll();
+
+    /**
+     * Deletes an installed software relationship by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

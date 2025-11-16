@@ -55,6 +55,9 @@ class DomainFactoryTest {
         assertEquals(UUID1, installedSoftware.getSiteID());
         assertEquals(UUID2, installedSoftware.getSoftwareID());
         assertEquals(InstalledSoftwareStatus.OFFERED.dbValue(), installedSoftware.getStatus());
+        assertNull(installedSoftware.getOfferedDate());
+        assertNull(installedSoftware.getInstalledDate());
+        assertNull(installedSoftware.getRejectedDate());
 
         PhoneIntegrationFactory phoneIntegrationFactory = new PhoneIntegrationFactory();
         PhoneIntegration phoneIntegration = phoneIntegrationFactory.create(UUID1, "TYPE", "Brand", "SN", "FW");
@@ -77,7 +80,8 @@ class DomainFactoryTest {
         assertTrue(server.isHighAvailability());
 
         ServiceContractFactory serviceContractFactory = new ServiceContractFactory();
-        ServiceContract serviceContract = serviceContractFactory.create(UUID1, UUID2, UUID1, "C-1", "Active", "2024-01-01", "2024-12-31");
+        ServiceContract serviceContract = serviceContractFactory.create(UUID1, UUID2, UUID1, "C-1", "Active",
+                java.time.LocalDate.parse("2024-01-01"), java.time.LocalDate.parse("2024-12-31"));
         assertEquals("C-1", serviceContract.getContractNumber());
         assertEquals("Active", serviceContract.getStatus());
 
@@ -93,7 +97,9 @@ class DomainFactoryTest {
         assertTrue(software.isThirdParty());
 
         UpgradePlanFactory upgradePlanFactory = new UpgradePlanFactory();
-        UpgradePlan upgradePlan = upgradePlanFactory.create(UUID1, UUID2, "2024-01-01", "2024-01-02", "Planned", "Alice", "System");
+        UpgradePlan upgradePlan = upgradePlanFactory.create(UUID1, UUID2,
+                java.time.LocalDate.parse("2024-01-01"), java.time.LocalDate.parse("2024-01-02"),
+                "Planned", "Alice", java.time.LocalDate.parse("2024-01-01"));
         assertEquals("Planned", upgradePlan.getStatus());
         assertEquals("Alice", upgradePlan.getCreatedBy());
     }

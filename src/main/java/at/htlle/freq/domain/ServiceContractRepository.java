@@ -37,4 +37,11 @@ public interface ServiceContractRepository {
      * @return snapshot of service contracts
      */
     List<ServiceContract> findAll();
+
+    /**
+     * Deletes a service contract by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

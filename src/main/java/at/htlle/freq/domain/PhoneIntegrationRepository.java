@@ -36,4 +36,11 @@ public interface PhoneIntegrationRepository {
      * @return snapshot of every phone integration entry
      */
     List<PhoneIntegration> findAll();
+
+    /**
+     * Deletes a phone integration by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

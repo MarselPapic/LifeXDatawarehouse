@@ -66,6 +66,12 @@ public class JdbcProjectRepository implements ProjectRepository {
         return jdbc.query(sql, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM Project WHERE ProjectID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists projects while setting every column explicitly.
      * <p>

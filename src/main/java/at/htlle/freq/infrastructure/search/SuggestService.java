@@ -9,11 +9,14 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 public class SuggestService {
 
     private final LuceneIndexService lucene;
+    private static final Logger log = LoggerFactory.getLogger(SuggestService.class);
 
     public SuggestService(LuceneIndexService lucene) {
         this.lucene = lucene;
@@ -38,7 +42,7 @@ public class SuggestService {
     /** Returns up to {@code max} suggestions whose terms begin with the provided {@code prefix}. */
     public List<String> suggest(String prefix, int max) {
         if (prefix == null) return List.of();
-        String pfx = prefix.toLowerCase();
+        String pfx = prefix.toLowerCase(Locale.ROOT);
         if (pfx.length() < 2) return List.of();
         if (max <= 0) return List.of();
 
@@ -56,20 +60,25 @@ public class SuggestService {
                     if (terms == null) continue;
 
                     TermsEnum te = terms.iterator();
-                    BytesRef br;
-                    while ((br = te.next()) != null) {
+                    BytesRef prefixRef = new BytesRef(pfx);
+                    if (te.seekCeil(prefixRef) == TermsEnum.SeekStatus.END) continue;
+
+                    BytesRef br = te.term();
+                    while (br != null) {
                         String term = br.utf8ToString();
-                        // Perform a case-insensitive comparison but return the original value
-                        if (term.toLowerCase().startsWith(pfx)) {
-                            out.add(term);
-                            if (out.size() >= max) break outer;
+                        if (!term.toLowerCase(Locale.ROOT).startsWith(pfx)) {
+                            break;
                         }
+
+                        out.add(term);
+                        if (out.size() >= max) break outer;
+
+                        br = te.next();
                     }
                 }
             }
-        } catch (IOException ignored) {
-            // Optional: add structured logging if desired
-            // log.warn("SuggestService: Could not read index", ignored);
+        } catch (IOException e) {
+            log.warn("SuggestService: failed to read index at {}", indexPath, e);
         }
 
         return out.stream().limit(max).collect(Collectors.toList());

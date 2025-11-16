@@ -56,6 +56,12 @@ public class JdbcRadioRepository implements RadioRepository {
             """, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM Radio WHERE RadioID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists radios in the {@code Radio} table using INSERT or UPDATE operations.
      * <p>

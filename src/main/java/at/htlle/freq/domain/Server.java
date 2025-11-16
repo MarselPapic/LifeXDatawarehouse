@@ -17,12 +17,12 @@ public class Server {
     private String patchLevel;
     private String virtualPlatform; // BareMetal / HyperV / vSphere
     private String virtualVersion;  // nullable
-    private boolean highAvailability;
+    private Boolean highAvailability;
 
     public Server() {}
     public Server(UUID serverID, UUID siteID, String serverName, String serverBrand, String serverSerialNr,
                   String serverOS, String patchLevel, String virtualPlatform, String virtualVersion,
-                  boolean highAvailability) {
+                  Boolean highAvailability) {
         this.serverID = serverID;
         this.siteID = siteID;
         this.serverName = serverName;
@@ -62,6 +62,8 @@ public class Server {
     public String getVirtualVersion() { return virtualVersion; }
     public void setVirtualVersion(String virtualVersion) { this.virtualVersion = virtualVersion; }
 
-    public boolean isHighAvailability() { return highAvailability; }
+    public Boolean getHighAvailability() { return highAvailability; }
+    public boolean isHighAvailability() { return Boolean.TRUE.equals(highAvailability); }
+    public void setHighAvailability(Boolean highAvailability) { this.highAvailability = highAvailability; }
     public void setHighAvailability(boolean highAvailability) { this.highAvailability = highAvailability; }
 }

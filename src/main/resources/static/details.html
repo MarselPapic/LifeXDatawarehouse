@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Detail View</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
@@ -28,6 +29,9 @@
         .status-badge--active{background:#ecfdf5;border-color:#a7f3d0;color:#047857;}
         .status-badge--maintenance{background:#fff7ed;border-color:#fed7aa;color:#c2410c;}
         .status-badge--retired{background:#f5f5f5;border-color:#d4d4d4;color:#52525b;}
+        .status-badge--offered{background:#f0f9ff;border-color:#bae6fd;color:#0369a1;}
+        .status-badge--installed{background:#ecfdf5;border-color:#bbf7d0;color:#047857;}
+        .status-badge--rejected{background:#fef2f2;border-color:#fecaca;color:#b91c1c;}
         .nav-buttons{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
         .nav-buttons a{
             display:inline-flex;align-items:center;gap:.4rem;padding:.48rem 1.05rem;border-radius:.55rem;
@@ -36,6 +40,20 @@
             box-shadow:0 2px 4px rgba(15,23,42,.12);
         }
         .nav-buttons a:focus,.nav-buttons a:hover{background:#0054a6;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(0,103,194,.2)}
+        .software-overview{display:grid;gap:1rem;margin-top:.5rem}
+        .software-overview__item{border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+        .software-overview__header{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}
+        .software-overview__name{font-weight:600;font-size:1.05rem;color:#111827;text-decoration:none}
+        .software-overview__name:hover,.software-overview__name:focus{text-decoration:underline}
+        .software-overview__version{color:#4b5563;font-size:.9rem}
+        .software-overview__status-text{font-weight:600;color:#374151}
+        .software-overview__meta{margin:.75rem 0 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-size:.9rem;color:#4b5563}
+        .software-overview__meta li{display:flex;align-items:center;gap:.35rem}
+        .software-overview__meta-label{font-weight:600;color:#1f2937;position:relative}
+        .software-overview__meta-label::after{content:':';margin-left:.1rem;color:#6b7280}
+        .software-overview__meta a{color:#1d4ed8;text-decoration:none}
+        .software-overview__meta a:hover,.software-overview__meta a:focus{text-decoration:underline}
+        .software-overview__notes{margin:.75rem 0 0 0;color:#4b5563;font-size:.9rem;line-height:1.4}
     </style>
 </head>
 <body>
@@ -56,7 +74,12 @@
         <a id="back-history" href="index.html">← Back</a>
         <a id="back-dashboard" href="/index.html">Dashboard</a>
     </div>
-    <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">loading …</div>
+    <div id="detail-layout">
+        <div id="view" class="card" role="region" aria-live="polite" aria-busy="true">loading …</div>
+        <div id="site-software-overview-card" class="card site-software-card" role="region" aria-live="polite" aria-label="Software overview" hidden>
+            <div class="site-software-card__body"></div>
+        </div>
+    </div>
 
     <!-- Parent relationships section -->
     <div id="parents"></div>
@@ -83,7 +106,6 @@
         Address: 'AddressID',
         DeploymentVariant: 'VariantID',
         Software: 'SoftwareID',
-        InstalledSoftware: 'InstalledSoftwareID',
         UpgradePlan: 'UpgradePlanID',
         ServiceContract: 'ContractID'
     };
@@ -93,6 +115,12 @@
         ACTIVE: { label: 'Active', tone: 'active' },
         MAINTENANCE: { label: 'Maintenance', tone: 'maintenance' },
         RETIRED: { label: 'Retired', tone: 'retired' }
+    };
+
+    const INSTALL_STATUS_DISPLAY = {
+        OFFERED: { label: 'Offered', tone: 'offered' },
+        INSTALLED: { label: 'Installed', tone: 'installed' },
+        REJECTED: { label: 'Rejected', tone: 'rejected' }
     };
 
     const ALLOWED_AUDIO_DEVICE_TYPES = new Set(['HEADSET','SPEAKER','MIC']);
@@ -111,6 +139,21 @@
         return `<span class="status-badge status-badge--${entry.tone}">${escapeHtml(entry.label)}</span>`;
     }
 
+    function normalizeInstallStatus(value){
+        return (value ?? '').toString().trim().toUpperCase();
+    }
+
+    function renderInstallStatusBadge(value, displayLabel){
+        const normalized = normalizeInstallStatus(value);
+        const entry = INSTALL_STATUS_DISPLAY[normalized];
+        if(!entry){
+            const raw = displayLabel ?? value;
+            return raw === undefined || raw === null ? '' : escapeHtml(String(raw));
+        }
+        const label = displayLabel ?? entry.label;
+        return `<span class="status-badge status-badge--${entry.tone}">${escapeHtml(label)}</span>`;
+    }
+
 
 
     let currentRow = null;
@@ -118,8 +161,14 @@
     let currentId = null;
     let currentRawType = null;
     let isEditing = false;
+    let currentSiteSoftwareAssignments = [];
+    let softwareOptionCache = null;
+    let softwareOptionLoadError = null;
 
     const detailBox = document.getElementById('view');
+    const detailLayoutEl = document.getElementById('detail-layout');
+    const siteSoftwareOverviewCard = document.getElementById('site-software-overview-card');
+    const siteSoftwareOverviewBody = siteSoftwareOverviewCard?.querySelector('.site-software-card__body') || null;
     const parentsBox = document.getElementById('parents');
     const childrenBox = document.getElementById('children');
 
@@ -240,7 +289,6 @@
             case 'address': return 'Address';
             case 'deploymentvariant': return 'DeploymentVariant';
             case 'software': return 'Software';
-            case 'installedsoftware': return 'InstalledSoftware';
             case 'upgradeplan': return 'UpgradePlan';
             case 'servicecontract': return 'ServiceContract';
             default: return t;
@@ -385,6 +433,9 @@
         if(!field) return '';
         const config={...field,...overrides};
         const component=(config.component||'input').toLowerCase();
+        if(component==='softwarelist'){
+            return '';
+        }
         if(component==='select'){
             if(!config.valueType) config.valueType='text';
         }else if(component==='asyncselect'){
@@ -720,7 +771,6 @@
             case 'address': return `${val(row,'Street') ?? 'Address'}`;
             case 'deploymentvariant': return `${val(row,'VariantName') ?? 'DeploymentVariant'}`;
             case 'software': return `${val(row,'Name') ?? 'Software'}`;
-            case 'installedsoftware': return `${val(row,'InstalledSoftwareID') ?? 'InstalledSoftware'}`;
             case 'upgradeplan': return `${val(row,'UpgradePlanID') ?? 'UpgradePlan'}`;
             case 'servicecontract': return `${val(row,'ContractNumber') ?? 'ServiceContract'}`;
             default:        return '';
@@ -821,6 +871,755 @@
         list.forEach(it => wrap.appendChild(toLink(it)));
         sec.appendChild(wrap);
         container.appendChild(sec);
+    }
+
+    const SOFTWARE_OVERVIEW_ENDPOINT_BUILDERS = [
+        (ctx = {}) => ctx.siteId ? `/sites/${encodeURIComponent(ctx.siteId)}/software` : null,
+        (ctx = {}) => ctx.siteId ? `/sites/${encodeURIComponent(ctx.siteId)}/software/overview` : null,
+        (ctx = {}) => ctx.siteId ? `/api/sites/${encodeURIComponent(ctx.siteId)}/software` : null,
+        (ctx = {}) => ctx.siteId ? `/api/sites/${encodeURIComponent(ctx.siteId)}/software/overview` : null,
+        (ctx = {}) => {
+            const params = new URLSearchParams();
+            if(ctx.siteId) params.set('siteId', ctx.siteId);
+            if(ctx.softwareId) params.set('softwareId', ctx.softwareId);
+            const query = params.toString();
+            return `/api/software-overview${query ? `?${query}` : ''}`;
+        },
+        (ctx = {}) => ctx.softwareId ? `/software/${encodeURIComponent(ctx.softwareId)}/deployments` : null,
+        (ctx = {}) => ctx.softwareId ? `/software/${encodeURIComponent(ctx.softwareId)}/sites` : null,
+        (ctx = {}) => ctx.softwareId ? `/api/software/${encodeURIComponent(ctx.softwareId)}/deployments` : null,
+        (ctx = {}) => ctx.softwareId ? `/api/software/${encodeURIComponent(ctx.softwareId)}/sites` : null,
+    ];
+
+    function mapSoftwareOverviewItems(items){
+        if(!Array.isArray(items)) return [];
+        return items.map(item => {
+            if(!item || typeof item !== 'object') return null;
+            if(item.__normalizedSoftwareOverview) return item;
+            const normalized = normalizeSoftwareOverviewEntry(item);
+            if(!normalized) return null;
+            return {
+                ...item,
+                installedSoftwareId: normalized.installedSoftwareId,
+                softwareId: normalized.softwareId,
+                siteId: normalized.siteId,
+                softwareDisplayName: normalized.softwareDisplayName,
+                siteDisplayName: normalized.siteDisplayName,
+                rawSoftwareName: normalized.rawSoftwareName,
+                rawSiteName: normalized.rawSiteName,
+                release: normalized.release,
+                revision: normalized.revision,
+                status: normalized.status,
+                fallbackStatus: normalized.fallbackStatus,
+                statusLabel: normalized.statusLabel,
+                statusSince: normalized.statusSince,
+                installedAt: normalized.installedAt,
+                offeredAt: normalized.offeredAt,
+                plannedStart: normalized.plannedStart,
+                plannedEnd: normalized.plannedEnd,
+                createdAt: normalized.createdAt,
+                updatedAt: normalized.updatedAt,
+                supportStart: normalized.supportStart,
+                supportEnd: normalized.supportEnd,
+                supportPhase: normalized.supportPhase,
+                lifecycleStatus: normalized.lifecycleStatus,
+                licenseModel: normalized.licenseModel,
+                thirdParty: normalized.thirdParty,
+                vendorName: normalized.vendorName,
+                notes: normalized.notes,
+                projectId: normalized.projectId,
+                projectName: normalized.projectName,
+                accountId: normalized.accountId,
+                accountName: normalized.accountName,
+                fireZone: normalized.fireZone,
+                tenantCount: normalized.tenantCount,
+                __normalizedSoftwareOverview: true
+            };
+        }).filter(Boolean);
+    }
+
+    async function fetchSoftwareOverview(context = {}){
+        const seen = new Set();
+        for(const builder of SOFTWARE_OVERVIEW_ENDPOINT_BUILDERS){
+            let url = null;
+            try {
+                url = builder(context);
+            } catch {
+                url = null;
+            }
+            if(!url || seen.has(url)) continue;
+            seen.add(url);
+            try {
+                const data = await fetchJson(url);
+                if(Array.isArray(data)){
+                    return mapSoftwareOverviewItems(data);
+                }
+            } catch {
+                // ignore failed endpoint attempts
+            }
+        }
+        return [];
+    }
+
+    function normalizeSoftwareOverviewEntry(item){
+        if(!item || typeof item !== 'object') return null;
+
+        const installedSoftwareId = val(item,'InstalledSoftwareID','installedSoftwareID','installedSoftwareId','installationId');
+        const softwareId = val(item,'SoftwareID','softwareID','softwareId','SoftwareId','Id','ID');
+        const siteId = val(item,'SiteID','siteID','siteId','SiteId');
+
+        const rawSoftwareName = (val(item,'SoftwareName','softwareName','Software','software','SoftwareLabel','softwareLabel','Name','name','Label','label','Title','title') ?? '').toString().trim();
+        const rawSiteName = (val(item,'SiteName','siteName','Site','site','SiteLabel','siteLabel','Location','location') ?? '').toString().trim();
+
+        const softwareDisplayName = rawSoftwareName || (softwareId ? `Software ${shortId(softwareId).replace(/^##/, '#')}` : 'Software');
+        const siteDisplayName = rawSiteName || (siteId ? `Site ${shortId(siteId).replace(/^##/, '#')}` : 'Site');
+
+        const primaryStatus = val(item,'Status','status','State','state','InstallStatus','installStatus');
+        const statusLabel = val(item,'StatusLabel','statusLabel','StatusText','statusText');
+        const lifecycleStatus = val(item,'LifecycleStatus','lifecycleStatus');
+        const supportPhase = val(item,'SupportPhase','supportPhase');
+        const phase = val(item,'Phase','phase');
+        const fallbackStatus = primaryStatus ?? lifecycleStatus ?? supportPhase ?? phase ?? null;
+
+        return {
+            installedSoftwareId,
+            softwareId,
+            siteId,
+            softwareDisplayName,
+            siteDisplayName,
+            rawSoftwareName,
+            rawSiteName,
+            release: val(item,'Release','release','Version','version'),
+            revision: val(item,'Revision','revision'),
+            status: primaryStatus,
+            fallbackStatus,
+            statusLabel,
+            statusSince: val(item,'StatusSince','statusSince','StatusDate','statusDate','StatusChangedAt','statusChangedAt','StatusUpdatedAt','statusUpdatedAt'),
+            installedAt: val(item,'InstalledAt','installedAt','InstalledOn','installedOn'),
+            offeredAt: val(item,'OfferedAt','offeredAt','OfferedOn','offeredOn'),
+            plannedStart: val(item,'PlannedWindowStart','plannedWindowStart','NextWindowStart','nextWindowStart','PlannedStart','plannedStart','WindowStart','windowStart'),
+            plannedEnd: val(item,'PlannedWindowEnd','plannedWindowEnd','NextWindowEnd','nextWindowEnd','PlannedEnd','plannedEnd','WindowEnd','windowEnd'),
+            createdAt: val(item,'CreatedAt','createdAt'),
+            updatedAt: val(item,'UpdatedAt','updatedAt','LastUpdated','lastUpdated'),
+            supportStart: val(item,'SupportStartDate','supportStartDate'),
+            supportEnd: val(item,'SupportEndDate','supportEndDate'),
+            supportPhase,
+            lifecycleStatus,
+            licenseModel: val(item,'LicenseModel','licenseModel'),
+            thirdParty: val(item,'ThirdParty','thirdParty','IsThirdParty','isThirdParty'),
+            vendorName: val(item,'Vendor','vendor','Manufacturer','manufacturer','Supplier','supplier'),
+            notes: val(item,'Notes','notes','Comment','comment','Remarks','remarks','Description','description'),
+            projectId: val(item,'ProjectID','projectID','projectId','ProjectId'),
+            projectName: (val(item,'ProjectName','projectName') ?? '').toString().trim(),
+            accountId: val(item,'AccountID','accountID','accountId','AccountId'),
+            accountName: (val(item,'AccountName','accountName') ?? '').toString().trim(),
+            fireZone: val(item,'FireZone','fireZone','Zone','zone'),
+            tenantCount: val(item,'TenantCount','tenantCount'),
+        };
+    }
+
+    function buildStatusBadgeHtml(statusValue, statusLabel){
+        const base = statusValue ?? statusLabel;
+        if(!base && !statusLabel) return '';
+        const normalizedInstall = normalizeInstallStatus(base);
+        if(INSTALL_STATUS_DISPLAY[normalizedInstall]){
+            return renderInstallStatusBadge(base, statusLabel ?? INSTALL_STATUS_DISPLAY[normalizedInstall].label);
+        }
+        const normalizedLifecycle = normalizeLifecycleStatus(base);
+        if(LIFECYCLE_STATUS_DISPLAY[normalizedLifecycle]){
+            const label = statusLabel ?? LIFECYCLE_STATUS_DISPLAY[normalizedLifecycle].label;
+            return `<span class="status-badge status-badge--${LIFECYCLE_STATUS_DISPLAY[normalizedLifecycle].tone}">${escapeHtml(label)}</span>`;
+        }
+        const label = statusLabel ?? base;
+        return label ? `<span class="software-overview__status-text">${escapeHtml(label)}</span>` : '';
+    }
+
+    function appendStatusBadgeElement(container, entry){
+        if(!container || !entry) return;
+        const statusValue = entry.status ?? entry.fallbackStatus;
+        const badgeHtml = buildStatusBadgeHtml(statusValue, entry.statusLabel);
+        if(!badgeHtml) return;
+        const wrapper = document.createElement('span');
+        wrapper.innerHTML = badgeHtml;
+        while(wrapper.firstChild){
+            container.appendChild(wrapper.firstChild);
+        }
+    }
+
+    function normalizeBoolean(value){
+        if(value === undefined || value === null) return null;
+        if(typeof value === 'boolean') return value;
+        const normalized = value.toString().trim().toLowerCase();
+        if(!normalized) return null;
+        if(['true','1','yes','y','ja','on'].includes(normalized)) return true;
+        if(['false','0','no','n','nein','off'].includes(normalized)) return false;
+        return null;
+    }
+
+    function describeVendor(entry){
+        if(!entry) return '';
+        if(entry.vendorName){
+            const label = entry.vendorName.toString().trim();
+            if(label) return label;
+        }
+        const bool = normalizeBoolean(entry.thirdParty);
+        if(bool === null) return '';
+        return bool ? 'Third-party' : 'First-party';
+    }
+
+    function createEntityLink(type, id, label){
+        if(!id) return null;
+        const link = document.createElement('a');
+        link.href = `/details.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
+        link.textContent = (label ?? '').toString().trim() || `${type.charAt(0).toUpperCase()}${type.slice(1)} ${shortId(id).replace(/^##/, '#')}`;
+        return link;
+    }
+
+    function appendMeta(metaList, label, value, options = {}){
+        if(!metaList || !label) return;
+        if(options.node instanceof Node){
+            const li = document.createElement('li');
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'software-overview__meta-label';
+            labelSpan.textContent = label;
+            li.appendChild(labelSpan);
+            li.appendChild(options.node);
+            metaList.appendChild(li);
+            return;
+        }
+        if(options.html){
+            if(!value) return;
+            const li = document.createElement('li');
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'software-overview__meta-label';
+            labelSpan.textContent = label;
+            li.appendChild(labelSpan);
+            const wrapper = document.createElement('span');
+            wrapper.innerHTML = value;
+            if(!wrapper.hasChildNodes()){
+                const text = wrapper.textContent.trim();
+                if(!text) return;
+                const textNode = document.createElement('span');
+                textNode.textContent = text;
+                li.appendChild(textNode);
+            } else {
+                while(wrapper.firstChild){
+                    li.appendChild(wrapper.firstChild);
+                }
+            }
+            metaList.appendChild(li);
+            return;
+        }
+        if(value === undefined || value === null) return;
+        const str = value.toString().trim();
+        if(!str) return;
+        const li = document.createElement('li');
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'software-overview__meta-label';
+        labelSpan.textContent = label;
+        li.appendChild(labelSpan);
+        const valueSpan = document.createElement('span');
+        valueSpan.textContent = str;
+        li.appendChild(valueSpan);
+        metaList.appendChild(li);
+    }
+
+    function buildSoftwareOverviewItem(entry, context){
+        const item = document.createElement('div');
+        item.className = 'software-overview__item';
+
+        const header = document.createElement('div');
+        header.className = 'software-overview__header';
+
+        const isSoftwareContext = context === 'software';
+        const linkType = isSoftwareContext ? 'site' : 'software';
+        const linkId = isSoftwareContext ? entry.siteId : entry.softwareId;
+        const displayName = (isSoftwareContext ? entry.siteDisplayName : entry.softwareDisplayName) || (isSoftwareContext ? entry.rawSiteName : entry.rawSoftwareName);
+        const fallbackName = isSoftwareContext
+            ? (entry.siteId ? `Site ${shortId(entry.siteId).replace(/^##/, '#')}` : 'Site')
+            : (entry.softwareId ? `Software ${shortId(entry.softwareId).replace(/^##/, '#')}` : 'Software');
+        const finalName = (displayName || '').toString().trim() || fallbackName;
+
+        if(linkId){
+            const anchor = document.createElement('a');
+            anchor.className = 'software-overview__name';
+            anchor.href = `/details.html?type=${encodeURIComponent(linkType)}&id=${encodeURIComponent(linkId)}`;
+            anchor.textContent = finalName;
+            header.appendChild(anchor);
+        } else {
+            const span = document.createElement('span');
+            span.className = 'software-overview__name';
+            span.textContent = finalName;
+            header.appendChild(span);
+        }
+
+        const chipHtml = formatIdChip(linkId);
+        if(chipHtml){
+            const chipWrapper = document.createElement('span');
+            chipWrapper.innerHTML = chipHtml;
+            if(chipWrapper.firstChild){
+                header.appendChild(chipWrapper.firstChild);
+            }
+        }
+
+        if(!isSoftwareContext){
+            const versionParts = [];
+            if(entry.release) versionParts.push(`Release ${entry.release}`);
+            if(entry.revision) versionParts.push(`Rev ${entry.revision}`);
+            if(versionParts.length){
+                const version = document.createElement('span');
+                version.className = 'software-overview__version';
+                version.textContent = versionParts.join(' · ');
+                header.appendChild(version);
+            }
+        }
+
+        appendStatusBadgeElement(header, entry);
+
+        item.appendChild(header);
+
+        const meta = document.createElement('ul');
+        meta.className = 'software-overview__meta';
+
+        appendMeta(meta, 'Status since', formatDateLabel(entry.statusSince));
+        appendMeta(meta, 'Installed', formatDateLabel(entry.installedAt));
+        appendMeta(meta, 'Offered', formatDateLabel(entry.offeredAt));
+        appendMeta(meta, 'Planned window', formatDateRange(entry.plannedStart, entry.plannedEnd));
+        appendMeta(meta, 'Support window', formatDateRange(entry.supportStart, entry.supportEnd));
+
+        if(entry.supportPhase){
+            const badge = renderLifecycleStatusBadge(entry.supportPhase);
+            if(badge) appendMeta(meta, 'Support phase', badge, { html: true });
+        }
+
+        const vendor = describeVendor(entry);
+        if(vendor) appendMeta(meta, 'Vendor', vendor);
+
+        if(entry.licenseModel) appendMeta(meta, 'License', entry.licenseModel);
+        appendMeta(meta, 'Updated', formatDateLabel(entry.updatedAt));
+        appendMeta(meta, 'Created', formatDateLabel(entry.createdAt));
+
+        if(isSoftwareContext){
+            if(entry.release || entry.revision){
+                const versionBits = [];
+                if(entry.release) versionBits.push(`Release ${entry.release}`);
+                if(entry.revision) versionBits.push(`Rev ${entry.revision}`);
+                appendMeta(meta, 'Version', versionBits.join(' · '));
+            }
+            if(entry.fireZone) appendMeta(meta, 'Fire zone', entry.fireZone);
+            if(entry.tenantCount !== undefined && entry.tenantCount !== null){
+                appendMeta(meta, 'Tenants', entry.tenantCount);
+            }
+            if(entry.projectId || entry.projectName){
+                const projectLink = createEntityLink('project', entry.projectId, entry.projectName);
+                if(projectLink) appendMeta(meta, 'Project', null, { node: projectLink });
+                else if(entry.projectName) appendMeta(meta, 'Project', entry.projectName);
+            }
+            if(entry.accountId || entry.accountName){
+                const accountLink = createEntityLink('account', entry.accountId, entry.accountName);
+                if(accountLink) appendMeta(meta, 'Account', null, { node: accountLink });
+                else if(entry.accountName) appendMeta(meta, 'Account', entry.accountName);
+            }
+        }
+
+        if(meta.childNodes.length){
+            item.appendChild(meta);
+        }
+
+        const notes = (entry.notes ?? '').toString().trim();
+        if(notes){
+            const noteEl = document.createElement('p');
+            noteEl.className = 'software-overview__notes';
+            noteEl.textContent = notes;
+            item.appendChild(noteEl);
+        }
+
+        return item;
+    }
+
+    function renderSoftwareOverviewSection(container, config = {}){
+        if(!container) return;
+        const context = config.context === 'software' ? 'software' : 'site';
+        const title = config.title ?? 'Software Overview';
+        const emptyMessage = config.emptyMessage ?? '(no entries)';
+        const sourceItems = Array.isArray(config.items) ? config.items : [];
+
+        const normalized = sourceItems
+            .map(normalizeSoftwareOverviewEntry)
+            .filter(entry => entry && (context === 'software' ? (entry.siteDisplayName || entry.siteId) : (entry.softwareDisplayName || entry.softwareId)));
+
+        const section = document.createElement('div');
+        section.className = 'section';
+
+        const heading = document.createElement('h2');
+        heading.innerHTML = `${escapeHtml(title)} <span class="count">(${normalized.length})</span>`;
+        section.appendChild(heading);
+
+        if(!normalized.length){
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = emptyMessage;
+            section.appendChild(empty);
+            container.appendChild(section);
+            return;
+        }
+
+        const list = document.createElement('div');
+        list.className = 'software-overview';
+        normalized.forEach(entry => list.appendChild(buildSoftwareOverviewItem(entry, context)));
+        section.appendChild(list);
+        container.appendChild(section);
+    }
+
+    function normalizeAssignmentEntry(entry){
+        if(!entry || typeof entry !== 'object') return null;
+        const softwareId = val(entry,'softwareId','SoftwareID','softwareID');
+        const installedSoftwareId = val(entry,'installedSoftwareId','InstalledSoftwareID','installationId');
+        const status = val(entry,'status','Status');
+        const offeredDate = val(entry,'offeredDate','offeredAt','OfferedDate','OfferedAt');
+        const installedDate = val(entry,'installedDate','installedAt','InstalledDate','InstalledAt');
+        const rejectedDate = val(entry,'rejectedDate','rejectedAt','RejectedDate','RejectedAt');
+        const release = val(entry,'release','Release');
+        const revision = val(entry,'revision','Revision');
+        const softwareName = (val(entry,'softwareName','SoftwareName','name','Name') ?? '').toString().trim();
+        if(!softwareId && !installedSoftwareId) return null;
+        return { installedSoftwareId, softwareId, status, offeredDate, installedDate, rejectedDate, release, revision, softwareName };
+    }
+
+    function setSiteSoftwareAssignments(assignments){
+        const normalized = Array.isArray(assignments)
+            ? assignments.map(normalizeAssignmentEntry).filter(Boolean)
+            : [];
+        currentSiteSoftwareAssignments = normalized;
+    }
+
+    async function loadSoftwareOptions(){
+        if(softwareOptionCache) return softwareOptionCache;
+        if(softwareOptionLoadError) throw softwareOptionLoadError;
+        const source = formConfig?.asyncSources?.software;
+        if(!source || !source.url) return [];
+        const url = typeof source.url === 'function' ? source.url() : source.url;
+        const res = await fetch(url);
+        if(!res.ok){
+            const err = new Error(`HTTP ${res.status}`);
+            softwareOptionLoadError = err;
+            throw err;
+        }
+        const data = await res.json();
+        const mapped = Array.isArray(data) ? data.map(item => (typeof source.map === 'function' ? source.map(item) : null)).filter(Boolean) : [];
+        softwareOptionCache = mapped;
+        return mapped;
+    }
+
+    async function ensureSoftwareOptionsList(form){
+        if(!form) return;
+        let list = form.querySelector('#software-options-list');
+        if(!list){
+            list = document.createElement('datalist');
+            list.id = 'software-options-list';
+            form.appendChild(list);
+        }
+        try{
+            const options = await loadSoftwareOptions();
+            list.innerHTML = options.map(opt => {
+                const identifier = opt.value ?? '';
+                const displayLabel = opt.displayLabel || opt.label || identifier;
+                const secondary = identifier ? escapeHtml(identifier) : '';
+                return `<option data-id="${escapeHtml(identifier)}" value="${escapeHtml(displayLabel)}" label="${escapeHtml(displayLabel)}">${secondary}</option>`;
+            }).join('');
+        }catch(err){
+            console.error('Unable to load software options', err);
+            list.innerHTML = '';
+        }
+    }
+
+    function createSoftwareAssignmentRow(entry = {}){
+        const normalized = normalizeAssignmentEntry(entry) || {};
+        const row = document.createElement('div');
+        row.className = 'software-assignment-row';
+        if(normalized.installedSoftwareId){
+            row.dataset.installationId = normalized.installedSoftwareId;
+        }
+
+        const softwareField = document.createElement('div');
+        softwareField.className = 'software-assignment__field';
+        const softwareLabel = document.createElement('label');
+        softwareLabel.textContent = 'Software';
+        const softwareHiddenInput = document.createElement('input');
+        softwareHiddenInput.type = 'hidden';
+        softwareHiddenInput.name = 'softwareId';
+        softwareHiddenInput.value = normalized.softwareId || '';
+
+        const softwareInput = document.createElement('input');
+        softwareInput.type = 'text';
+        softwareInput.name = 'softwareDisplay';
+        softwareInput.required = true;
+        softwareInput.setAttribute('list', 'software-options-list');
+        softwareInput.placeholder = 'Select software';
+        const displayParts = [normalized.softwareName, normalized.release, normalized.revision].filter(Boolean);
+        const initialDisplay = displayParts.join(' • ');
+        if(initialDisplay){
+            softwareInput.value = initialDisplay;
+        }else if(normalized.softwareId){
+            const cachedMatch = softwareOptionCache?.find(opt => opt.value === normalized.softwareId);
+            softwareInput.value = cachedMatch?.displayLabel || cachedMatch?.label || normalized.softwareId;
+        }
+
+        const syncSoftwareSelection = () => {
+            const display = softwareInput.value.trim();
+            let resolvedId = '';
+            const listEl = softwareInput.list;
+            if(listEl && display){
+                const opts = Array.from(listEl.options || []);
+                const match = opts.find(opt => opt.value === display);
+                if(match){
+                    resolvedId = match.dataset.id || match.getAttribute('data-id') || '';
+                }
+            }
+            if(!resolvedId && display){
+                resolvedId = display;
+            }
+            softwareHiddenInput.value = resolvedId;
+        };
+        softwareInput.addEventListener('change', syncSoftwareSelection);
+        softwareInput.addEventListener('blur', syncSoftwareSelection);
+        softwareInput.addEventListener('input', () => {
+            if(!softwareInput.value.trim()){
+                softwareHiddenInput.value = '';
+            }
+        });
+
+        softwareField.appendChild(softwareLabel);
+        softwareField.appendChild(softwareHiddenInput);
+        softwareField.appendChild(softwareInput);
+        if(normalized.softwareName || normalized.release || normalized.revision){
+            const meta = document.createElement('div');
+            meta.className = 'software-assignment__meta';
+            const parts = [normalized.softwareName, normalized.release, normalized.revision].filter(Boolean);
+            meta.textContent = parts.join(' • ');
+            softwareField.appendChild(meta);
+        }
+
+        const statusField = document.createElement('div');
+        statusField.className = 'software-assignment__field';
+        const statusLabel = document.createElement('label');
+        statusLabel.textContent = 'Status';
+        const statusSelect = document.createElement('select');
+        statusSelect.name = 'status';
+        statusSelect.required = true;
+        statusSelect.innerHTML = '<option value="">Select status…</option>';
+        Object.entries(INSTALL_STATUS_DISPLAY).forEach(([key, meta]) => {
+            const opt = document.createElement('option');
+            opt.value = meta.label;
+            opt.textContent = meta.label;
+            statusSelect.appendChild(opt);
+        });
+        const normalizedStatus = normalizeInstallStatus(normalized.status);
+        const match = INSTALL_STATUS_DISPLAY[normalizedStatus];
+        if(match){
+            statusSelect.value = match.label;
+        }
+        statusField.appendChild(statusLabel);
+        statusField.appendChild(statusSelect);
+
+        const offeredField = document.createElement('div');
+        offeredField.className = 'software-assignment__field';
+        const offeredLabel = document.createElement('label');
+        offeredLabel.textContent = 'Offered';
+        const offeredInput = document.createElement('input');
+        offeredInput.type = 'date';
+        offeredInput.name = 'offeredDate';
+        offeredInput.value = formatInputValue(normalized.offeredDate, 'date');
+        offeredField.appendChild(offeredLabel);
+        offeredField.appendChild(offeredInput);
+
+        const installedField = document.createElement('div');
+        installedField.className = 'software-assignment__field';
+        const installedLabel = document.createElement('label');
+        installedLabel.textContent = 'Installed';
+        const installedInput = document.createElement('input');
+        installedInput.type = 'date';
+        installedInput.name = 'installedDate';
+        installedInput.value = formatInputValue(normalized.installedDate, 'date');
+        installedField.appendChild(installedLabel);
+        installedField.appendChild(installedInput);
+
+        const rejectedField = document.createElement('div');
+        rejectedField.className = 'software-assignment__field';
+        const rejectedLabel = document.createElement('label');
+        rejectedLabel.textContent = 'Rejected';
+        const rejectedInput = document.createElement('input');
+        rejectedInput.type = 'date';
+        rejectedInput.name = 'rejectedDate';
+        rejectedInput.value = formatInputValue(normalized.rejectedDate, 'date');
+        rejectedField.appendChild(rejectedLabel);
+        rejectedField.appendChild(rejectedInput);
+
+        const actions = document.createElement('div');
+        actions.className = 'software-assignment__actions';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'software-assignment__remove';
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+        });
+        actions.appendChild(removeBtn);
+
+        const error = document.createElement('div');
+        error.className = 'software-assignment__error';
+
+        row.appendChild(softwareField);
+        row.appendChild(statusField);
+        row.appendChild(offeredField);
+        row.appendChild(installedField);
+        row.appendChild(rejectedField);
+        row.appendChild(actions);
+        row.appendChild(error);
+
+        return row;
+    }
+
+    function renderSoftwareAssignmentEditor(container){
+        if(!container) return;
+        container.innerHTML = '';
+
+        const title = document.createElement('h3');
+        title.textContent = 'Software installations';
+        container.appendChild(title);
+
+        const list = document.createElement('div');
+        list.className = 'software-assignment-list';
+        if(!currentSiteSoftwareAssignments.length){
+            const empty = document.createElement('div');
+            empty.className = 'software-assignment__empty';
+            empty.textContent = 'No software entries added yet.';
+            list.appendChild(empty);
+        }else{
+            currentSiteSoftwareAssignments.forEach(entry => {
+                list.appendChild(createSoftwareAssignmentRow(entry));
+            });
+        }
+        container.appendChild(list);
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn-secondary software-assignment__add';
+        addBtn.textContent = 'Add software entry';
+        addBtn.addEventListener('click', () => {
+            const emptyState = list.querySelector('.software-assignment__empty');
+            if(emptyState){
+                emptyState.remove();
+            }
+            list.appendChild(createSoftwareAssignmentRow());
+        });
+        container.appendChild(addBtn);
+    }
+
+    function collectSoftwareAssignments(form){
+        const list = form.querySelector('.software-assignment-list');
+        if(!list) return [];
+        const rows = Array.from(list.querySelectorAll('.software-assignment-row'));
+        const assignments = [];
+        let hasError = false;
+
+        rows.forEach(row => {
+            const softwareIdInput = row.querySelector('input[name="softwareId"]');
+            const softwareDisplayInput = row.querySelector('input[name="softwareDisplay"]');
+            const statusSelect = row.querySelector('select[name="status"]');
+            const offeredInput = row.querySelector('input[name="offeredDate"]');
+            const installedInput = row.querySelector('input[name="installedDate"]');
+            const rejectedInput = row.querySelector('input[name="rejectedDate"]');
+            const errorEl = row.querySelector('.software-assignment__error');
+            if(errorEl){
+                errorEl.textContent = '';
+            }
+            row.classList.remove('is-error');
+
+            const softwareDisplay = (softwareDisplayInput?.value ?? '').trim();
+            let softwareId = (softwareIdInput?.value ?? '').trim();
+            const status = (statusSelect?.value ?? '').trim();
+            const offeredDate = (offeredInput?.value ?? '').trim();
+            const installedDate = (installedInput?.value ?? '').trim();
+            const rejectedDate = (rejectedInput?.value ?? '').trim();
+
+            if(!softwareId && softwareDisplay){
+                const listEl = softwareDisplayInput?.list;
+                if(listEl){
+                    const match = Array.from(listEl.options || []).find(opt => opt.value === softwareDisplay);
+                    if(match){
+                        softwareId = match.dataset.id || match.getAttribute('data-id') || '';
+                    }
+                }
+                if(!softwareId){
+                    softwareId = softwareDisplay;
+                }
+            }
+
+            if(!softwareId){
+                if(errorEl) errorEl.textContent = 'Software is required.';
+                row.classList.add('is-error');
+                hasError = true;
+                return;
+            }
+            if(!status){
+                if(errorEl) errorEl.textContent = 'Status is required.';
+                row.classList.add('is-error');
+                hasError = true;
+                return;
+            }
+
+            assignments.push({
+                installedSoftwareId: row.dataset.installationId || null,
+                softwareId,
+                status,
+                offeredDate: offeredDate || null,
+                installedDate: installedDate || null,
+                rejectedDate: rejectedDate || null
+            });
+        });
+
+        if(hasError){
+            return null;
+        }
+        return assignments;
+    }
+
+    async function renderSiteSoftwareOverview(siteId, targetEl, options = {}){
+        if(!siteId || !targetEl) return;
+        targetEl.innerHTML = '<div class="empty">Loading software overview…</div>';
+        if(targetEl === siteSoftwareOverviewBody && siteSoftwareOverviewCard){
+            siteSoftwareOverviewCard.hidden = false;
+            siteSoftwareOverviewCard.setAttribute('aria-busy', 'true');
+        }
+
+        const prefetched = Array.isArray(options.items) ? options.items : null;
+        let softwareOverview = prefetched ? mapSoftwareOverviewItems(prefetched) : [];
+        if(!prefetched){
+            try {
+                softwareOverview = await fetchSoftwareOverview({ siteId });
+            } catch (err){
+                console.error('Software overview unavailable', err);
+                targetEl.innerHTML = '<div class="empty">Software overview unavailable.</div>';
+                if(targetEl === siteSoftwareOverviewBody && siteSoftwareOverviewCard){
+                    siteSoftwareOverviewCard.removeAttribute('aria-busy');
+                }
+                return;
+            }
+        }
+
+        targetEl.innerHTML = '';
+        renderSoftwareOverviewSection(targetEl, {
+            title: 'Software Overview',
+            items: softwareOverview,
+            context: 'site',
+            emptyMessage: 'No software assignments recorded yet.'
+        });
+
+        if(targetEl === siteSoftwareOverviewBody && siteSoftwareOverviewCard){
+            siteSoftwareOverviewCard.hidden = false;
+            siteSoftwareOverviewCard.removeAttribute('aria-busy');
+        }
     }
 
     function resetDetailRefs(){
@@ -1013,7 +1812,9 @@
         updateEditButton();
         const { captionText } = updateHeading();
         const entries = Object.entries(row || {});
-        const kvRows = entries.map(([k,v]) => {
+        const kvRows = entries
+            .filter(([k]) => (k ?? '').toString().toLowerCase() !== 'softwareassignments')
+            .map(([k,v]) => {
             const keyLabel = escapeHtml(k);
             const normalizedKey = (k ?? '').toString().trim().toLowerCase();
             let cellHtml;
@@ -1024,10 +1825,44 @@
             }
             return `<tr><th scope="row" class="key">${keyLabel}</th><td>${cellHtml}</td></tr>`;
         }).join('');
-        detailBodyEl.innerHTML = `<table id="kv">
+        const tableHtml = `<table id="kv">
   <caption class="visually-hidden">Fields for ${escapeHtml(captionText)}</caption>
   ${kvRows}
 </table>`;
+
+        const configKey = configKeyForTable(currentTable);
+        const isSiteDetail = configKey === 'Site';
+        if(detailBox){
+            detailBox.classList.toggle('card--wide', isSiteDetail);
+        }
+        if(detailLayoutEl){
+            detailLayoutEl.classList.toggle('detail-layout--with-software', isSiteDetail && !!siteSoftwareOverviewCard && !!siteSoftwareOverviewBody);
+        }
+
+        detailBodyEl.innerHTML = tableHtml;
+
+        if(isSiteDetail){
+            if(siteSoftwareOverviewBody){
+                siteSoftwareOverviewBody.innerHTML = '<div class="empty">Loading software overview…</div>';
+            }
+            if(siteSoftwareOverviewCard){
+                if(siteSoftwareOverviewBody){
+                    siteSoftwareOverviewCard.hidden = false;
+                    siteSoftwareOverviewCard.setAttribute('aria-busy', 'true');
+                }else{
+                    siteSoftwareOverviewCard.hidden = true;
+                    siteSoftwareOverviewCard.removeAttribute('aria-busy');
+                }
+            }
+        }else{
+            if(siteSoftwareOverviewBody){
+                siteSoftwareOverviewBody.innerHTML = '';
+            }
+            if(siteSoftwareOverviewCard){
+                siteSoftwareOverviewCard.hidden = true;
+                siteSoftwareOverviewCard.removeAttribute('aria-busy');
+            }
+        }
     }
 
     function renderEditMode(row){
@@ -1048,6 +1883,19 @@
         const pkName = currentTable ? PKS[currentTable] : null;
 
         const configKey = configKeyForTable(currentTable);
+        if(detailBox){
+            detailBox.classList.toggle('card--wide', configKey === 'Site');
+        }
+        if(detailLayoutEl){
+            detailLayoutEl.classList.remove('detail-layout--with-software');
+        }
+        if(siteSoftwareOverviewBody){
+            siteSoftwareOverviewBody.innerHTML = '';
+        }
+        if(siteSoftwareOverviewCard){
+            siteSoftwareOverviewCard.hidden = true;
+            siteSoftwareOverviewCard.removeAttribute('aria-busy');
+        }
         const configFields = formConfig.getFields(configKey) || [];
         const usedKeys = new Set();
         let html = '';
@@ -1159,6 +2007,14 @@
 
         form.appendChild(grid);
 
+        if(configKey === 'Site'){
+            const assignmentPanel = document.createElement('div');
+            assignmentPanel.className = 'software-assignment-panel';
+            renderSoftwareAssignmentEditor(assignmentPanel);
+            form.appendChild(assignmentPanel);
+            ensureSoftwareOptionsList(form);
+        }
+
         const actions = document.createElement('div');
         actions.className = 'detail-form-actions';
 
@@ -1214,10 +2070,10 @@
         renderDetail();
     }
 
-    function exitEditMode(){
+    async function exitEditMode(){
         if(!currentRow) return;
         isEditing = false;
-        renderDetail();
+        await loadData({ preserveStatus: true });
     }
 
     async function saveForm(form, saveButton){
@@ -1261,6 +2117,13 @@
         }
 
         const entityKey = configKeyForTable(currentTable);
+        const normalizeEmpty = (value) => {
+            if(value === undefined || value === null) return null;
+            const str = String(value);
+            return str === '' ? null : value;
+        };
+        let requestUrl = `/row/${currentTable}/${encodeURIComponent(currentId)}`;
+        let requestPayload = payload;
         const fail = msg => {
             setStatus(msg, 'error');
             return true;
@@ -1291,6 +2154,20 @@
                 }
                 payload.TenantCount = num;
             }
+            const assignments = collectSoftwareAssignments(form);
+            if(assignments === null){
+                setStatus('Please resolve the highlighted software entries.', 'error');
+                return;
+            }
+            requestUrl = `/sites/${encodeURIComponent(currentId)}`;
+            requestPayload = {
+                siteName: normalizeEmpty(payload.SiteName ?? payload.siteName),
+                projectID: normalizeEmpty(payload.ProjectID ?? payload.projectID),
+                addressID: normalizeEmpty(payload.AddressID ?? payload.addressID),
+                fireZone: normalizeEmpty(payload.FireZone ?? payload.fireZone),
+                tenantCount: payload.TenantCount ?? payload.tenantCount ?? null,
+                softwareAssignments: assignments
+            };
         }else if(entityKey === 'UpgradePlan'){
             const start = payload.PlannedWindowStart;
             const end = payload.PlannedWindowEnd;
@@ -1323,10 +2200,10 @@
         if(editButtonEl) editButtonEl.disabled = true;
 
         try{
-            const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`, {
+            const res = await fetch(requestUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(requestPayload)
             });
             if(!res.ok){
                 const text = await res.text();
@@ -1346,27 +2223,42 @@
     async function loadData(options){
         if(!currentTable || !currentId) return;
         const preserveStatus = options && options.preserveStatus;
+        currentSiteSoftwareAssignments = [];
 
         detailBox.setAttribute('aria-busy', 'true');
         try{
-            const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`);
-            if(!res.ok){
-                resetDetailRefs();
-                if(res.status === 404){
-                    detailBox.textContent = 'Entry not found.';
-                }else{
-                    detailBox.textContent = 'Error loading data.';
+            const configKey = configKeyForTable(currentTable);
+            if(configKey === 'Site'){
+                const res = await fetch(`/sites/${encodeURIComponent(currentId)}/detail`);
+                if(!res.ok){
+                    resetDetailRefs();
+                    detailBox.textContent = res.status === 404 ? 'Entry not found.' : 'Error loading data.';
+                    return;
                 }
-                return;
+                const detail = await res.json();
+                setSiteSoftwareAssignments(detail?.softwareAssignments);
+                const { softwareAssignments, ...siteRow } = detail || {};
+                currentRow = siteRow;
+            }else{
+                const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`);
+                if(!res.ok){
+                    resetDetailRefs();
+                    if(res.status === 404){
+                        detailBox.textContent = 'Entry not found.';
+                    }else{
+                        detailBox.textContent = 'Error loading data.';
+                    }
+                    return;
+                }
+                const row = await res.json();
+                currentRow = row;
             }
-            const row = await res.json();
-            currentRow = row;
             if(!preserveStatus) clearStatus();
             renderDetail();
 
             const typeKey = (currentTable === 'Clients') ? 'Client' : currentTable;
-            await loadParents(typeKey, currentId, row);
-            await loadChildren(typeKey, currentId, row);
+            await loadParents(typeKey, currentId, currentRow);
+            await loadChildren(typeKey, currentId, currentRow);
         }catch(e){
             resetDetailRefs();
             detailBox.textContent = 'Error: ' + e;
@@ -1509,39 +2401,6 @@
                 }
             }
             if (pills.length) sections.push({ title: 'Belongs to', pills });
-        } else if (type === 'Country') {
-            const codeRaw = val(row, 'CountryCode') ?? id;
-            const normalizedCode = codeRaw ? String(codeRaw).toUpperCase() : '';
-            if (normalizedCode) {
-                const cityRows = await fetchJson(`/table/city?limit=200`);
-                if (Array.isArray(cityRows) && cityRows.length) {
-                    const pills = [];
-                    cityRows
-                        .filter(city => {
-                            const cityCountry = val(city, 'CountryCode');
-                            if (!cityCountry) return false;
-                            return String(cityCountry).toUpperCase() === normalizedCode;
-                        })
-                        .sort((a, b) => {
-                            const aName = val(a, 'CityName') ?? '';
-                            const bName = val(b, 'CityName') ?? '';
-                            return aName.toString().localeCompare(bName.toString(), undefined, { sensitivity: 'base' });
-                        })
-                        .forEach(city => {
-                            const cityId = val(city, 'CityID');
-                            if (!cityId) return;
-                            pills.push(pillLink(
-                                `/details.html?type=city&id=${encodeURIComponent(cityId)}`,
-                                'City',
-                                cityId,
-                                labelFor('city', city)
-                            ));
-                        });
-                    if (pills.length) {
-                        sections.push({ title: 'Belongs to', pills });
-                    }
-                }
-            }
         } else if (type === 'City') {
             const countryCode = val(row, 'CountryCode');
             if (countryCode != null) {
@@ -1676,7 +2535,7 @@
                 if (site) pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
             }
             if (pills.length) sections.push({ title: 'Belongs to', pills });
-        } else if (type === 'InstalledSoftware' || type === 'UpgradePlan') {
+        } else if (type === 'UpgradePlan') {
             const pills = [];
 
             const siteId = val(row,'SiteID');
@@ -1742,11 +2601,22 @@
         const box = childrenBox;
         box.innerHTML = '';
 
-        const loadServiceContracts = async (filterKey, value) => {
-            if (!value) return [];
-            const rows = await fetchJson(`/table/servicecontract?limit=200`);
-            if (!Array.isArray(rows)) return [];
-            return rows.filter(r => (val(r, filterKey) ?? '').toString() === value.toString());
+        const loadServiceContracts = async (filters = {}) => {
+            const params = new URLSearchParams();
+            const addIfPresent = (key, value) => {
+                if (value === null || value === undefined) return;
+                const str = value.toString().trim();
+                if (str) params.set(key, str);
+            };
+
+            addIfPresent('accountId', filters.accountId);
+            addIfPresent('projectId', filters.projectId);
+            addIfPresent('siteId', filters.siteId);
+
+            if (!params.toString()) return [];
+
+            const rows = await fetchJson(`/servicecontracts?${params.toString()}`);
+            return Array.isArray(rows) ? rows : [];
         };
 
         if(type==='Account'){
@@ -1757,7 +2627,7 @@
                 return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, null, pid, name);
             }, { entity: 'Project', label: 'Project', params: { accountId: id } });
 
-            const contracts = await loadServiceContracts('AccountID', id);
+            const contracts = await loadServiceContracts({ accountId: id });
             addSection(box, 'Service Contracts', contracts, sc => {
                 const cid = val(sc,'ContractID');
                 const label = val(sc,'ContractNumber');
@@ -1775,7 +2645,7 @@
                 return pillLink(`/details.html?type=site&id=${encodeURIComponent(sid)}`, null, sid, name);
             }, { entity: 'Site', label: 'Site', params: { projectId: id } });
 
-            const contracts = await loadServiceContracts('ProjectID', id);
+            const contracts = await loadServiceContracts({ accountId: val(row,'AccountID'), projectId: id });
             addSection(box, 'Service Contracts', contracts, sc => {
                 const cid = val(sc,'ContractID');
                 const label = val(sc,'ContractNumber');
@@ -1795,6 +2665,19 @@
                 const name = val(p,'ProjectName');
                 return pillLink(`/details.html?type=project&id=${encodeURIComponent(pid)}`, null, pid, name);
             }, { entity: 'Project', label: 'Project', params: { deploymentVariantId: id } });
+        }
+        else if(type==='Country'){
+            const codeRaw = val(row, 'CountryCode') ?? id;
+            const normalizedCode = codeRaw ? String(codeRaw).toUpperCase() : '';
+            const cities = normalizedCode ? await fetchJson(`/cities?countryCode=${encodeURIComponent(normalizedCode)}`) : [];
+            const cityList = Array.isArray(cities)
+                ? cities.filter(city => val(city, 'CityID') != null)
+                : [];
+            addSection(box, 'Cities', cityList, city => {
+                const cityId = val(city, 'CityID');
+                const label = labelFor('city', city);
+                return pillLink(`/details.html?type=city&id=${encodeURIComponent(cityId)}`, label, cityId, null);
+            }, { entity: 'City', label: 'City', params: { countryCode: normalizedCode } });
         }
         else if(type==='City'){
             const addressRows = await fetchJson(`/table/address?limit=200`);
@@ -1837,7 +2720,7 @@
                 return pillLink(`/details.html?type=radio&id=${encodeURIComponent(rid)}`, null, rid, brand);
             }, { entity: 'Radio', label: 'Radio', params: { accountId, projectId, siteId: id } });
 
-            const contracts = await loadServiceContracts('SiteID', id);
+            const contracts = await loadServiceContracts({ accountId, projectId, siteId: id });
             addSection(box, 'Service Contracts', contracts, sc => {
                 const cid = val(sc,'ContractID');
                 const label = val(sc,'ContractNumber');
@@ -1847,25 +2730,11 @@
                 return pillLink(`/details.html?type=servicecontract&id=${encodeURIComponent(cid)}`, labelFor('servicecontract', sc), cid, desc);
             }, { entity: 'ServiceContract', label: 'ServiceContract', params: { accountId, projectId, siteId: id } });
 
-            const installedRows = await fetchJson(`/table/installedsoftware?limit=200`);
-            const installed = Array.isArray(installedRows)
-                ? installedRows.filter(isw => (val(isw,'SiteID') ?? '').toString() === (id ?? '').toString())
-                : [];
-            addSection(box, 'Installed Software', installed, isw => {
-                const installId = val(isw,'InstalledSoftwareID');
-                const label = labelFor('installedsoftware', isw);
-                const status = val(isw,'Status');
-                const softwareId = val(isw,'SoftwareID');
-                const descParts = [];
-                if(status) descParts.push(status);
-                if(softwareId) descParts.push(`Software ${shortId(softwareId).replace(/^##/, '#')}`);
-                return pillLink(
-                    `/details.html?type=installedsoftware&id=${encodeURIComponent(installId)}`,
-                    label,
-                    installId,
-                    descParts.join(' · ')
-                );
-            }, { entity: 'InstalledSoftware', label: 'Installed Software', params: { siteId: id } });
+            const softwareTarget = siteSoftwareOverviewBody || document.createElement('div');
+            if(!siteSoftwareOverviewBody){
+                box.appendChild(softwareTarget);
+            }
+            await renderSiteSoftwareOverview(id, softwareTarget, { items: currentSiteSoftwareAssignments });
 
             const upgradeRows = await fetchJson(`/table/upgradeplan?limit=200`);
             const plans = Array.isArray(upgradeRows)
@@ -1905,10 +2774,6 @@
             }, { entity: 'PhoneIntegration', label: 'PhoneIntegration', params: { clientId: id, siteId: val(row,'SiteID') } });
         }
         else if(type==='Software'){
-            const installedRows = await fetchJson(`/table/installedsoftware?limit=200`);
-            const installed = Array.isArray(installedRows)
-                ? installedRows.filter(r => (val(r,'SoftwareID') ?? '').toString() === id.toString())
-                : [];
             const softwareContextLabel = (() => {
                 const name = val(row,'Name');
                 const release = val(row,'Release');
@@ -1916,20 +2781,13 @@
                 const parts = [name, release, revision].map(part => (part ?? '').toString().trim()).filter(Boolean);
                 return parts.length ? parts.join(' ') : '';
             })();
-            addSection(box, 'Installations', installed, isw => {
-                const installId = val(isw,'InstalledSoftwareID');
-                const label = labelFor('installedsoftware', isw);
-                const siteId = val(isw,'SiteID');
-                const descParts = [];
-                if(siteId){
-                    descParts.push(`Site ${shortId(siteId)}`);
-                }
-                return pillLink(`/details.html?type=installedsoftware&id=${encodeURIComponent(installId)}`, label, installId, descParts.join(' · '));
-            }, {
-                entity: 'InstalledSoftware',
-                label: 'InstalledSoftware',
-                params: { softwareId: id },
-                softwareLabel: softwareContextLabel
+
+            const deploymentOverview = await fetchSoftwareOverview({ softwareId: id });
+            renderSoftwareOverviewSection(box, {
+                title: 'Deployments',
+                items: deploymentOverview,
+                context: 'software',
+                emptyMessage: 'No deployments recorded for this software.'
             });
 
             const planRows = await fetchJson(`/table/upgradeplan?limit=200`);

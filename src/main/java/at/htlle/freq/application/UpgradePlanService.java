@@ -133,6 +133,7 @@ public class UpgradePlanService {
     public void deleteUpgradePlan(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(up -> {
+            repo.deleteById(id);
             log.info("UpgradePlan deleted: id={} site={} software={}",
                     id, up.getSiteID(), up.getSoftwareID());
             // Optionally remove the entry from Lucene once delete support exists.
@@ -160,10 +161,10 @@ public class UpgradePlanService {
                     up.getUpgradePlanID() != null ? up.getUpgradePlanID().toString() : null,
                     up.getSiteID() != null ? up.getSiteID().toString() : null,
                     up.getSoftwareID() != null ? up.getSoftwareID().toString() : null,
-                    up.getPlannedWindowStart(),
-                    up.getPlannedWindowEnd(),
+                    up.getPlannedWindowStart() != null ? up.getPlannedWindowStart().toString() : null,
+                    up.getPlannedWindowEnd() != null ? up.getPlannedWindowEnd().toString() : null,
                     up.getStatus(),
-                    up.getCreatedAt(),
+                    up.getCreatedAt() != null ? up.getCreatedAt().toString() : null,
                     up.getCreatedBy()
             );
             log.debug("UpgradePlan indexed in Lucene: id={}", up.getUpgradePlanID());
@@ -178,7 +179,5 @@ public class UpgradePlanService {
         return s == null || s.trim().isEmpty();
     }
 
-    private static String nvl(String in, String fallback) {
-        return in != null ? in : fallback;
-    }
+    private static <T> T nvl(T in, T fallback) { return in != null ? in : fallback; }
 }

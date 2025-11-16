@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -72,5 +73,20 @@ class SuggestServiceTest {
         List<String> suggestions = service.suggest("al", 5);
         assertEquals(1, suggestions.size());
         assertEquals("alpha", suggestions.get(0));
+    }
+
+    @Test
+    void suggestIsIndependentOfDefaultLocale() {
+        lucene.indexAccount("acc-10", "Indigo", null, null);
+
+        Locale previous = Locale.getDefault();
+        Locale problematic = new Locale("tr");
+        Locale.setDefault(problematic);
+        try {
+            List<String> suggestions = service.suggest("in", 5);
+            assertFalse(suggestions.isEmpty(), "suggestions should still be returned under Turkish locale");
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 }

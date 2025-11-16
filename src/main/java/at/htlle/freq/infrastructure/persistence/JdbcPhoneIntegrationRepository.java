@@ -55,6 +55,12 @@ public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepositor
             """, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM PhoneIntegration WHERE PhoneIntegrationID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists phone integrations via INSERT or UPDATE statements on the {@code PhoneIntegration}
      * table.

@@ -89,6 +89,8 @@ public class ProjectService {
             incoming.setLifecycleStatus(ProjectLifecycleStatus.ACTIVE);
         }
 
+        validateRequiredIdentifiers(incoming);
+
         Project saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
@@ -120,6 +122,8 @@ public class ProjectService {
             existing.setAccountID(patch.getAccountID() != null ? patch.getAccountID() : existing.getAccountID());
             existing.setAddressID(patch.getAddressID() != null ? patch.getAddressID() : existing.getAddressID());
 
+            validateRequiredIdentifiers(existing);
+
             Project saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
@@ -137,6 +141,7 @@ public class ProjectService {
     public void deleteProject(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(p -> {
+            repo.deleteById(id);
             log.info("Project deleted: id={} name='{}'", id, p.getProjectName());
             // Optionally remove the entry from Lucene once delete support exists.
         });
@@ -155,6 +160,18 @@ public class ProjectService {
                 indexToLucene(p);
             }
         });
+    }
+
+    private void validateRequiredIdentifiers(Project project) {
+        if (project.getDeploymentVariantID() == null) {
+            throw new IllegalArgumentException("DeploymentVariantID is required");
+        }
+        if (project.getAccountID() == null) {
+            throw new IllegalArgumentException("AccountID is required");
+        }
+        if (project.getAddressID() == null) {
+            throw new IllegalArgumentException("AddressID is required");
+        }
     }
 
     private void indexToLucene(Project p) {

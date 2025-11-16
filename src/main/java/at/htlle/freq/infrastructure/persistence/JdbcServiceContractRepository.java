@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -26,8 +28,8 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
             rs.getObject("SiteID", UUID.class),
             rs.getString("ContractNumber"),
             rs.getString("Status"),
-            rs.getString("StartDate"),
-            rs.getString("EndDate")
+            rs.getObject("StartDate", LocalDate.class),
+            rs.getObject("EndDate", LocalDate.class)
     );
 
     @Override
@@ -57,6 +59,12 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
             """, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM ServiceContract WHERE ContractID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists service contracts via INSERT or UPDATE operations on the {@code ServiceContract}
      * table.
@@ -84,8 +92,8 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
                     .addValue("site", s.getSiteID())
                     .addValue("num", s.getContractNumber())
                     .addValue("st",  s.getStatus())
-                    .addValue("sd",  s.getStartDate())
-                    .addValue("ed",  s.getEndDate()), UUID.class);
+                    .addValue("sd",  toSqlDate(s.getStartDate()))
+                    .addValue("ed",  toSqlDate(s.getEndDate())), UUID.class);
             s.setContractID(id);
         } else {
             String sql = """
@@ -101,9 +109,13 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
                     .addValue("site", s.getSiteID())
                     .addValue("num", s.getContractNumber())
                     .addValue("st",  s.getStatus())
-                    .addValue("sd",  s.getStartDate())
-                    .addValue("ed",  s.getEndDate()));
+                    .addValue("sd",  toSqlDate(s.getStartDate()))
+                    .addValue("ed",  toSqlDate(s.getEndDate())));
         }
         return s;
+    }
+
+    private static Date toSqlDate(LocalDate date) {
+        return date != null ? Date.valueOf(date) : null;
     }
 }

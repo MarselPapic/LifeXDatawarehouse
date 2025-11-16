@@ -22,6 +22,13 @@ public class PhoneController {
     private final NamedParameterJdbcTemplate jdbc;
     private static final Logger log = LoggerFactory.getLogger(PhoneController.class);
     private static final String TABLE = "PhoneIntegration";
+    private static final Set<String> UPDATE_WHITELIST = Set.of(
+            "ClientID",
+            "PhoneType",
+            "PhoneBrand",
+            "PhoneSerialNr",
+            "PhoneFirmware"
+    );
 
     public PhoneController(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -122,22 +129,36 @@ public class PhoneController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
         }
 
+        Map<String, Object> filteredBody = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : body.entrySet()) {
+            String key = entry.getKey();
+            if (!UPDATE_WHITELIST.contains(key)) {
+                log.warn("[{}] update rejected due to invalid column: {}", TABLE, key);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid column: " + key);
+            }
+            filteredBody.put(key, entry.getValue());
+        }
+
+        if (filteredBody.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "no valid columns provided");
+        }
+
         var setClauses = new ArrayList<String>();
-        for (String key : body.keySet()) {
+        for (String key : filteredBody.keySet()) {
             setClauses.add(key + " = :" + key);
         }
 
         String sql = "UPDATE PhoneIntegration SET " + String.join(", ", setClauses) +
                 " WHERE PhoneIntegrationID = :id";
 
-        var params = new MapSqlParameterSource(body).addValue("id", id);
+        var params = new MapSqlParameterSource(filteredBody).addValue("id", id);
         int updated = jdbc.update(sql, params);
 
         if (updated == 0) {
-            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("PhoneIntegrationID", id), body.keySet());
+            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("PhoneIntegrationID", id), filteredBody.keySet());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration updated");
         }
-        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("PhoneIntegrationID", id), body.keySet());
+        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("PhoneIntegrationID", id), filteredBody.keySet());
     }
 
     // DELETE operations

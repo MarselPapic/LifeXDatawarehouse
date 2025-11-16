@@ -5,6 +5,9 @@ import at.htlle.freq.domain.Account;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,9 +43,22 @@ class AccountControllerTest {
     }
 
     @Test
-    void createPassesThroughToService() {
+    void createReturns201WithLocationHeader() {
+        UUID id = UUID.randomUUID();
         Account account = new Account();
+        account.setAccountID(id);
+
         when(service.createAccount(account)).thenReturn(account);
-        assertEquals(account, controller.create(account));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/accounts");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        ResponseEntity<Account> response = controller.create(account);
+        RequestContextHolder.resetRequestAttributes();
+
+        assertEquals(201, response.getStatusCode().value());
+        assertEquals(account, response.getBody());
+        assertEquals("http://localhost/accounts/" + id, response.getHeaders().getLocation().toString());
     }
 }

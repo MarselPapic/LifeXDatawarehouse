@@ -118,6 +118,7 @@ public class CountryService {
     public void deleteCountry(String code) {
         Objects.requireNonNull(code, "country code must not be null");
         repo.findById(code).ifPresent(c -> {
+            repo.deleteById(code);
             log.info("Country deleted: code={} name='{}'",
                     code, c.getCountryName());
             // Optionally remove the entry from Lucene when delete support is added.

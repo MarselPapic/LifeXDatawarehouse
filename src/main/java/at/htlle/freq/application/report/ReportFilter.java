@@ -3,16 +3,12 @@ package at.htlle.freq.application.report;
 import java.time.LocalDate;
 
 /**
- * Transports filter criteria for report retrieval.
+ * Transports filter criteria for support end reports.
  */
 public record ReportFilter(
-        ReportType type,
-        String period,
         LocalDate from,
         LocalDate to,
-        String query,
-        String variantCode,
-        String installStatus
+        String preset
 ) {
     /**
      * Checks whether both a start and an end date have been provided.

@@ -29,7 +29,7 @@ public class JdbcServerRepository implements ServerRepository {
             rs.getString("PatchLevel"),
             rs.getString("VirtualPlatform"),
             rs.getString("VirtualVersion"),
-            rs.getBoolean("HighAvailability")
+            rs.getObject("HighAvailability", Boolean.class)
     );
 
     @Override
@@ -63,6 +63,12 @@ public class JdbcServerRepository implements ServerRepository {
         return jdbc.query(sql, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM Server WHERE ServerID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Stores server entries via INSERT or UPDATE statements against the {@code Server} table.
      * <p>
@@ -94,7 +100,7 @@ public class JdbcServerRepository implements ServerRepository {
                             .addValue("pl", s.getPatchLevel())
                             .addValue("vp", s.getVirtualPlatform())
                             .addValue("vv", s.getVirtualVersion())
-                            .addValue("ha", s.isHighAvailability()),
+                            .addValue("ha", Boolean.TRUE.equals(s.getHighAvailability())),
                     UUID.class);
             s.setServerID(id);
         } else {
@@ -114,7 +120,7 @@ public class JdbcServerRepository implements ServerRepository {
                     .addValue("pl", s.getPatchLevel())
                     .addValue("vp", s.getVirtualPlatform())
                     .addValue("vv", s.getVirtualVersion())
-                    .addValue("ha", s.isHighAvailability()));
+                    .addValue("ha", Boolean.TRUE.equals(s.getHighAvailability())));
         }
         return s;
     }

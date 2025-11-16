@@ -145,14 +145,52 @@ public class ProjectController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
         }
 
+        boolean lifecycleKeyPresent = false;
+        Object statusRaw = null;
+        for (String candidate : List.of("lifecycleStatus", "LifecycleStatus", "lifecycle_status")) {
+            if (body.containsKey(candidate)) {
+                lifecycleKeyPresent = true;
+                statusRaw = body.get(candidate);
+                break;
+            }
+        }
+
+        ProjectLifecycleStatus status = null;
+        if (lifecycleKeyPresent) {
+            if (statusRaw == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be null");
+            }
+            try {
+                status = ProjectLifecycleStatus.fromString(statusRaw.toString());
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+            }
+            if (status == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be blank");
+            }
+        }
+
         StringBuilder sql = new StringBuilder("UPDATE Project SET ");
         List<String> sets = new ArrayList<>();
-        for (String key : body.keySet()) {
-            sets.add(key + " = :" + key);
-        }
-        sql.append(String.join(", ", sets)).append(" WHERE ProjectID = :id");
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
+        body.forEach((key, value) -> {
+            String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
+            if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized)) {
+                sets.add(key + " = :" + key);
+                params.addValue(key, value);
+            }
+        });
 
-        MapSqlParameterSource params = new MapSqlParameterSource(body).addValue("id", id);
+        if (status != null) {
+            sets.add("LifecycleStatus = :lifecycleStatus");
+            params.addValue("lifecycleStatus", status.name());
+        }
+
+        if (sets.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+        }
+
+        sql.append(String.join(", ", sets)).append(" WHERE ProjectID = :id");
         int updated = jdbc.update(sql.toString(), params);
 
         if (updated == 0) {

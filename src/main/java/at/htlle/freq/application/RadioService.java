@@ -135,6 +135,7 @@ public class RadioService {
     public void deleteRadio(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(r -> {
+            repo.deleteById(id);
             log.info("Radio deleted: id={} brand='{}' serialNr='{}'",
                     id, r.getRadioBrand(), r.getRadioSerialNr());
             // Optionally remove the entry from Lucene once delete support exists.

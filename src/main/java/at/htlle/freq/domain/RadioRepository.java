@@ -36,4 +36,11 @@ public interface RadioRepository {
      * @return snapshot of radios
      */
     List<Radio> findAll();
+
+    /**
+     * Deletes a radio by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

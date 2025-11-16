@@ -6,7 +6,9 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -122,8 +124,8 @@ class ServiceContractServiceTest {
         patch.setSiteID(UUID.randomUUID());
         patch.setContractNumber("C-2");
         patch.setStatus("Expired");
-        patch.setStartDate("2023-01-01");
-        patch.setEndDate("2023-12-31");
+        patch.setStartDate(LocalDate.parse("2023-01-01"));
+        patch.setEndDate(LocalDate.parse("2023-12-31"));
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
             Optional<ServiceContract> updated = service.updateContract(UUID3, patch);
@@ -143,9 +145,11 @@ class ServiceContractServiceTest {
     }
 
     @Test
-    void deleteContractLoadsOptional() {
+    void deleteContractDeletesWhenPresent() {
         when(repo.findById(UUID3)).thenReturn(Optional.of(serviceContract()));
         service.deleteContract(UUID3);
-        verify(repo).findById(UUID3);
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById(UUID3);
+        order.verify(repo).deleteById(UUID3);
     }
 }

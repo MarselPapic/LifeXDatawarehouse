@@ -1,13 +1,10 @@
 package at.htlle.freq.web;
 
 import at.htlle.freq.application.report.ReportFilter;
-import at.htlle.freq.application.report.ReportOptions;
 import at.htlle.freq.application.report.ReportResponse;
 import at.htlle.freq.application.report.ReportService;
-import at.htlle.freq.application.report.ReportType;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,41 +35,21 @@ public class ReportController {
     }
 
     /**
-     * Provides selectable options for the frontend.
-     *
-     * <p>Path: {@code GET /api/reports/options}</p>
-     * <p>Response: 200 OK with {@link ReportOptions}.</p>
-     */
-    @GetMapping("/options")
-    public ReportOptions getOptions() {
-        return reportService.getOptions();
-    }
-
-    /**
-     * Returns report data as JSON.
+     * Returns support end report data as JSON.
      *
      * <p>Path: {@code GET /api/reports/data}</p>
-     * <p>Query parameters: {@code type}, {@code period}, {@code from}, {@code to}, {@code query},
-     * {@code variant}, {@code installStatus} (all optional, see {@link ReportFilter}).</p>
+     * <p>Query parameters: {@code from}, {@code to}, {@code preset} (all optional).</p>
      *
-     * @param type          desired report type.
-     * @param period        period preset.
-     * @param from          start date (ISO-8601) when using the custom preset.
-     * @param to            end date (ISO-8601) when using the custom preset.
-     * @param query         full-text filter.
-     * @param variant       deployment variant.
-     * @param installStatus installation status.
+     * @param from   start date (ISO-8601)
+     * @param to     end date (ISO-8601)
+     * @param preset date range shortcut (e.g. {@code last30})
      * @return 200 OK with {@link ReportResponse} as JSON.
      */
     @GetMapping("/data")
-    public ReportResponse getReportData(@RequestParam(name = "type", required = false) String type,
-                                        @RequestParam(name = "period", required = false) String period,
-                                        @RequestParam(name = "from", required = false) String from,
+    public ReportResponse getReportData(@RequestParam(name = "from", required = false) String from,
                                         @RequestParam(name = "to", required = false) String to,
-                                        @RequestParam(name = "query", required = false) String query,
-                                        @RequestParam(name = "variant", required = false) String variant,
-                                        @RequestParam(name = "installStatus", required = false) String installStatus) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
+                                        @RequestParam(name = "preset", required = false) String preset) {
+        ReportFilter filter = buildFilter(preset, from, to);
         return reportService.getReport(filter);
     }
 
@@ -80,90 +57,43 @@ public class ReportController {
      * Exports the report as a CSV file.
      *
      * <p>Path: {@code GET /api/reports/export/csv}</p>
-     * <p>Query parameters match {@link #getReportData(String, String, String, String, String, String, String)}.</p>
+     * <p>Query parameters match {@link #getReportData(String, String, String)}.</p>
      *
      * @return 200 OK with a CSV file ({@code text/csv}).
      */
     @GetMapping("/export/csv")
-    public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "type", required = false) String type,
-                                                       @RequestParam(name = "period", required = false) String period,
-                                                       @RequestParam(name = "from", required = false) String from,
+    public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
-                                                       @RequestParam(name = "query", required = false) String query,
-                                                       @RequestParam(name = "variant", required = false) String variant,
-                                                       @RequestParam(name = "installStatus", required = false) String installStatus) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
+                                                       @RequestParam(name = "preset", required = false) String preset) {
+        ReportFilter filter = buildFilter(preset, from, to);
         ReportResponse response = reportService.getReport(filter);
         String csv = reportService.renderCsv(response);
         byte[] data = csv.getBytes(StandardCharsets.UTF_8);
         ByteArrayResource resource = new ByteArrayResource(data);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(filter.type(), "csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName("csv"))
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .contentLength(data.length)
                 .body(resource);
     }
 
-    /**
-     * Exports the report as a PDF file.
-     *
-     * <p>Path: {@code GET /api/reports/export/pdf}</p>
-     * <p>Query parameters match {@link #getReportData(String, String, String, String, String, String, String)}.</p>
-     *
-     * @return 200 OK with a PDF ({@code application/pdf}).
-     */
-    @GetMapping("/export/pdf")
-    public ResponseEntity<ByteArrayResource> exportPdf(@RequestParam(name = "type", required = false) String type,
-                                                       @RequestParam(name = "period", required = false) String period,
-                                                       @RequestParam(name = "from", required = false) String from,
-                                                       @RequestParam(name = "to", required = false) String to,
-                                                       @RequestParam(name = "query", required = false) String query,
-                                                       @RequestParam(name = "variant", required = false) String variant,
-                                                       @RequestParam(name = "installStatus", required = false) String installStatus) {
-        ReportFilter filter = buildFilter(type, period, from, to, query, variant, installStatus);
-        ReportResponse response = reportService.getReport(filter);
-        byte[] pdf = reportService.renderPdf(response);
-        ByteArrayResource resource = new ByteArrayResource(pdf);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(filter.type(), "pdf"))
-                .contentType(MediaType.APPLICATION_PDF)
-                .contentLength(pdf.length)
-                .body(resource);
+    private ReportFilter buildFilter(String preset, String from, String to) {
+        String normalizedPreset = preset == null ? null : preset.trim().toLowerCase(Locale.ROOT);
+        DateRange range = resolveRange(normalizedPreset, from, to);
+        return new ReportFilter(range.from, range.to, normalizedPreset);
     }
 
-    private ReportFilter buildFilter(String typeParam, String periodParam, String from, String to,
-                                     String query, String variant, String installStatus) {
-        ReportType type;
-        try {
-            type = ReportType.fromParameter(typeParam);
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
-        }
-
-        String normalizedPeriod = (periodParam == null || periodParam.isBlank())
-                ? "quarter"
-                : periodParam.trim().toLowerCase(Locale.ROOT);
-        DateRange range = resolveRange(normalizedPeriod, from, to);
-
-        return new ReportFilter(
-                type,
-                normalizedPeriod,
-                range.from,
-                range.to,
-                sanitize(query),
-                sanitize(variant),
-                sanitize(installStatus)
-        );
-    }
-
-    private DateRange resolveRange(String period, String fromStr, String toStr) {
-        if (period == null || period.isBlank() || "all".equals(period)) {
-            return new DateRange(null, null);
+    private DateRange resolveRange(String preset, String fromStr, String toStr) {
+        if (preset == null || preset.isBlank()) {
+            return parseCustomRange(fromStr, toStr);
         }
         LocalDate today = LocalDate.now();
-        return switch (period) {
+        return switch (preset) {
             case "last7" -> new DateRange(today.minusDays(6), today);
             case "last30" -> new DateRange(today.minusDays(29), today);
+            case "next30" -> new DateRange(today, today.plusDays(29));
+            case "next90" -> new DateRange(today, today.plusDays(89));
+            case "next180" -> new DateRange(today, today.plusDays(179));
             case "quarter" -> {
                 int quarter = (today.getMonthValue() - 1) / 3;
                 int startMonth = quarter * 3 + 1;
@@ -171,38 +101,32 @@ public class ReportController {
                 LocalDate end = start.plusMonths(3).minusDays(1);
                 yield new DateRange(start, end);
             }
-            case "custom" -> {
-                if (fromStr == null || toStr == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Custom period requires from/to");
-                }
-                try {
-                    LocalDate from = LocalDate.parse(fromStr.trim());
-                    LocalDate to = LocalDate.parse(toStr.trim());
-                    if (from.isAfter(to)) {
-                        LocalDate tmp = from;
-                        from = to;
-                        to = tmp;
-                    }
-                    yield new DateRange(from, to);
-                } catch (Exception ex) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date format", ex);
-                }
-            }
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown period: " + period);
+            case "custom" -> parseCustomRange(fromStr, toStr);
+            default -> throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Unknown preset: " + preset);
         };
     }
 
-    private String sanitize(String value) {
-        if (value == null) {
-            return null;
+    private DateRange parseCustomRange(String fromStr, String toStr) {
+        if (fromStr == null && toStr == null) {
+            return new DateRange(null, null);
         }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        try {
+            LocalDate from = fromStr != null ? LocalDate.parse(fromStr.trim()) : null;
+            LocalDate to = toStr != null ? LocalDate.parse(toStr.trim()) : null;
+            if (from != null && to != null && from.isAfter(to)) {
+                LocalDate tmp = from;
+                from = to;
+                to = tmp;
+            }
+            return new DateRange(from, to);
+        } catch (Exception ex) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid date format", ex);
+        }
     }
 
-    private String buildFileName(ReportType type, String extension) {
+    private String buildFileName(String extension) {
         String ts = DateTimeFormatter.ofPattern("yyyyMMdd-HHmm").format(LocalDateTime.now());
-        return "lifex-report-" + type.toLowerCase() + "-" + ts + "." + extension;
+        return "lifex-support-end-" + ts + "." + extension;
     }
 
     private record DateRange(LocalDate from, LocalDate to) {}

@@ -36,4 +36,11 @@ public interface SoftwareRepository {
      * @return snapshot of software catalogue
      */
     List<Software> findAll();
+
+    /**
+     * Deletes a software entry by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

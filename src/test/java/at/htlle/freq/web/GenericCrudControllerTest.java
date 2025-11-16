@@ -2,11 +2,13 @@ package at.htlle.freq.web;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -61,8 +63,18 @@ class GenericCrudControllerTest {
 
     @Test
     void insertBuildsInsertStatementAndDelegates() {
-        controller.insert("account", Map.of("AccountName", "Acme", "Country", "AT"));
-        verify(jdbc).update(startsWith("INSERT INTO Account"), any(MapSqlParameterSource.class));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("AccountName", "Acme");
+        body.put("Country", "AT");
+
+        controller.insert("account", body);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbc).update(sqlCaptor.capture(), paramsCaptor.capture());
+
+        assertEquals("INSERT INTO Account (AccountName, Country) VALUES (:AccountName, :Country)", sqlCaptor.getValue());
+        assertEquals(body, paramsCaptor.getValue().getValues());
     }
 
     @Test
@@ -75,10 +87,16 @@ class GenericCrudControllerTest {
     void updateBuildsUpdateStatementAndChecksAffectedRows() {
         // Arrange: stub the update to report a single affected row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
-        // Act: issue an update request through the controller
-        controller.update("account", "1", Map.of("AccountName", "Acme"));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("AccountName", "Acme");
+        controller.update("account", "1", body);
         // Assert: verify the controller forwards a proper UPDATE statement to JDBC
-        verify(jdbc).update(startsWith("UPDATE Account"), any(MapSqlParameterSource.class));
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbc).update(sqlCaptor.capture(), paramsCaptor.capture());
+        assertEquals("UPDATE Account SET AccountName = :AccountName WHERE AccountID = :id", sqlCaptor.getValue());
+        assertEquals("Acme", paramsCaptor.getValue().getValue("AccountName"));
 
         // Arrange: now force the update to report zero affected rows
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
@@ -103,5 +121,29 @@ class GenericCrudControllerTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.delete("account", "1"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    void insertRejectsDisallowedColumnNames() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.insert("account", Map.of("InvalidColumn", "value")));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
+    void insertRejectsColumnNameWithIllegalCharacters() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.insert("account", Map.of("AccountName;DROP", "value")));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
+    void updateRejectsDisallowedColumnNamesBeforeIssuingSql() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.update("account", "1", Map.of("DROP_TABLE", "value")));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(jdbc, never()).update(startsWith("UPDATE Account"), any(MapSqlParameterSource.class));
     }
 }

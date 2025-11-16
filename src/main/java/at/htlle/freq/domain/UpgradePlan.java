@@ -1,5 +1,6 @@
 package at.htlle.freq.domain;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -11,15 +12,15 @@ public class UpgradePlan {
     private UUID upgradePlanID;
     private UUID siteID;
     private UUID softwareID;
-    private String plannedWindowStart;
-    private String plannedWindowEnd;
+    private LocalDate plannedWindowStart;
+    private LocalDate plannedWindowEnd;
     private String status;     // Planned / Approved / InProgress / Done / Canceled
-    private String createdAt;
+    private LocalDate createdAt;
     private String createdBy;
 
     public UpgradePlan() {}
-    public UpgradePlan(UUID upgradePlanID, UUID siteID, UUID softwareID, String plannedWindowStart,
-                       String plannedWindowEnd, String status, String createdAt, String createdBy) {
+    public UpgradePlan(UUID upgradePlanID, UUID siteID, UUID softwareID, LocalDate plannedWindowStart,
+                       LocalDate plannedWindowEnd, String status, LocalDate createdAt, String createdBy) {
         this.upgradePlanID = upgradePlanID;
         this.siteID = siteID;
         this.softwareID = softwareID;
@@ -39,17 +40,17 @@ public class UpgradePlan {
     public UUID getSoftwareID() { return softwareID; }
     public void setSoftwareID(UUID softwareID) { this.softwareID = softwareID; }
 
-    public String getPlannedWindowStart() { return plannedWindowStart; }
-    public void setPlannedWindowStart(String plannedWindowStart) { this.plannedWindowStart = plannedWindowStart; }
+    public LocalDate getPlannedWindowStart() { return plannedWindowStart; }
+    public void setPlannedWindowStart(LocalDate plannedWindowStart) { this.plannedWindowStart = plannedWindowStart; }
 
-    public String getPlannedWindowEnd() { return plannedWindowEnd; }
-    public void setPlannedWindowEnd(String plannedWindowEnd) { this.plannedWindowEnd = plannedWindowEnd; }
+    public LocalDate getPlannedWindowEnd() { return plannedWindowEnd; }
+    public void setPlannedWindowEnd(LocalDate plannedWindowEnd) { this.plannedWindowEnd = plannedWindowEnd; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public String getCreatedAt() { return createdAt; }
-    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public LocalDate getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDate createdAt) { this.createdAt = createdAt; }
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }

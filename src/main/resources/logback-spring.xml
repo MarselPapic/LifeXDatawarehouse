@@ -9,37 +9,38 @@
 
     <appender name="AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/audit.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/audit-%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/audit-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <totalSizeCap>3GB</totalSizeCap>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{ISO8601} [%X{requestId:-N/A}] [%X{user:-anonymous}] %-5level %logger ⇒ %msg%n</pattern>
+            <pattern>%d{ISO8601} [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger ⇒ %msg%n</pattern>
         </encoder>
     </appender>
 
-    <logger name="at.htlle.freq.application" level="INFO" additivity="false">
-        <appender-ref ref="AUDIT"/>
+    <logger name="at.htlle.freq.application" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 
-    <logger name="at.htlle.freq.infrastructure" level="INFO" additivity="false">
-        <appender-ref ref="AUDIT"/>
+    <logger name="at.htlle.freq.infrastructure" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 
-    <logger name="at.htlle.freq.web" level="INFO" additivity="false">
-        <appender-ref ref="AUDIT"/>
+    <logger name="at.htlle.freq.web" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 
-    <logger name="at.htlle.freq.domain" level="INFO" additivity="false">
-        <appender-ref ref="AUDIT"/>
+    <logger name="at.htlle.freq.domain" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
+    <logger name="at.htlle.freq.audit" level="INFO" additivity="false">
         <appender-ref ref="AUDIT"/>
+    </logger>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>

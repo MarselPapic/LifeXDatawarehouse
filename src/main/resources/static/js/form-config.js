@@ -95,10 +95,8 @@
                 if(!value) return null;
                 const name = pick(item,'name','Name');
                 const release = pick(item,'release','Release');
-                const labelParts = [name, release].filter(Boolean).join(' • ');
-                const short = String(value).split('-')[0];
-                const label = labelParts ? `${labelParts} (${short})` : String(value);
-                return {value, label};
+                const label = [name, release].filter(Boolean).join(' • ');
+                return {value, label, displayLabel: label || String(value)};
             }
         },
         deploymentVariants:{
@@ -150,10 +148,6 @@
             summary: 'Describe how LifeX is deployed for a project (variant, name, and activation).',
             notes: ['Inactive variants should only be used for historical records.']
         },
-        InstalledSoftware: {
-            summary: 'Link software releases to a site to document deployments.',
-            notes: ['Ensure the site and software already exist before creating the installation.']
-        },
         PhoneIntegration: {
             summary: 'Document the phone integration that connects a client to telephony services.',
             notes: ['Capture firmware and serial numbers when needed for troubleshooting.']
@@ -183,9 +177,13 @@
         },
         Site: {
             summary: 'Create a site to represent the physical installation for a project.',
-            notes: ['Make sure the project exists before adding its site.'],
+            notes: [
+                'Make sure the project exists before adding its site.',
+                'Capture each deployed software package with status and lifecycle dates so the inventory stays current.'
+            ],
             fieldHints: {
-                addrId: 'Address selection determines where the installation is located.'
+                addrId: 'Address selection determines where the installation is located.',
+                softwareInstallations: 'Add every software deployment along with its status and the relevant dates.'
             }
         },
         Software: {
@@ -239,11 +237,6 @@
             { id: 'variantName', label: 'VariantName', component: 'input', name: 'VariantName' },
             { id: 'description', label: 'Description', component: 'input', name: 'Description', required: false },
             { id: 'active', label: 'IsActive', component: 'select', options: ['true','false'], name: 'IsActive', valueType: 'boolean' }
-        ],
-        InstalledSoftware: [
-            { id: 'siteID', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID', hint: 'Only sites assigned to the selected project will appear.' },
-            { id: 'softwareID', label: 'Select software', component: 'asyncSelect', source: 'software', placeholder: 'Select software', allowManual: false, name: 'SoftwareID', hint: 'Choose the exact release that is deployed.' },
-            { id: 'status', label: 'Status', component: 'select', options: ['Offered','Installed','Rejected'], name: 'Status', placeholder: 'Select status' }
         ],
         PhoneIntegration: [
             { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID', hint: 'Integrations attach to the working position using the phone.' },
@@ -299,7 +292,8 @@
             { id: 'name', label: 'Site Name', component: 'input', name: 'SiteName' },
             { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID', hint: 'Choose the physical location for this site.' },
             { id: 'zone', label: 'FireZone', component: 'input', name: 'FireZone', required: false },
-            { id: 'tenant', label: 'TenantCount', component: 'input', inputType: 'number', min: '0', step: '1', required: false, name: 'TenantCount' }
+            { id: 'tenant', label: 'TenantCount', component: 'input', inputType: 'number', min: '0', step: '1', required: false, name: 'TenantCount' },
+            { id: 'softwareInstallations', label: 'Software installations', component: 'softwareList', required: false, hint: 'Add deployed software packages with their status and key dates.', addLabel: 'Add software entry', emptyLabel: 'No software entries added yet.' }
         ],
         Software: [
             { id: 'swName', label: 'Name', component: 'input', name: 'Name' },

@@ -45,4 +45,22 @@ class SearchControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].type").value("account"))
                 .andExpect(jsonPath("$[0].text").value("Acme Integration"));
     }
+
+    @Test
+    void typeParameterRestrictsResults() throws Exception {
+        mockMvc.perform(get("/search").param("q", "Acme").param("type", "account"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("account"));
+
+        mockMvc.perform(get("/search").param("q", "Acme").param("type", "city"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void typeOnlyQueryReturnsScopedResults() throws Exception {
+        mockMvc.perform(get("/search").param("type", "account"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("account"));
+    }
 }

@@ -29,4 +29,11 @@ public interface CountryRepository {
      * @return list of known countries
      */
     List<Country> findAll();
+
+    /**
+     * Deletes a country by its ISO code.
+     *
+     * @param code ISO-3166 code
+     */
+    void deleteById(String code);
 }

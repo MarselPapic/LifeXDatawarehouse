@@ -6,6 +6,7 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Optional;
@@ -123,9 +124,11 @@ class SoftwareServiceTest {
     }
 
     @Test
-    void deleteSoftwareLoadsOptional() {
+    void deleteSoftwareDeletesWhenPresent() {
         when(repo.findById(UUID5)).thenReturn(Optional.of(software()));
         service.deleteSoftware(UUID5);
-        verify(repo).findById(UUID5);
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById(UUID5);
+        order.verify(repo).deleteById(UUID5);
     }
 }

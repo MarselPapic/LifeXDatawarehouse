@@ -5,6 +5,8 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import at.htlle.freq.infrastructure.search.SmartQueryBuilder;
 import at.htlle.freq.infrastructure.search.SuggestService;
 import org.apache.lucene.search.Query;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +21,8 @@ import java.util.List;
  */
 @RestController
 public class SearchController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SearchController.class);
 
     private final LuceneIndexService lucene;
     private final SmartQueryBuilder smart;
@@ -43,22 +47,54 @@ public class SearchController {
      * @return 200 OK with a list of {@link SearchHit search hits}.
      */
     @GetMapping("/search")
-    public ResponseEntity<List<SearchHit>> query(
+    public ResponseEntity<?> query(
             @RequestParam(name = "q", required = false) String q,
+            @RequestParam(name = "type", required = false) String type,
             @RequestParam(name = "raw", defaultValue = "false") boolean raw
     ) {
-        if (q == null || q.isBlank()) {
+        String normalizedType = normalizeType(type);
+        boolean hasQuery = q != null && !q.isBlank();
+        if (!hasQuery && normalizedType == null) {
             return ResponseEntity.ok(List.of());
         }
 
-        // Run the Lucene query verbatim when 'raw' is true or the input already uses Lucene syntax.
-        if (raw || SmartQueryBuilder.looksLikeLucene(q)) {
-            return ResponseEntity.ok(lucene.search(q));
-        }
+        try {
+            // Run the Lucene query verbatim when 'raw' is true or the input already uses Lucene syntax.
+            if (raw || SmartQueryBuilder.looksLikeLucene(q)) {
+                String luceneQuery = appendTypeFilter(q, normalizedType);
+                return ResponseEntity.ok(lucene.search(luceneQuery));
+            }
 
-        // Otherwise build a Lucene query from the user-friendly input and use the Query overload.
-        Query built = smart.build(q);
-        return ResponseEntity.ok(lucene.search(built));
+            // Otherwise build a Lucene query from the user-friendly input and use the Query overload.
+            Query built = smart.build(q, normalizedType);
+            return ResponseEntity.ok(lucene.search(built));
+        } catch (IllegalArgumentException ex) {
+            LOGGER.warn("Failed to execute search for query='{}', type='{}', raw={}", q, normalizedType, raw, ex);
+            String message = ex.getMessage() != null ? ex.getMessage() : "Invalid search query";
+            return ResponseEntity.badRequest().body(message);
+        }
+    }
+
+    private static String normalizeType(String type) {
+        if (type == null) {
+            return null;
+        }
+        String trimmed = type.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toLowerCase();
+    }
+
+    private static String appendTypeFilter(String query, String normalizedType) {
+        if (normalizedType == null) {
+            return query;
+        }
+        String typeClause = "type:" + normalizedType;
+        if (query == null || query.isBlank()) {
+            return typeClause;
+        }
+        return typeClause + " AND (" + query.trim() + ")";
     }
 
     // Autocomplete/Suggest

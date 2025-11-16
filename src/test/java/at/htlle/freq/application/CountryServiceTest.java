@@ -6,6 +6,7 @@ import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Optional;
@@ -108,10 +109,12 @@ class CountryServiceTest {
     }
 
     @Test
-    void deleteCountryLoadsOptional() {
+    void deleteCountryDeletesWhenPresent() {
         when(repo.findById("AT")).thenReturn(Optional.of(country()));
         service.deleteCountry("AT");
-        verify(repo).findById("AT");
+        InOrder order = inOrder(repo);
+        order.verify(repo).findById("AT");
+        order.verify(repo).deleteById("AT");
     }
 
     @Test

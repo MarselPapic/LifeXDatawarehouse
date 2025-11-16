@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.*;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -23,10 +25,10 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             rs.getObject("UpgradePlanID", UUID.class),
             rs.getObject("SiteID", UUID.class),
             rs.getObject("SoftwareID", UUID.class),
-            rs.getString("PlannedWindowStart"),
-            rs.getString("PlannedWindowEnd"),
+            rs.getObject("PlannedWindowStart", LocalDate.class),
+            rs.getObject("PlannedWindowEnd", LocalDate.class),
             rs.getString("Status"),
-            rs.getString("CreatedAt"),
+            rs.getObject("CreatedAt", LocalDate.class),
             rs.getString("CreatedBy")
     );
 
@@ -60,6 +62,12 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             """, mapper);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        String sql = "DELETE FROM UpgradePlan WHERE UpgradePlanID = :id";
+        jdbc.update(sql, new MapSqlParameterSource("id", id));
+    }
+
     /**
      * Persists upgrade plans via INSERT or UPDATE operations on the {@code UpgradePlan} table.
      * <p>
@@ -84,10 +92,10 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             UUID id = jdbc.queryForObject(sql, new MapSqlParameterSource()
                     .addValue("site", u.getSiteID())
                     .addValue("sw", u.getSoftwareID())
-                    .addValue("pws", u.getPlannedWindowStart())
-                    .addValue("pwe", u.getPlannedWindowEnd())
+                    .addValue("pws", toSqlDate(u.getPlannedWindowStart()))
+                    .addValue("pwe", toSqlDate(u.getPlannedWindowEnd()))
                     .addValue("st", u.getStatus())
-                    .addValue("ca", u.getCreatedAt())
+                    .addValue("ca", toSqlDate(u.getCreatedAt()))
                     .addValue("cb", u.getCreatedBy()), UUID.class);
             u.setUpgradePlanID(id);
         } else {
@@ -101,12 +109,16 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
                     .addValue("id", u.getUpgradePlanID())
                     .addValue("site", u.getSiteID())
                     .addValue("sw", u.getSoftwareID())
-                    .addValue("pws", u.getPlannedWindowStart())
-                    .addValue("pwe", u.getPlannedWindowEnd())
+                    .addValue("pws", toSqlDate(u.getPlannedWindowStart()))
+                    .addValue("pwe", toSqlDate(u.getPlannedWindowEnd()))
                     .addValue("st", u.getStatus())
-                    .addValue("ca", u.getCreatedAt())
+                    .addValue("ca", toSqlDate(u.getCreatedAt()))
                     .addValue("cb", u.getCreatedBy()));
         }
         return u;
+    }
+
+    private static Date toSqlDate(LocalDate date) {
+        return date != null ? Date.valueOf(date) : null;
     }
 }

@@ -1,8 +1,12 @@
 package at.htlle.freq.infrastructure.search;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,8 +44,13 @@ public class SmartQueryBuilder {
     public static boolean looksLikeLucene(String q) {
         if (q == null) return false;
         String s = q.trim();
-        return s.contains(":") || s.contains("\"") || s.contains(" AND ")
-                || s.contains(" OR ") || s.endsWith("*");
+        if (s.isEmpty()) {
+            return false;
+        }
+
+        String normalized = s.toLowerCase();
+        return s.contains(":") || s.contains("\"") || normalized.contains(" and ")
+                || normalized.contains(" or ") || s.endsWith("*");
     }
 
     /**
@@ -59,15 +68,43 @@ public class SmartQueryBuilder {
      *                                  query.
      */
     public Query build(String userInput) {
+        return build(userInput, null);
+    }
+
+    public Query build(String userInput, String typeFilter) {
         try {
             QueryParser p = new QueryParser(DEFAULT_FIELD, ANALYZER);
             p.setDefaultOperator(QueryParser.Operator.AND);
+            Query baseQuery;
             if (userInput == null || userInput.isBlank()) {
-                return p.parse("*:*");
+                baseQuery = p.parse("*:*");
+            } else {
+                baseQuery = p.parse(userInput.trim());
             }
-            return p.parse(userInput.trim());
+
+            String normalizedType = normalizeType(typeFilter);
+            if (normalizedType == null) {
+                return baseQuery;
+            }
+
+            TermQuery typeQuery = new TermQuery(new Term("type", normalizedType));
+            return new BooleanQuery.Builder()
+                    .add(baseQuery, BooleanClause.Occur.MUST)
+                    .add(typeQuery, BooleanClause.Occur.MUST)
+                    .build();
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid search query: " + userInput, e);
         }
+    }
+
+    private static String normalizeType(String typeFilter) {
+        if (typeFilter == null) {
+            return null;
+        }
+        String trimmed = typeFilter.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toLowerCase();
     }
 }

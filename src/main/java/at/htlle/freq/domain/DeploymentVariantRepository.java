@@ -44,4 +44,11 @@ public interface DeploymentVariantRepository {
      * @return list of variants
      */
     List<DeploymentVariant> findAll();
+
+    /**
+     * Deletes a deployment variant by its identifier.
+     *
+     * @param id primary key
+     */
+    void deleteById(UUID id);
 }

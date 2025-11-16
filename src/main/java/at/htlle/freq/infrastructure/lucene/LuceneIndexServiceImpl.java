@@ -473,7 +473,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                         toStringOrNull(item.getInstalledSoftwareID()),
                         toStringOrNull(item.getSiteID()),
                         toStringOrNull(item.getSoftwareID()),
-                        item.getStatus()
+                        item.getStatus(),
+                        item.getOfferedDate(),
+                        item.getInstalledDate(),
+                        item.getRejectedDate()
                 );
             }
             for (PhoneIntegration integration : phoneIntegrations) {
@@ -531,8 +534,8 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                         toStringOrNull(contract.getSiteID()),
                         contract.getContractNumber(),
                         contract.getStatus(),
-                        contract.getStartDate(),
-                        contract.getEndDate()
+                        toStringOrNull(contract.getStartDate()),
+                        toStringOrNull(contract.getEndDate())
                 );
             }
             for (Site site : sites) {
@@ -564,10 +567,10 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                         toStringOrNull(plan.getUpgradePlanID()),
                         toStringOrNull(plan.getSiteID()),
                         toStringOrNull(plan.getSoftwareID()),
-                        plan.getPlannedWindowStart(),
-                        plan.getPlannedWindowEnd(),
+                        toStringOrNull(plan.getPlannedWindowStart()),
+                        toStringOrNull(plan.getPlannedWindowEnd()),
                         plan.getStatus(),
-                        plan.getCreatedAt(),
+                        toStringOrNull(plan.getCreatedAt()),
                         plan.getCreatedBy()
                 );
             }
@@ -665,6 +668,24 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
             log.info("Indexed {}: {}", type, id);
         } catch (Exception e) {
             log.error("Failed to index {}", type, e);
+        }
+    }
+
+    @Override
+    public void deleteDocument(String id) {
+        String safeId = safe(id);
+        if (safeId.isEmpty()) {
+            log.warn("Ignoring Lucene delete for empty id");
+            return;
+        }
+        try {
+            withWriter(writer -> {
+                writer.deleteDocuments(new Term("id", safeId));
+                writer.commit();
+            });
+            log.info("Deleted document from Lucene index: {}", safeId);
+        } catch (Exception e) {
+            log.error("Failed to delete document {} from Lucene", safeId, e);
         }
     }
 
@@ -822,7 +843,8 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     }
 
     @Override
-    public void indexInstalledSoftware(String installedSoftwareId, String siteId, String softwareId, String status) {
+    public void indexInstalledSoftware(String installedSoftwareId, String siteId, String softwareId, String status,
+                                       String offeredDate, String installedDate, String rejectedDate) {
         InstalledSoftwareStatus resolved;
         try {
             resolved = InstalledSoftwareStatus.from(status);
@@ -833,7 +855,17 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         String statusValue = resolved.dbValue();
         String statusLabel = resolved.label();
         String statusToken = tokenWithPrefix("status", statusValue);
-        indexDocument(installedSoftwareId, TYPE_INSTALLED_SOFTWARE, statusValue, statusLabel, statusToken, siteId, softwareId);
+        String offeredSafe = safe(offeredDate);
+        String installedSafe = safe(installedDate);
+        String rejectedSafe = safe(rejectedDate);
+        String offeredToken = tokenWithPrefix("offered", offeredSafe);
+        String installedToken = tokenWithPrefix("installed", installedSafe);
+        String rejectedToken = tokenWithPrefix("rejected", rejectedSafe);
+        indexDocument(installedSoftwareId, TYPE_INSTALLED_SOFTWARE,
+                statusValue, statusLabel, statusToken,
+                offeredSafe, installedSafe, rejectedSafe,
+                offeredToken, installedToken, rejectedToken,
+                siteId, softwareId);
     }
 
     @Override

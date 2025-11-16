@@ -138,8 +138,7 @@ public class AccountService {
     public void deleteAccount(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         repo.deleteById(id);
-        // Optionally remove the record from Lucene (for example via reindexAll or a dedicated delete).
-        // Add a delete(id, type) operation to LuceneIndexService if Lucene cleanup becomes necessary.
+        registerAfterCommitDeletion(id);
         log.info("Account deleted: id={}", id);
     }
 
@@ -157,6 +156,31 @@ public class AccountService {
                 indexToLucene(a);
             }
         });
+    }
+
+    private void registerAfterCommitDeletion(UUID id) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteFromLucene(id);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteFromLucene(id);
+            }
+        });
+    }
+
+    private void deleteFromLucene(UUID id) {
+        if (id == null) {
+            return;
+        }
+        try {
+            lucene.deleteDocument(id.toString());
+            log.debug("Account removed from Lucene: id={}", id);
+        } catch (Exception e) {
+            log.error("Lucene delete for Account {} failed", id, e);
+        }
     }
 
     private void indexToLucene(Account a) {
