@@ -58,6 +58,7 @@ class DomainFactoryTest {
         assertNull(installedSoftware.getOfferedDate());
         assertNull(installedSoftware.getInstalledDate());
         assertNull(installedSoftware.getRejectedDate());
+        assertNull(installedSoftware.getOutdatedDate());
 
         PhoneIntegrationFactory phoneIntegrationFactory = new PhoneIntegrationFactory();
         PhoneIntegration phoneIntegration = phoneIntegrationFactory.create(UUID1, "TYPE", "Brand", "SN", "FW");

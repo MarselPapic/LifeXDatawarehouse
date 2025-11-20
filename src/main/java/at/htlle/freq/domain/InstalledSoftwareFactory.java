@@ -15,6 +15,6 @@ public class InstalledSoftwareFactory {
      * @return transient installed software relationship
      */
     public InstalledSoftware create(UUID siteID, UUID softwareID) {
-        return new InstalledSoftware(null, siteID, softwareID, InstalledSoftwareStatus.OFFERED.dbValue(), null, null, null);
+        return new InstalledSoftware(null, siteID, softwareID, InstalledSoftwareStatus.OFFERED.dbValue(), null, null, null, null);
     }
 }

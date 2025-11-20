@@ -102,6 +102,13 @@
             <version>4.4.1</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-test-junit5</artifactId>
+            <version>4.4.1</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- NATS -->
         <dependency>
             <groupId>io.nats</groupId>

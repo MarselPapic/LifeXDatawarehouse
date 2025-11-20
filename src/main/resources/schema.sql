@@ -234,11 +234,12 @@ CREATE TABLE InstalledSoftware (
                                    OfferedDate         DATE,
                                    InstalledDate       DATE,
                                    RejectedDate        DATE,
+                                   OutdatedDate        DATE,
                                    CONSTRAINT fk_instsw_site FOREIGN KEY (SiteID)
                                        REFERENCES Site(SiteID),
                                    CONSTRAINT fk_instsw_software FOREIGN KEY (SoftwareID)
                                        REFERENCES Software(SoftwareID),
-                                   CONSTRAINT ck_instsw_status CHECK (Status IN ('Offered','Installed','Rejected'))
+                                   CONSTRAINT ck_instsw_status CHECK (Status IN ('Offered','Installed','Rejected','Outdated'))
 );
 
 -- =========================================================

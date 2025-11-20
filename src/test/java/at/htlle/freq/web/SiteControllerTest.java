@@ -47,7 +47,7 @@ class SiteControllerTest {
                 address,
                 "Zone",
                 5,
-                List.of(new SiteSoftwareAssignmentDto(null, software, "Offered", "2024-01-01", null, null))
+                List.of(new SiteSoftwareAssignmentDto(null, software, "Offered", "2024-01-01", null, null, null))
         );
 
         Site saved = new Site();
@@ -128,7 +128,7 @@ class SiteControllerTest {
                 UUID.randomUUID(),
                 "Zone",
                 20,
-                List.of(new SiteSoftwareAssignmentDto(UUID.randomUUID(), software, "Installed", null, "2024-02-02", null))
+                List.of(new SiteSoftwareAssignmentDto(UUID.randomUUID(), software, "Installed", null, "2024-02-02", null, null))
         );
         when(siteService.updateSite(eq(siteId), any(Site.class))).thenReturn(Optional.of(new Site()));
 
@@ -163,6 +163,7 @@ class SiteControllerTest {
                 "Installed",
                 "2024-01-01",
                 "2024-02-02",
+                null,
                 null
         ));
 
@@ -194,6 +195,7 @@ class SiteControllerTest {
                 "Installed",
                 "2024-01-01",
                 "2024-02-02",
+                null,
                 null
         ));
         when(installedSoftwareService.getSiteSoftwareOverview(siteId)).thenReturn(entries);

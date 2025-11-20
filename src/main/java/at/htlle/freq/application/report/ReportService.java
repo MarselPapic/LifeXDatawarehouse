@@ -47,29 +47,43 @@ public class ReportService {
         Map<String, Object> params = new LinkedHashMap<>();
         StringBuilder sql = new StringBuilder("""
             SELECT
-                Name,
-                Release,
-                Revision,
-                SupportStartDate,
-                SupportEndDate
-            FROM Software
-            WHERE SupportEndDate IS NOT NULL
+                a.AccountName,
+                p.ProjectName,
+                s.SiteName,
+                sw.Name,
+                sw.Release,
+                sw.Revision,
+                sw.SupportStartDate,
+                sw.SupportEndDate,
+                isw.Status
+            FROM InstalledSoftware isw
+            JOIN Software sw ON sw.SoftwareID = isw.SoftwareID
+            JOIN Site s ON s.SiteID = isw.SiteID
+            JOIN Project p ON p.ProjectID = s.ProjectID
+            JOIN Account a ON a.AccountID = p.AccountID
+            WHERE sw.SupportEndDate IS NOT NULL
         """);
 
         if (filter.from() != null) {
-            sql.append(" AND SupportEndDate >= :from");
+            sql.append(" AND sw.SupportEndDate >= :from");
             params.put("from", filter.from());
         }
         if (filter.to() != null) {
-            sql.append(" AND SupportEndDate <= :to");
+            sql.append(" AND sw.SupportEndDate <= :to");
             params.put("to", filter.to());
         }
 
-        sql.append(" ORDER BY SupportEndDate, Name, Release, Revision");
+        sql.append(" AND LOWER(isw.Status) = 'installed'");
+
+        sql.append(" ORDER BY sw.SupportEndDate, sw.Name, sw.Release, sw.Revision");
 
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> mapSupportRow(rs));
 
         List<ReportColumn> columns = List.of(
+                new ReportColumn("account", "Account", "left"),
+                new ReportColumn("project", "Project", "left"),
+                new ReportColumn("site", "Site", "left"),
+                new ReportColumn("installStatus", "Install status", "left"),
                 new ReportColumn("name", "Software", "left"),
                 new ReportColumn("release", "Release", "left"),
                 new ReportColumn("revision", "Revision", "left"),
@@ -79,7 +93,7 @@ public class ReportService {
         );
 
         ReportTable table = new ReportTable(columns, freezeRows(rows),
-                "Software support end dates", "No software releases found for the selected range.");
+                "Installed software support end dates", "No deployments found for the selected range.");
 
         return new ReportResponse(table, DATE_TIME_FMT.format(LocalDateTime.now()));
     }
@@ -117,6 +131,10 @@ public class ReportService {
         Long daysRemaining = supportEnd != null ? ChronoUnit.DAYS.between(LocalDate.now(), supportEnd) : null;
 
         Map<String, Object> row = new LinkedHashMap<>();
+        row.put("account", rs.getString("AccountName"));
+        row.put("project", rs.getString("ProjectName"));
+        row.put("site", rs.getString("SiteName"));
+        row.put("installStatus", rs.getString("Status"));
         row.put("name", rs.getString("Name"));
         row.put("release", rs.getString("Release"));
         row.put("revision", rs.getString("Revision"));

@@ -17,6 +17,7 @@ public record SiteSoftwareOverviewEntry(
         String statusLabel,
         String offeredAt,
         String installedAt,
-        String rejectedAt
+        String rejectedAt,
+        String outdatedAt
 ) {
 }

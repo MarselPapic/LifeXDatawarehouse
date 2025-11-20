@@ -33,6 +33,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         entity.setOfferedDate(toIso(rs.getObject("OfferedDate", LocalDate.class)));
         entity.setInstalledDate(toIso(rs.getObject("InstalledDate", LocalDate.class)));
         entity.setRejectedDate(toIso(rs.getObject("RejectedDate", LocalDate.class)));
+        entity.setOutdatedDate(toIso(rs.getObject("OutdatedDate", LocalDate.class)));
         return entity;
     };
 
@@ -47,14 +48,15 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             rs.getString("Status"),
             toIso(rs.getObject("OfferedDate", LocalDate.class)),
             toIso(rs.getObject("InstalledDate", LocalDate.class)),
-            toIso(rs.getObject("RejectedDate", LocalDate.class))
+            toIso(rs.getObject("RejectedDate", LocalDate.class)),
+            toIso(rs.getObject("OutdatedDate", LocalDate.class))
     );
 
     @Override
     public Optional<InstalledSoftware> findById(UUID id) {
         String sql = """
             SELECT InstalledSoftwareID, SiteID, SoftwareID, Status,
-                   OfferedDate, InstalledDate, RejectedDate
+                   OfferedDate, InstalledDate, RejectedDate, OutdatedDate
             FROM InstalledSoftware WHERE InstalledSoftwareID = :id
             """;
         try { return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)); }
@@ -65,7 +67,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
     public List<InstalledSoftware> findBySite(UUID siteId) {
         String sql = """
             SELECT InstalledSoftwareID, SiteID, SoftwareID, Status,
-                   OfferedDate, InstalledDate, RejectedDate
+                   OfferedDate, InstalledDate, RejectedDate, OutdatedDate
             FROM InstalledSoftware WHERE SiteID = :sid
             """;
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
@@ -84,7 +86,8 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
                    isw.Status,
                    isw.OfferedDate,
                    isw.InstalledDate,
-                   isw.RejectedDate
+                   isw.RejectedDate,
+                   isw.OutdatedDate
             FROM InstalledSoftware isw
             LEFT JOIN Software sw ON sw.SoftwareID = isw.SoftwareID
             LEFT JOIN Site site ON site.SiteID = isw.SiteID
@@ -98,7 +101,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
     public List<InstalledSoftware> findBySoftware(UUID softwareId) {
         String sql = """
             SELECT InstalledSoftwareID, SiteID, SoftwareID, Status,
-                   OfferedDate, InstalledDate, RejectedDate
+                   OfferedDate, InstalledDate, RejectedDate, OutdatedDate
             FROM InstalledSoftware WHERE SoftwareID = :sw
             """;
         return jdbc.query(sql, new MapSqlParameterSource("sw", softwareId), mapper);
@@ -108,7 +111,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
     public List<InstalledSoftware> findAll() {
         return jdbc.query("""
             SELECT InstalledSoftwareID, SiteID, SoftwareID, Status,
-                   OfferedDate, InstalledDate, RejectedDate
+                   OfferedDate, InstalledDate, RejectedDate, OutdatedDate
             FROM InstalledSoftware
             """, mapper);
     }
@@ -136,8 +139,8 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         boolean isNew = isw.getInstalledSoftwareID() == null;
         if (isNew) {
             String sql = """
-                INSERT INTO InstalledSoftware (SiteID, SoftwareID, Status, OfferedDate, InstalledDate, RejectedDate)
-                VALUES (:site, :sw, :status, :offered, :installed, :rejected)
+                INSERT INTO InstalledSoftware (SiteID, SoftwareID, Status, OfferedDate, InstalledDate, RejectedDate, OutdatedDate)
+                VALUES (:site, :sw, :status, :offered, :installed, :rejected, :outdated)
                 """;
 
             MapSqlParameterSource params = new MapSqlParameterSource()
@@ -146,7 +149,8 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
                     .addValue("status", isw.getStatus())
                     .addValue("offered", parseDate(isw.getOfferedDate()))
                     .addValue("installed", parseDate(isw.getInstalledDate()))
-                    .addValue("rejected", parseDate(isw.getRejectedDate()));
+                    .addValue("rejected", parseDate(isw.getRejectedDate()))
+                    .addValue("outdated", parseDate(isw.getOutdatedDate()));
 
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
             jdbc.update(sql, params, keyHolder, new String[] { "InstalledSoftwareID" });
@@ -160,7 +164,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             String sql = """
                 UPDATE InstalledSoftware SET SiteID = :site, SoftwareID = :sw, Status = :status,
                                             OfferedDate = :offered, InstalledDate = :installed,
-                                            RejectedDate = :rejected
+                                            RejectedDate = :rejected, OutdatedDate = :outdated
                 WHERE InstalledSoftwareID = :id
                 """;
             jdbc.update(sql, new MapSqlParameterSource()
@@ -170,7 +174,8 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
                     .addValue("status", isw.getStatus())
                     .addValue("offered", parseDate(isw.getOfferedDate()))
                     .addValue("installed", parseDate(isw.getInstalledDate()))
-                    .addValue("rejected", parseDate(isw.getRejectedDate())));
+                    .addValue("rejected", parseDate(isw.getRejectedDate()))
+                    .addValue("outdated", parseDate(isw.getOutdatedDate())));
         }
         return isw;
     }

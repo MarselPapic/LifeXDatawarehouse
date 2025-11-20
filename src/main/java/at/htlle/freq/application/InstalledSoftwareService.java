@@ -120,9 +120,9 @@ public class InstalledSoftwareService {
         InstalledSoftware saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("InstalledSoftware saved: id={} site={} software={} status={} offered={} installed={} rejected={}",
+        log.info("InstalledSoftware saved: id={} site={} software={} status={} offered={} installed={} rejected={} outdated={}",
                 saved.getInstalledSoftwareID(), saved.getSiteID(), saved.getSoftwareID(), saved.getStatus(),
-                saved.getOfferedDate(), saved.getInstalledDate(), saved.getRejectedDate());
+                saved.getOfferedDate(), saved.getInstalledDate(), saved.getRejectedDate(), saved.getOutdatedDate());
         return saved;
     }
 
@@ -150,17 +150,16 @@ public class InstalledSoftwareService {
             if (patch.getInstalledDate() != null) {
                 existing.setInstalledDate(patch.getInstalledDate());
             }
-            if (patch.getRejectedDate() != null) {
-                existing.setRejectedDate(patch.getRejectedDate());
-            }
+            if (patch.getRejectedDate() != null) { existing.setRejectedDate(patch.getRejectedDate()); }
+            if (patch.getOutdatedDate() != null) { existing.setOutdatedDate(patch.getOutdatedDate()); }
             normalizeStatusAndDates(existing);
 
             InstalledSoftware saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("InstalledSoftware updated: id={} site={} software={} status={} offered={} installed={} rejected={}",
+            log.info("InstalledSoftware updated: id={} site={} software={} status={} offered={} installed={} rejected={} outdated={}",
                     id, saved.getSiteID(), saved.getSoftwareID(), saved.getStatus(),
-                    saved.getOfferedDate(), saved.getInstalledDate(), saved.getRejectedDate());
+                    saved.getOfferedDate(), saved.getInstalledDate(), saved.getRejectedDate(), saved.getOutdatedDate());
             return saved;
         });
     }
@@ -231,6 +230,7 @@ public class InstalledSoftwareService {
             patch.setOfferedDate(incoming.getOfferedDate());
             patch.setInstalledDate(incoming.getInstalledDate());
             patch.setRejectedDate(incoming.getRejectedDate());
+            patch.setOutdatedDate(incoming.getOutdatedDate());
 
             Optional<InstalledSoftware> updated = updateInstalledSoftware(identifier, patch);
             updated.ifPresent(stored::add);
@@ -287,7 +287,8 @@ public class InstalledSoftwareService {
                     isw.getStatus(),
                     isw.getOfferedDate(),
                     isw.getInstalledDate(),
-                    isw.getRejectedDate()
+                    isw.getRejectedDate(),
+                    isw.getOutdatedDate()
             );
             log.debug("InstalledSoftware indexed in Lucene: id={}", isw.getInstalledSoftwareID());
         } catch (Exception e) {
@@ -307,14 +308,23 @@ public class InstalledSoftwareService {
         entity.setOfferedDate(normalizeDate(entity.getOfferedDate()));
         entity.setInstalledDate(normalizeDate(entity.getInstalledDate()));
         entity.setRejectedDate(normalizeDate(entity.getRejectedDate()));
+        entity.setOutdatedDate(normalizeDate(entity.getOutdatedDate()));
 
         switch (status) {
             case OFFERED -> {
                 entity.setInstalledDate(null);
                 entity.setRejectedDate(null);
+                entity.setOutdatedDate(null);
             }
-            case INSTALLED -> entity.setRejectedDate(null);
-            case REJECTED -> entity.setInstalledDate(null);
+            case INSTALLED -> {
+                entity.setRejectedDate(null);
+                entity.setOutdatedDate(null);
+            }
+            case REJECTED -> {
+                entity.setInstalledDate(null);
+                entity.setOutdatedDate(null);
+            }
+            case OUTDATED -> entity.setRejectedDate(null);
         }
         return status;
     }
@@ -353,7 +363,8 @@ public class InstalledSoftwareService {
                 statusLabel,
                 row.offeredDate(),
                 row.installedDate(),
-                row.rejectedDate()
+                row.rejectedDate(),
+                row.outdatedDate()
         );
     }
 }

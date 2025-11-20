@@ -31,6 +31,7 @@
         .status-badge--retired{background:#f5f5f5;border-color:#d4d4d4;color:#52525b;}
         .status-badge--offered{background:#f0f9ff;border-color:#bae6fd;color:#0369a1;}
         .status-badge--installed{background:#ecfdf5;border-color:#bbf7d0;color:#047857;}
+        .status-badge--outdated{background:#fffbeb;border-color:#fef3c7;color:#92400e;}
         .status-badge--rejected{background:#fef2f2;border-color:#fecaca;color:#b91c1c;}
         .nav-buttons{display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
         .nav-buttons a{
@@ -47,6 +48,9 @@
         .software-overview__name:hover,.software-overview__name:focus{text-decoration:underline}
         .software-overview__version{color:#4b5563;font-size:.9rem}
         .software-overview__status-text{font-weight:600;color:#374151}
+        .software-overview__dates{display:flex;flex-wrap:wrap;gap:.75rem;margin:.2rem 0 0 0;color:#4b5563;font-size:.9rem;line-height:1.35}
+        .software-overview__dates-item{display:flex;align-items:center;gap:.3rem}
+        .software-overview__dates-label{font-weight:600;color:#1f2937}
         .software-overview__meta{margin:.75rem 0 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-size:.9rem;color:#4b5563}
         .software-overview__meta li{display:flex;align-items:center;gap:.35rem}
         .software-overview__meta-label{font-weight:600;color:#1f2937;position:relative}
@@ -120,13 +124,30 @@
     const INSTALL_STATUS_DISPLAY = {
         OFFERED: { label: 'Offered', tone: 'offered' },
         INSTALLED: { label: 'Installed', tone: 'installed' },
+        OUTDATED: { label: 'Outdated', tone: 'outdated' },
         REJECTED: { label: 'Rejected', tone: 'rejected' }
+    };
+
+    const SOFTWARE_STATUS_DATE_VISIBILITY = {
+        OFFERED: ['offeredDate'],
+        INSTALLED: ['offeredDate', 'installedDate'],
+        OUTDATED: ['offeredDate', 'installedDate', 'outdatedDate'],
+        REJECTED: ['offeredDate', 'rejectedDate']
     };
 
     const ALLOWED_AUDIO_DEVICE_TYPES = new Set(['HEADSET','SPEAKER','MIC']);
 
     function normalizeLifecycleStatus(value){
         return (value ?? '').toString().trim().toUpperCase();
+    }
+
+    function normalizeSoftwareStatus(value){
+        return (value ?? '').toString().trim().toUpperCase();
+    }
+
+    function getSoftwareStatusDateProps(value){
+        const normalized = normalizeSoftwareStatus(value);
+        return SOFTWARE_STATUS_DATE_VISIBILITY[normalized] || [];
     }
 
     function renderLifecycleStatusBadge(value){
@@ -140,7 +161,7 @@
     }
 
     function normalizeInstallStatus(value){
-        return (value ?? '').toString().trim().toUpperCase();
+        return normalizeSoftwareStatus(value);
     }
 
     function renderInstallStatusBadge(value, displayLabel){
@@ -995,8 +1016,10 @@
             fallbackStatus,
             statusLabel,
             statusSince: val(item,'StatusSince','statusSince','StatusDate','statusDate','StatusChangedAt','statusChangedAt','StatusUpdatedAt','statusUpdatedAt'),
-            installedAt: val(item,'InstalledAt','installedAt','InstalledOn','installedOn'),
-            offeredAt: val(item,'OfferedAt','offeredAt','OfferedOn','offeredOn'),
+            installedAt: val(item,'InstalledAt','installedAt','InstalledOn','installedOn','InstalledDate','installedDate'),
+            outdatedDate: val(item,'OutdatedAt','outdatedAt','OutdatedOn','outdatedOn','OutdatedDate','outdatedDate'),
+            offeredAt: val(item,'OfferedAt','offeredAt','OfferedOn','offeredOn','OfferedDate','offeredDate'),
+            rejectedDate: val(item,'RejectedDate','rejectedDate','RejectedAt','rejectedAt'),
             plannedStart: val(item,'PlannedWindowStart','plannedWindowStart','NextWindowStart','nextWindowStart','PlannedStart','plannedStart','WindowStart','windowStart'),
             plannedEnd: val(item,'PlannedWindowEnd','plannedWindowEnd','NextWindowEnd','nextWindowEnd','PlannedEnd','plannedEnd','WindowEnd','windowEnd'),
             createdAt: val(item,'CreatedAt','createdAt'),
@@ -1178,12 +1201,38 @@
 
         item.appendChild(header);
 
+        const dateLine = document.createElement('div');
+        dateLine.className = 'software-overview__dates';
+
+        const addDateEntry = (label, value) => {
+            const formatted = formatDateLabel(value);
+            if(!formatted) return;
+            const span = document.createElement('span');
+            span.className = 'software-overview__dates-item';
+            const labelEl = document.createElement('span');
+            labelEl.className = 'software-overview__dates-label';
+            labelEl.textContent = label;
+            const valueEl = document.createElement('span');
+            valueEl.textContent = formatted;
+            span.append(labelEl, valueEl);
+            dateLine.appendChild(span);
+        };
+
+        addDateEntry('Offered', entry.offeredAt);
+        addDateEntry('Installed', entry.installedAt);
+        addDateEntry('Outdated', entry.outdatedDate);
+        addDateEntry('Rejected', entry.rejectedDate);
+        addDateEntry('Status since', entry.statusSince);
+
+        if(dateLine.childNodes.length){
+            item.appendChild(dateLine);
+        }
+
         const meta = document.createElement('ul');
         meta.className = 'software-overview__meta';
 
-        appendMeta(meta, 'Status since', formatDateLabel(entry.statusSince));
-        appendMeta(meta, 'Installed', formatDateLabel(entry.installedAt));
-        appendMeta(meta, 'Offered', formatDateLabel(entry.offeredAt));
+        // Dates are shown in the dedicated date line above; avoid duplicating them here
+        // and rely on the per-date rendering to only display existing values (including rejected).
         appendMeta(meta, 'Planned window', formatDateRange(entry.plannedStart, entry.plannedEnd));
         appendMeta(meta, 'Support window', formatDateRange(entry.supportStart, entry.supportEnd));
 
@@ -1278,12 +1327,13 @@
         const status = val(entry,'status','Status');
         const offeredDate = val(entry,'offeredDate','offeredAt','OfferedDate','OfferedAt');
         const installedDate = val(entry,'installedDate','installedAt','InstalledDate','InstalledAt');
+        const outdatedDate = val(entry,'outdatedDate','outdatedAt','OutdatedDate','OutdatedAt');
         const rejectedDate = val(entry,'rejectedDate','rejectedAt','RejectedDate','RejectedAt');
         const release = val(entry,'release','Release');
         const revision = val(entry,'revision','Revision');
         const softwareName = (val(entry,'softwareName','SoftwareName','name','Name') ?? '').toString().trim();
         if(!softwareId && !installedSoftwareId) return null;
-        return { installedSoftwareId, softwareId, status, offeredDate, installedDate, rejectedDate, release, revision, softwareName };
+        return { installedSoftwareId, softwareId, status, offeredDate, installedDate, outdatedDate, rejectedDate, release, revision, softwareName };
     }
 
     function setSiteSoftwareAssignments(assignments){
@@ -1331,6 +1381,40 @@
             console.error('Unable to load software options', err);
             list.innerHTML = '';
         }
+    }
+
+    function applyAssignmentDateVisibility({row,statusSelect,offeredField,installedField,outdatedField,rejectedField} = {}){
+        if(!row || !statusSelect) return;
+        const fieldMap = [
+            { prop: 'offeredDate', wrapper: offeredField, input: offeredField?.querySelector('input[name="offeredDate"]') },
+            { prop: 'installedDate', wrapper: installedField, input: installedField?.querySelector('input[name="installedDate"]') },
+            { prop: 'outdatedDate', wrapper: outdatedField, input: outdatedField?.querySelector('input[name="outdatedDate"]') },
+            { prop: 'rejectedDate', wrapper: rejectedField, input: rejectedField?.querySelector('input[name="rejectedDate"]') }
+        ];
+
+        const updateVisibility = (rawStatus) => {
+            const normalizedStatus = normalizeSoftwareStatus(rawStatus ?? statusSelect.value);
+            const allowed = new Set(getSoftwareStatusDateProps(normalizedStatus));
+            fieldMap.forEach(({ prop, wrapper, input }) => {
+                if(!wrapper) return;
+                const shouldShow = allowed.has(prop);
+                wrapper.hidden = !shouldShow;
+                wrapper.classList.toggle('hidden', !shouldShow);
+                if(!shouldShow && input){
+                    input.value = '';
+                }
+            });
+        };
+
+        const handleStatusChange = () => {
+            updateVisibility(statusSelect.value);
+        };
+
+        ['change','input'].forEach(eventName => {
+            statusSelect.addEventListener(eventName, handleStatusChange);
+        });
+
+        updateVisibility(statusSelect.value);
     }
 
     function createSoftwareAssignmentRow(entry = {}){
@@ -1410,14 +1494,14 @@
         statusSelect.innerHTML = '<option value="">Select status…</option>';
         Object.entries(INSTALL_STATUS_DISPLAY).forEach(([key, meta]) => {
             const opt = document.createElement('option');
-            opt.value = meta.label;
+            opt.value = key;
             opt.textContent = meta.label;
             statusSelect.appendChild(opt);
         });
         const normalizedStatus = normalizeInstallStatus(normalized.status);
         const match = INSTALL_STATUS_DISPLAY[normalizedStatus];
         if(match){
-            statusSelect.value = match.label;
+            statusSelect.value = normalizedStatus;
         }
         statusField.appendChild(statusLabel);
         statusField.appendChild(statusSelect);
@@ -1443,6 +1527,17 @@
         installedInput.value = formatInputValue(normalized.installedDate, 'date');
         installedField.appendChild(installedLabel);
         installedField.appendChild(installedInput);
+
+        const outdatedField = document.createElement('div');
+        outdatedField.className = 'software-assignment__field';
+        const outdatedLabel = document.createElement('label');
+        outdatedLabel.textContent = 'Outdated';
+        const outdatedInput = document.createElement('input');
+        outdatedInput.type = 'date';
+        outdatedInput.name = 'outdatedDate';
+        outdatedInput.value = formatInputValue(normalized.outdatedDate, 'date');
+        outdatedField.appendChild(outdatedLabel);
+        outdatedField.appendChild(outdatedInput);
 
         const rejectedField = document.createElement('div');
         rejectedField.className = 'software-assignment__field';
@@ -1473,9 +1568,19 @@
         row.appendChild(statusField);
         row.appendChild(offeredField);
         row.appendChild(installedField);
+        row.appendChild(outdatedField);
         row.appendChild(rejectedField);
         row.appendChild(actions);
         row.appendChild(error);
+
+        applyAssignmentDateVisibility({
+            row,
+            statusSelect,
+            offeredField,
+            installedField,
+            outdatedField,
+            rejectedField
+        });
 
         return row;
     }

@@ -80,9 +80,14 @@ Global search supports **Lucene syntax or regular input** with automatic prefix 
 git clone https://github.com/<user>/LifeXDatawarehouse.git
 cd LifeXDatawarehouse
 
+# Clean build & run tests (clears any stale target/ output)
+./mvnw clean verify
+
 # Start in dev mode
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
+
+The CI pipeline should run `./mvnw clean verify` (or `mvn clean verify`) to guarantee a fresh build and prevent `target/` artifacts from lingering between jobs.
 
 **Open in the browser:**
 

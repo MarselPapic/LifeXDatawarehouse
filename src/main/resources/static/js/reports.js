@@ -112,7 +112,7 @@
             updateExportLink(params);
         } catch (err) {
             console.error('Report fetch failed', err);
-            const message = err.status ? 'No software releases found for the selected range.' : 'Report could not be loaded.';
+            const message = err.status ? 'No deployments found for the selected range.' : 'Report could not be loaded.';
             showError(message);
         } finally {
             setBusy(false);
@@ -128,7 +128,7 @@
         if (!table.rows || !table.rows.length) {
             const empty = document.createElement('div');
             empty.className = 'chart-empty';
-            empty.textContent = table.emptyMessage || 'No software found for the selected period.';
+            empty.textContent = table.emptyMessage || 'No deployments found for the selected period.';
             elements.tableWrapper.appendChild(empty);
             setStatus(empty.textContent);
             return;

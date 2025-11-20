@@ -13,7 +13,8 @@ public record SiteSoftwareAssignmentDto(
         String status,
         String offeredDate,
         String installedDate,
-        String rejectedDate
+        String rejectedDate,
+        String outdatedDate
 ) {
     public InstalledSoftware toDomain(UUID siteId) {
         InstalledSoftware entity = new InstalledSoftware();
@@ -24,6 +25,7 @@ public record SiteSoftwareAssignmentDto(
         entity.setOfferedDate(offeredDate);
         entity.setInstalledDate(installedDate);
         entity.setRejectedDate(rejectedDate);
+        entity.setOutdatedDate(outdatedDate);
         return entity;
     }
 }

@@ -374,7 +374,10 @@ function renderShortcutItems(listEl, items){
         if (action.type === 'details' && action.entity && action.id){
             btn.addEventListener('click', () => toDetails(action.entity, action.id));
         } else if (action.type === 'search' && action.query){
-            btn.addEventListener('click', () => runSearch(action.query));
+            btn.addEventListener('click', () => {
+                setSearchScope('all', { syncUrl: true });
+                runSearch(action.query);
+            });
         } else {
             btn.disabled = true;
             btn.classList.add('is-static');
@@ -943,6 +946,7 @@ function setupShortcuts() {
             const q = hasList ? defVal : (((inputEl && inputEl.value) || '').trim() || defVal);
             if (q) {
                 if (!hasList) writeQuery(q);
+                setSearchScope('all', { syncUrl: true });
                 runSearch(q);
             }
         });
@@ -977,6 +981,7 @@ function setupShortcuts() {
                     const q = inputEl.value.trim();
                     if (q) {
                         writeQuery(q);
+                        setSearchScope('all', { syncUrl: true });
                         runSearch(q);
                     }
                 } else if (e.key === 'Escape') {

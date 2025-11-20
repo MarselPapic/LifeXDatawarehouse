@@ -6,6 +6,11 @@ import org.apache.lucene.search.Query;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import at.htlle.freq.domain.InstalledSoftware;
+import at.htlle.freq.domain.InstalledSoftwareRepository;
+import at.htlle.freq.domain.InstalledSoftwareStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,6 +19,11 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 /**
  * Integration-like tests for {@link LuceneIndexServiceImpl} that operate on a temporary
@@ -135,5 +145,52 @@ class LuceneIndexServiceImplTest {
         assertEquals(1, hits.size());
         assertEquals("account acc-blank", hits.get(0).getText());
         assertEquals("", hits.get(0).getSnippet());
+    }
+
+    @Test
+    void reindexAllPassesAllInstalledSoftwareDatesToIndexing() throws Exception {
+        InstalledSoftwareRepository repository = mock(InstalledSoftwareRepository.class);
+        UUID installedId = UUID.randomUUID();
+        UUID siteId = UUID.randomUUID();
+        UUID softwareId = UUID.randomUUID();
+        String offered = "2024-01-01";
+        String installed = "2024-02-02";
+        String rejected = "2024-03-03";
+        String outdated = "2024-04-04";
+
+        InstalledSoftware record = new InstalledSoftware(
+                installedId,
+                siteId,
+                softwareId,
+                InstalledSoftwareStatus.INSTALLED.dbValue(),
+                offered,
+                installed,
+                rejected,
+                outdated
+        );
+        Mockito.when(repository.findAll()).thenReturn(List.of(record));
+
+        LuceneIndexServiceImpl serviceWithRepository = new LuceneIndexServiceImpl(
+                null, null, null, null, null, null, null, repository,
+                null, null, null, null, null, null, null, null
+        );
+        serviceWithRepository.setIndexPath(Path.of("target", "test-index", UUID.randomUUID().toString()));
+
+        LuceneIndexServiceImpl spyService = spy(serviceWithRepository);
+        doNothing().when(spyService).clearIndex();
+        doNothing().when(spyService).indexInstalledSoftware(any(), any(), any(), any(), any(), any(), any(), any());
+
+        spyService.reindexAll();
+
+        verify(spyService).indexInstalledSoftware(
+                installedId.toString(),
+                siteId.toString(),
+                softwareId.toString(),
+                InstalledSoftwareStatus.INSTALLED.dbValue(),
+                offered,
+                installed,
+                rejected,
+                outdated
+        );
     }
 }

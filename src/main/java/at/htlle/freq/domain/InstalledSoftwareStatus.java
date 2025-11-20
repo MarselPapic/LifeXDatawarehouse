@@ -10,7 +10,8 @@ import java.util.Arrays;
 public enum InstalledSoftwareStatus {
     OFFERED("Offered", "Angeboten"),
     INSTALLED("Installed", "Installiert"),
-    REJECTED("Rejected", "Abgelehnt");
+    REJECTED("Rejected", "Abgelehnt"),
+    OUTDATED("Outdated", "Veraltet");
 
     private final String dbValue;
     private final String label;

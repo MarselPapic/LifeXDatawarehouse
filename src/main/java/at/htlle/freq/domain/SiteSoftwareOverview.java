@@ -16,6 +16,7 @@ public record SiteSoftwareOverview(
         String status,
         String offeredDate,
         String installedDate,
-        String rejectedDate
+        String rejectedDate,
+        String outdatedDate
 ) {
 }

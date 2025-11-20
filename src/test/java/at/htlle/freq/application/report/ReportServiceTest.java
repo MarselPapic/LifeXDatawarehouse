@@ -31,6 +31,10 @@ class ReportServiceTest {
         LocalDate endDate = LocalDate.now().plusDays(15);
 
         ResultSet row = mock(ResultSet.class);
+        when(row.getString("AccountName")).thenReturn("EuroCom");
+        when(row.getString("ProjectName")).thenReturn("Expansion");
+        when(row.getString("SiteName")).thenReturn("Vienna Campus");
+        when(row.getString("Status")).thenReturn("Installed");
         when(row.getString("Name")).thenReturn("Core");
         when(row.getString("Release")).thenReturn("2024");
         when(row.getString("Revision")).thenReturn("2");
@@ -53,6 +57,10 @@ class ReportServiceTest {
         ReportResponse response = service.getReport(filter);
 
         Map<String, Object> firstRow = response.table().rows().get(0);
+        assertEquals("EuroCom", firstRow.get("account"));
+        assertEquals("Expansion", firstRow.get("project"));
+        assertEquals("Vienna Campus", firstRow.get("site"));
+        assertEquals("Installed", firstRow.get("installStatus"));
         assertEquals("Core", firstRow.get("name"));
         assertEquals("2024", firstRow.get("release"));
         assertEquals("2", firstRow.get("revision"));
@@ -64,10 +72,18 @@ class ReportServiceTest {
     void csvRenderIncludesSupportHeadings() {
         ReportService service = new ReportService(null);
         List<ReportColumn> columns = List.of(
+                new ReportColumn("account", "Account", "left"),
+                new ReportColumn("project", "Project", "left"),
+                new ReportColumn("site", "Site", "left"),
+                new ReportColumn("installStatus", "Install status", "left"),
                 new ReportColumn("name", "Software", "left"),
                 new ReportColumn("supportEnd", "Support end", "left")
         );
         Map<String, Object> row = Map.of(
+                "account", "EuroCom",
+                "project", "Expansion",
+                "site", "Vienna Campus",
+                "installStatus", "Installed",
                 "name", "Core",
                 "supportEnd", "01.01.2025"
         );
@@ -78,7 +94,7 @@ class ReportServiceTest {
 
         String[] lines = csv.split("\n");
         assertEquals("Report;Support end dates", lines[0]);
-        assertEquals("Software;Support end", lines[3]);
-        assertEquals("Core;01.01.2025", lines[4]);
+        assertEquals("Account;Project;Site;Install status;Software;Support end", lines[3]);
+        assertEquals("EuroCom;Expansion;Vienna Campus;Installed;Core;01.01.2025", lines[4]);
     }
 }

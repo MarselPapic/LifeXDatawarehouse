@@ -136,7 +136,8 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 is.getStatus(),
                                 is.getOfferedDate(),
                                 is.getInstalledDate(),
-                                is.getRejectedDate()
+                                is.getRejectedDate(),
+                                is.getOutdatedDate()
                         );
                         return;
                     }
