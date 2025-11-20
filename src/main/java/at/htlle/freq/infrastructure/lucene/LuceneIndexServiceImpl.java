@@ -55,6 +55,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LuceneIndexServiceImpl implements LuceneIndexService {
 
     private static final Logger log = LoggerFactory.getLogger(LuceneIndexServiceImpl.class);
+    private static final int PROGRESS_LOG_INTERVAL = 250;
     private static final String TYPE_ACCOUNT = "account";
     private static final String TYPE_ADDRESS = "address";
     private static final String TYPE_AUDIO_DEVICE = "audioDevice";
@@ -665,8 +666,11 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
             IndexProgress progress = IndexProgress.get();
             if (progress.isActive()) {
                 progress.inc(progressKey(type));
+                logProgress(progress);
             }
-            log.info("Indexed {}: {}", type, id);
+            if (log.isDebugEnabled()) {
+                log.debug("Indexed {}: {}", type, id);
+            }
         } catch (Exception e) {
             log.error("Failed to index {}", type, e);
         }
@@ -684,9 +688,23 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                 writer.deleteDocuments(new Term("id", safeId));
                 writer.commit();
             });
-            log.info("Deleted document from Lucene index: {}", safeId);
+            if (log.isDebugEnabled()) {
+                log.debug("Deleted document from Lucene index: {}", safeId);
+            }
         } catch (Exception e) {
             log.error("Failed to delete document {} from Lucene", safeId, e);
+        }
+    }
+
+    private void logProgress(IndexProgress progress) {
+        int processed = progress.totalDone();
+        int total = progress.grandTotal();
+        if (processed == 0 || PROGRESS_LOG_INTERVAL == 0) {
+            return;
+        }
+        if (processed % PROGRESS_LOG_INTERVAL == 0 || processed == total) {
+            int percent = total == 0 ? 100 : Math.min(100, (processed * 100) / total);
+            log.info("Lucene reindex progress: {}/{} documents ({}%)", processed, total, percent);
         }
     }
 
