@@ -94,6 +94,20 @@ public class ProjectController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
         }
 
+        String sapId = extractProjectSapId(body);
+        if (sapId == null || sapId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ProjectSAPID is required");
+        }
+        sapId = sapId.trim();
+
+        int duplicates = Optional.ofNullable(jdbc.queryForObject(
+                        "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap",
+                        new MapSqlParameterSource("sap", sapId), Integer.class))
+                .orElse(0);
+        if (duplicates > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + sapId);
+        }
+
         String sql = """
             INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID)
             VALUES (:projectSAPID, :projectName, :deploymentVariantID, :bundleType, CURRENT_DATE, :lifecycleStatus, :accountID, :addressID)
@@ -112,6 +126,9 @@ public class ProjectController {
             } catch (IllegalArgumentException ex) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
             }
+            if (status == null) {
+                status = ProjectLifecycleStatus.ACTIVE;
+            }
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource();
@@ -121,6 +138,7 @@ public class ProjectController {
                 params.addValue(key, value);
             }
         });
+        params.addValue("projectSAPID", sapId);
         params.addValue("lifecycleStatus", status.name());
 
         jdbc.update(sql, params);
@@ -221,6 +239,14 @@ public class ProjectController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
         }
         log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("ProjectID", id));
+    }
+
+    private String extractProjectSapId(Map<String, Object> body) {
+        return body.entrySet().stream()
+                .filter(e -> e.getKey() != null && e.getKey().equalsIgnoreCase("projectsapid"))
+                .map(e -> e.getValue() != null ? e.getValue().toString() : null)
+                .findFirst()
+                .orElse(null);
     }
 
     private Map<String, Object> extractIdentifiers(Map<String, Object> body) {

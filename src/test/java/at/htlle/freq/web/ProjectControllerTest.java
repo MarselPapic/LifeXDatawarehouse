@@ -23,6 +23,7 @@ class ProjectControllerTest {
     void setUp() {
         jdbc = mock(NamedParameterJdbcTemplate.class);
         controller = new ProjectController(jdbc);
+        when(jdbc.queryForObject(anyString(), any(MapSqlParameterSource.class), eq(Integer.class))).thenReturn(0);
     }
 
     private Map<String, Object> baseBody() {
@@ -51,6 +52,26 @@ class ProjectControllerTest {
     }
 
     @Test
+    void createRejectsDuplicateSapId() {
+        Map<String, Object> body = baseBody();
+        when(jdbc.queryForObject(anyString(), any(MapSqlParameterSource.class), eq(Integer.class))).thenReturn(1);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.create(body));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
+    void createRejectsMissingSapId() {
+        Map<String, Object> body = baseBody();
+        body.remove("projectSAPID");
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.create(body));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
     void createUsesProvidedLifecycleStatus() {
         Map<String, Object> body = baseBody();
         body.put("LifecycleStatus", "retired");
@@ -61,6 +82,19 @@ class ProjectControllerTest {
         verify(jdbc).update(anyString(), paramsCaptor.capture());
 
         assertEquals("RETIRED", paramsCaptor.getValue().getValue("lifecycleStatus"));
+    }
+
+    @Test
+    void createTreatsBlankLifecycleStatusAsDefault() {
+        Map<String, Object> body = baseBody();
+        body.put("lifecycleStatus", "   ");
+
+        controller.create(body);
+
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbc).update(anyString(), paramsCaptor.capture());
+
+        assertEquals("ACTIVE", paramsCaptor.getValue().getValue("lifecycleStatus"));
     }
 
     @Test

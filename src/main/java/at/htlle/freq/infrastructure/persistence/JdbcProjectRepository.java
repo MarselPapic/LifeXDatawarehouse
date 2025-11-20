@@ -92,7 +92,7 @@ public class JdbcProjectRepository implements ProjectRepository {
             String sql = """
                 INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
                                      CreateDateTime, LifecycleStatus, AccountID, AddressID)
-                VALUES (:sap, :name, :dv, :bundle, :created, :status, :account, :address)
+                VALUES (:sap, :name, :dv, :bundle, COALESCE(:created, CURRENT_DATE), :status, :account, :address)
                 RETURNING ProjectID
                 """;
             var params = new MapSqlParameterSource()
@@ -113,7 +113,7 @@ public class JdbcProjectRepository implements ProjectRepository {
                     ProjectName = :name,
                     DeploymentVariantID = :dv,
                     BundleType = :bundle,
-                    CreateDateTime = :created,
+                    CreateDateTime = COALESCE(:created, CURRENT_DATE),
                     LifecycleStatus = :status,
                     AccountID = :account,
                     AddressID = :address
