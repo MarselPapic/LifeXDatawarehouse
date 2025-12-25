@@ -25,58 +25,65 @@
         <section>
             <h2>Shortcuts</h2>
 
-            <!-- Shortcut preset 0: Accounts – complete inventory -->
-            <div class="shortcut" data-id="sc0" data-default="type:account">
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">Accounts – Full list</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input></div>
+            <div id="shortcut-container">
+                <!-- Shortcut preset 0: Accounts – complete inventory -->
+                <div class="shortcut" data-id="sc0" data-default="type:account">
+                    <button class="head">
+                        <span class="rename">✏️</span>
+                        <span class="label">Accounts – Full list</span>
+                        <span class="chev">▶</span>
+                    </button>
+                    <div class="panel"><input></div>
+                </div>
+
+                <!-- Shortcut preset 1: Projects – active -->
+                <div class="shortcut" data-id="sc1"
+                     data-default='type:project AND statusactive'>
+                    <button class="head">
+                        <span class="rename">✏️</span>
+                        <span class="label">Projects – active</span>
+                        <span class="chev">▶</span>
+                    </button>
+                    <div class="panel"><input></div>
+                </div>
+
+                <!-- Shortcut preset 2: Service contracts – in progress -->
+                <div class="shortcut" data-id="sc2"
+                     data-default='type:servicecontract AND statusinprogress'>
+                    <button class="head">
+                        <span class="rename">✏️</span>
+                        <span class="label">Service contracts – in progress</span>
+                        <span class="chev">▶</span>
+                    </button>
+                    <div class="panel"><input placeholder="Lucene query (e.g. type:servicecontract AND statusinprogress)"></div>
+                </div>
+
+                <!-- Shortcut preset 3: Sites – FireZone Bravo -->
+                <div class="shortcut" data-id="sc3"
+                     data-default='type:site AND zonebravo'>
+                    <button class="head">
+                        <span class="rename">✏️</span>
+                        <span class="label">Sites – FireZone Bravo</span>
+                        <span class="chev">▶</span>
+                    </button>
+                    <div class="panel"><input></div>
+                </div>
+
+                <!-- Shortcut preset 4: Servers – Lenovo -->
+                <div class="shortcut" data-id="sc4"
+                     data-default='type:server AND Lenovo'>
+                    <button class="head">
+                        <span class="rename">✏️</span>
+                        <span class="label">Servers – Lenovo</span>
+                        <span class="chev">▶</span>
+                    </button>
+                    <div class="panel"><input placeholder="Lucene query (e.g. type:server AND Lenovo)"></div>
+                </div>
             </div>
 
-            <!-- Shortcut preset 1: Projects – active -->
-            <div class="shortcut" data-id="sc1"
-                 data-default='type:project AND statusactive'>
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">Projects – active</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input></div>
-            </div>
-
-            <!-- Shortcut preset 2: Service contracts – in progress -->
-            <div class="shortcut" data-id="sc2"
-                 data-default='type:servicecontract AND statusinprogress'>
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">Service contracts – in progress</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input placeholder="Lucene query (e.g. type:servicecontract AND statusinprogress)"></div>
-            </div>
-
-            <!-- Shortcut preset 3: Sites – FireZone Bravo -->
-            <div class="shortcut" data-id="sc3"
-                 data-default='type:site AND zonebravo'>
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">Sites – FireZone Bravo</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input></div>
-            </div>
-
-            <!-- Shortcut preset 4: Servers – Lenovo -->
-            <div class="shortcut" data-id="sc4"
-                 data-default='type:server AND Lenovo'>
-                <button class="head">
-                    <span class="rename">✏️</span>
-                    <span class="label">Servers – Lenovo</span>
-                    <span class="chev">▶</span>
-                </button>
-                <div class="panel"><input placeholder="Lucene query (e.g. type:server AND Lenovo)"></div>
+            <div class="shortcut-actions" aria-label="Shortcut controls">
+                <button id="shortcut-remove" type="button" aria-label="Remove shortcut">−</button>
+                <button id="shortcut-add" type="button" aria-label="Add shortcut">+</button>
             </div>
         </section>
 
@@ -130,20 +137,37 @@
     </main>
 
     <!-- Help sidebar -->
-    <aside class="help">
-        <h2>Lucene syntax</h2>
-        <ul>
-            <li><code>tech*</code> Wildcard</li>
-            <li><code>"green valley"</code> Phrase</li>
-            <li><code>+foo -bar</code> Must / Must not</li>
-            <li><code>date:[2025-01-01 TO 2025-12-31]</code></li>
-            <li>Project search: <code>type:project AND statusactive</code></li>
-        </ul>
+    <aside class="help" id="help-panel">
+        <div class="help__header">
+            <h2>Search help – quick tips</h2>
+            <button type="button" class="help-toggle" aria-controls="help-panel" aria-expanded="true">
+                <span class="help-toggle__icon" aria-hidden="true">☰</span>
+                <span class="visually-hidden">Toggle help panel</span>
+            </button>
+        </div>
+        <div class="help__body">
+            <p>Enter multiple words to find records containing all terms, e.g., <code>auto teile</code>.</p>
+            <p>Type the start of a word for prefix matches, e.g., <code>tech</code> finds “technik.”</p>
+            <p>Use a leading asterisk for “contains” matches, e.g., <code>*box</code> finds anything ending with “box.”</p>
+            <p>After selecting a table, searches stay within that scope (blue banner). Click the banner to search everywhere again.</p>
+
+        <button id="advanced-help-toggle" class="info-badge" type="button" aria-expanded="false" aria-controls="advanced-help">ℹ️ Advanced search examples</button>
+        <div id="advanced-help-status" class="visually-hidden" aria-live="polite"></div>
+        <div id="advanced-help" class="advanced-help" hidden>
+            <h3>Advanced syntax</h3>
+            <ul>
+                <li><strong>Phrase query:</strong> <code>"incident report"</code> keeps words together.</li>
+                <li><strong>Field scope:</strong> <code>city:berlin AND type:site</code> limits matches to a field.</li>
+                <li><strong>Wildcard:</strong> <code>serv?r*</code> matches server, serverless, etc.</li>
+                <li><strong>Boolean mix:</strong> <code>(type:server OR type:site) AND status:active</code>.</li>
+            </ul>
+        </div>
 
         <hr>
         <h3>Index management</h3>
         <button id="idx-reindex-side" class="btn-primary">Reindex</button>
         <p style="font-size:.9rem;color:#555">Starts a full reindex; progress appears above as a bar.</p>
+        </div>
     </aside>
 </div>
 

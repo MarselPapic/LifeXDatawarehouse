@@ -312,6 +312,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     public List<SearchHit> search(String queryText) {
         try {
             QueryParser parser = new QueryParser("content", analyzer);
+            parser.setAllowLeadingWildcard(true);
             Query query = parser.parse(queryText);
             return search(query);
         } catch (Exception e) {

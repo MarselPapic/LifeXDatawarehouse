@@ -19,10 +19,48 @@ header nav a{color:#fff;text-decoration:none;font-weight:bold;font-size:1.05rem;
 header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
 
 /* Main layout ----------------------------------------------------- */
-.layout{max-width:1600px;margin:2rem auto;display:flex;gap:1rem}
+.layout{max-width:1600px;margin:2rem auto;display:flex;gap:1rem;align-items:flex-start}
 .sidebar{flex:0 0 300px;display:flex;flex-direction:column;gap:1rem}
 .content{flex:1 1 auto;background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.help{flex:0 0 330px;background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.info-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:.3rem;
+    font-weight:700;
+    border:1px solid #cfe0ff;
+    background:#eef4ff;
+    color:#0b4c9c;
+    padding:.35rem .75rem;
+    border-radius:999px;
+    cursor:pointer;
+    box-shadow:0 1px 0 rgba(11,76,156,.06);
+}
+.info-badge:focus-visible{outline:2px solid #0b4c9c;outline-offset:2px}
+.help .info-badge{margin-top:.6rem}
+.advanced-help{
+    margin-top:.65rem;
+    padding:1rem;
+    border-radius:10px;
+    border:1px solid #e5e7eb;
+    background:linear-gradient(180deg, #f9fbff 0%, #f4f7fb 100%);
+    color:#0f172a;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.advanced-help h3{margin-top:0;margin-bottom:.4rem;font-size:1rem}
+.advanced-help ul{margin:.35rem 0 0 0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.45rem}
+.advanced-help[hidden]{display:none}
+.help{flex:0 0 330px;max-width:330px;background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:.75rem;transition:flex-basis .25s ease,max-width .25s ease,padding .25s ease,box-shadow .25s ease,max-height .25s ease;max-height:1200px;overflow:hidden;align-self:flex-start}
+.help__header{display:flex;align-items:center;gap:.5rem}
+.help__header h2{margin:0;flex:1 1 auto}
+.help__body{display:flex;flex-direction:column;gap:.5rem}
+.help-toggle{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:8px;border:1px solid #cfe0ff;background:#f5f8ff;color:#003a70;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+.help-toggle:hover{background:#e8f1ff}
+.help-toggle:focus-visible{outline:2px solid #003a70;outline-offset:2px}
+.help.is-collapsed{flex:0 0 64px;max-width:64px;max-height:72px;padding:.65rem;box-shadow:0 0 0 1px #e5e7eb;align-self:flex-start}
+.help.is-collapsed .help__body,.help.is-collapsed h2{display:none}
+.help.is-collapsed .help__header{justify-content:flex-end}
+.help.is-collapsed .help-toggle{margin-left:auto;width:100%;height:100%}
+.help.is-collapsed .help-toggle .help-toggle__icon{transform:rotate(180deg)}
 
 /* =============== Filterable combo boxes  =============== */
 .filterable-select{position:relative;display:flex;flex-direction:column;gap:.25rem;width:100%;}
@@ -130,6 +168,15 @@ header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
         width:100%;
     }
 
+    .help .info-badge{
+        width:100%;
+        justify-content:flex-start;
+    }
+
+    .advanced-help{
+        width:100%;
+    }
+
     .tables ul,
     .report-type-list{
         display:flex;
@@ -164,6 +211,7 @@ header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
 }
 .search-type-pill:hover{background:rgba(11,76,156,.15)}
 .search-type-pill:focus-visible{outline:2px solid #0b4c9c;outline-offset:2px}
+.hit-highlight{background:yellow;box-shadow:inset 0 -0.25em yellow;}
 
 /* ===============  Blue button styling (for reindex) ====== */
 .btn-primary,
@@ -220,6 +268,10 @@ header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
 .sc-item.is-static,.sc-item.is-static:hover{cursor:default;background:#fff}
 .sc-item-primary{display:block;font-weight:600;color:#003a70}
 .sc-item-secondary{display:block;font-size:.85rem;color:#444;margin-top:.18rem}
+.shortcut-actions{display:flex;justify-content:flex-end;gap:.35rem;margin:.3rem 0 .4rem}
+.shortcut-actions button{width:32px;height:32px;border-radius:6px;border:1px solid #cbd5e1;background:#f9fafc;cursor:pointer;font-size:1.2rem;color:#003a70;font-weight:700;line-height:1}
+.shortcut-actions button:hover{background:#e9f2ff}
+.shortcut-actions button:disabled{opacity:.5;cursor:not-allowed}
 
 /* ===============  Site software summary toggle  =============== */
 .software-assignment-panel{margin-top:1rem;padding:1rem;border:1px solid #e5e7eb;border-radius:.75rem;background:#f9fafb}

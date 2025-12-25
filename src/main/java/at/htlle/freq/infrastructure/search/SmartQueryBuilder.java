@@ -50,7 +50,7 @@ public class SmartQueryBuilder {
 
         String normalized = s.toLowerCase();
         return s.contains(":") || s.contains("\"") || normalized.contains(" and ")
-                || normalized.contains(" or ") || s.endsWith("*");
+                || normalized.contains(" or ") || s.endsWith("*") || s.startsWith("*");
     }
 
     /**
@@ -74,6 +74,7 @@ public class SmartQueryBuilder {
     public Query build(String userInput, String typeFilter) {
         try {
             QueryParser p = new QueryParser(DEFAULT_FIELD, ANALYZER);
+            p.setAllowLeadingWildcard(true);
             p.setDefaultOperator(QueryParser.Operator.AND);
             Query baseQuery;
             if (userInput == null || userInput.isBlank()) {

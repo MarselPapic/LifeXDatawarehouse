@@ -17,6 +17,7 @@ class SmartQueryBuilderTest {
         assertTrue(SmartQueryBuilder.looksLikeLucene("foo and bar"));
         assertTrue(SmartQueryBuilder.looksLikeLucene("foo AnD bar"));
         assertTrue(SmartQueryBuilder.looksLikeLucene("name*"));
+        assertTrue(SmartQueryBuilder.looksLikeLucene("*name"));
     }
 
     @Test
@@ -38,6 +39,12 @@ class SmartQueryBuilderTest {
         String lucene = query.toString();
         assertTrue(lucene.contains("content:vienna"));
         assertTrue(lucene.contains("content:server"));
+    }
+
+    @Test
+    void buildAllowsLeadingWildcardQueries() {
+        Query query = builder.build("*anna");
+        assertTrue(query.toString().contains("*anna"));
     }
 
     @Test

@@ -160,6 +160,8 @@ Additional endpoints for `Project`, `Site`, `Server`, and more follow the same p
 **All assets:**
 Live under `src/main/resources/static/`—no frontend build required.
 
+**Language guidelines:** All user-facing text and documentation must be written in English. If you encounter non-English strings, please localize them to English so the UI and docs stay consistent.
+
 ---
 
 ## 🔍 Lucene Quick Ref
