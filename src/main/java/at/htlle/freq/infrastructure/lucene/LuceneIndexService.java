@@ -5,6 +5,7 @@ import at.htlle.freq.infrastructure.search.SearchHit;
 import org.apache.lucene.search.Query;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -63,7 +64,8 @@ public interface LuceneIndexService {
     /**
      * Indexes client metadata together with deployment context details, enabling entity-level lookup.
      */
-    void indexClient(String clientId, String siteId, String clientName, String clientBrand, String clientOS, String installType);
+    void indexClient(String clientId, String siteId, String clientName, String clientBrand, String clientOS,
+                     String installType, String workingPositionType, String otherInstalledSoftware);
 
     /**
      * Indexes country records for quick lookup via ISO code or display name.
@@ -73,7 +75,7 @@ public interface LuceneIndexService {
     /**
      * Indexes audio device metadata belonging to a client, updating searchable hardware information.
      */
-    void indexAudioDevice(String audioDeviceId, String clientId, String brand, String serialNr, String firmware, String deviceType);
+    void indexAudioDevice(String audioDeviceId, String clientId, String brand, String serialNr, String firmware, String deviceType, String direction);
 
     /**
      * Indexes deployment variant information including lifecycle flags for project planning.
@@ -87,15 +89,15 @@ public interface LuceneIndexService {
                                 String offeredDate, String installedDate, String rejectedDate, String outdatedDate);
 
     /**
-     * Indexes phone integration hardware assigned to clients for operational tracking.
+     * Indexes phone integration hardware assigned to sites for operational tracking.
      */
-    void indexPhoneIntegration(String phoneIntegrationId, String clientId, String phoneType, String phoneBrand, String phoneSerialNr, String phoneFirmware);
+    void indexPhoneIntegration(String phoneIntegrationId, String siteId, String phoneType, String phoneBrand, String interfaceName, Integer capacity, String phoneFirmware);
 
     /**
      * Indexes project metadata and its relations to deployment variants, accounts, and addresses.
      */
     void indexProject(String projectId, String projectSAPId, String projectName, String deploymentVariantId, String bundleType, String lifecycleStatus,
-                      String accountId, String addressId);
+                      String accountId, String addressId, String specialNotes);
 
     /**
      * Indexes radio devices with associated configuration details for operational queries.
@@ -106,7 +108,7 @@ public interface LuceneIndexService {
      * Indexes server hardware records, including virtualisation details and availability flags.
      */
     void indexServer(String serverId, String siteId, String serverName, String serverBrand, String serverSerialNr, String serverOS,
-                     String patchLevel, String virtualPlatform, String virtualVersion, boolean highAvailability);
+                     String patchLevel, String virtualPlatform, String virtualVersion);
 
     /**
      * Indexes service contracts to make lifecycle status, durations, and related entities searchable.
@@ -117,7 +119,8 @@ public interface LuceneIndexService {
     /**
      * Indexes site information with address linkage and optional tenancy details.
      */
-    void indexSite(String siteId, String projectId, String addressId, String siteName, String fireZone, Integer tenantCount);
+    void indexSite(String siteId, Collection<String> projectIds, String addressId, String siteName, String fireZone,
+                   Integer tenantCount, Integer redundantServers, boolean highAvailability);
 
     /**
      * Indexes software catalogue entries, capturing release lifecycle and licensing attributes.

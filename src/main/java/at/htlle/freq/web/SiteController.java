@@ -1,16 +1,16 @@
 package at.htlle.freq.web;
 
 import at.htlle.freq.application.InstalledSoftwareService;
+import at.htlle.freq.application.ProjectSiteAssignmentService;
 import at.htlle.freq.application.SiteService;
 import at.htlle.freq.application.dto.SiteSoftwareOverviewEntry;
 import at.htlle.freq.domain.InstalledSoftwareStatus;
 import at.htlle.freq.domain.Site;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import at.htlle.freq.web.dto.InstalledSoftwareStatusUpdateRequest;
 import at.htlle.freq.web.dto.SiteDetailResponse;
 import at.htlle.freq.web.dto.SiteSoftwareSummary;
 import at.htlle.freq.web.dto.SiteUpsertRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -31,14 +31,27 @@ public class SiteController {
     private final NamedParameterJdbcTemplate jdbc;
     private final SiteService siteService;
     private final InstalledSoftwareService installedSoftwareService;
-    private static final Logger log = LoggerFactory.getLogger(SiteController.class);
+    private final ProjectSiteAssignmentService projectSites;
+    private final AuditLogger audit;
     private static final String TABLE = "Site";
 
+    /**
+     * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for ad-hoc site queries.
+     * @param siteService service used for site CRUD operations.
+     * @param installedSoftwareService service managing installed software assignments.
+     * @param projectSites service that maintains site/project relationships.
+     */
     public SiteController(NamedParameterJdbcTemplate jdbc, SiteService siteService,
-                          InstalledSoftwareService installedSoftwareService) {
+                          InstalledSoftwareService installedSoftwareService,
+                          ProjectSiteAssignmentService projectSites,
+                          AuditLogger audit) {
         this.jdbc = jdbc;
         this.siteService = siteService;
         this.installedSoftwareService = installedSoftwareService;
+        this.projectSites = projectSites;
+        this.audit = audit;
     }
 
     /**
@@ -93,18 +106,44 @@ public class SiteController {
      * @return 200 OK with sites as JSON.
      */
     @GetMapping
-    public List<Map<String, Object>> findByProject(@RequestParam(required = false) String projectId) {
-        if (projectId != null) {
-            return jdbc.queryForList("""
-                SELECT SiteID, SiteName, FireZone, TenantCount, AddressID, ProjectID
-                FROM Site
-                WHERE ProjectID = :pid
-                """, new MapSqlParameterSource("pid", projectId));
+    public List<Map<String, Object>> findByProject(@RequestParam(required = false) String projectId,
+                                                   @RequestParam(required = false, name = "accountId") String accountId) {
+        boolean filterByProject = projectId != null && !projectId.isBlank();
+        boolean filterByAccount = accountId != null && !accountId.isBlank();
+
+        if (filterByProject || filterByAccount) {
+            StringBuilder sql = new StringBuilder("""
+                SELECT DISTINCT s.SiteID, s.SiteName, s.FireZone, s.TenantCount, s.RedundantServers, s.HighAvailability, s.AddressID, s.ProjectID
+                FROM Site s
+                JOIN ProjectSite ps ON ps.SiteID = s.SiteID
+                """);
+
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            if (filterByAccount) {
+                sql.append(" JOIN Project p ON p.ProjectID = ps.ProjectID\n");
+                params.addValue("accId", accountId);
+            }
+
+            List<String> where = new ArrayList<>();
+            if (filterByProject) {
+                params.addValue("pid", projectId);
+                where.add("ps.ProjectID = :pid");
+            }
+            if (filterByAccount) {
+                where.add("p.AccountID = :accId");
+            }
+            if (!where.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", where)).append("\n");
+            }
+            sql.append(" ORDER BY s.SiteName NULLS LAST, s.SiteID");
+
+            return jdbc.queryForList(sql.toString(), params);
         }
 
         return jdbc.queryForList("""
-            SELECT SiteID, SiteName, FireZone, TenantCount, AddressID, ProjectID
+            SELECT SiteID, SiteName, FireZone, TenantCount, RedundantServers, HighAvailability, AddressID, ProjectID
             FROM Site
+            ORDER BY SiteName NULLS LAST, SiteID
             """, new HashMap<>());
     }
 
@@ -119,7 +158,7 @@ public class SiteController {
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
-            SELECT SiteID, SiteName, FireZone, TenantCount, AddressID, ProjectID
+            SELECT SiteID, SiteName, FireZone, TenantCount, RedundantServers, HighAvailability, AddressID, ProjectID
             FROM Site
             WHERE SiteID = :id
             """, new MapSqlParameterSource("id", id));
@@ -143,19 +182,29 @@ public class SiteController {
         UUID siteId = parseUuid(id, "SiteID");
         Site site = siteService.getSiteById(siteId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Site not found"));
+        List<UUID> projectIds = projectSites.getProjectsForSite(siteId);
         List<SiteSoftwareOverviewEntry> assignments = installedSoftwareService.getSiteSoftwareOverview(siteId);
 
         return new SiteDetailResponse(
                 site.getSiteID(),
                 site.getSiteName(),
                 site.getProjectID(),
+                projectIds,
                 site.getAddressID(),
                 site.getFireZone(),
                 site.getTenantCount(),
+                site.getRedundantServers(),
+                site.getHighAvailability(),
                 assignments
         );
     }
 
+    /**
+     * Returns installed software assignments for the requested site.
+     *
+     * @param id site identifier.
+     * @return list of software overview entries for the site.
+     */
     @GetMapping({"/{id}/software", "/{id}/software/overview"})
     public List<SiteSoftwareOverviewEntry> softwareOverview(@PathVariable String id) {
         UUID siteId = parseUuid(id, "SiteID");
@@ -192,8 +241,9 @@ public class SiteController {
 
         try {
             installedSoftwareService.updateStatus(installationUuid, request.normalizedStatus());
-            log.info("[{}] status updated: installation={} site={} status={}", TABLE,
-                    installationUuid, siteUuid, request.normalizedStatus());
+            audit.updated("InstalledSoftware",
+                    Map.of("InstalledSoftwareID", installationUuid, "SiteID", siteUuid),
+                    Map.of("status", request.normalizedStatus()));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -225,14 +275,13 @@ public class SiteController {
 
         Site saved;
         try {
-            saved = siteService.createOrUpdateSite(request.toSite());
+            saved = siteService.createOrUpdateSite(request.toSite(), request.normalizedProjectIds());
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
 
         persistAssignments(saved.getSiteID(), request);
-        log.info("[{}] create succeeded: id={} assignments={}", TABLE, saved.getSiteID(),
-                request.normalizedAssignments().size());
+        audit.created(TABLE, Map.of("SiteID", saved.getSiteID()), request);
     }
 
     // UPDATE operations
@@ -263,19 +312,17 @@ public class SiteController {
         Site patch = request.toSite();
         Optional<Site> updated;
         try {
-            updated = siteService.updateSite(siteId, patch);
+            updated = siteService.updateSite(siteId, patch, request.normalizedProjectIds());
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
 
         if (updated.isEmpty()) {
-            log.warn("[{}] update failed: identifiers={} ", TABLE, Map.of("SiteID", siteId));
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site updated");
         }
 
         persistAssignments(siteId, request);
-        log.info("[{}] update succeeded: id={} assignments={} keys={}", TABLE, siteId,
-                request.normalizedAssignments().size(), summarizeUpdatedFields(patch));
+        audit.updated(TABLE, Map.of("SiteID", siteId), request);
     }
 
     // DELETE operations
@@ -291,16 +338,20 @@ public class SiteController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        int count = jdbc.update("DELETE FROM Site WHERE SiteID = :id",
-                new MapSqlParameterSource("id", id));
-
-        if (count == 0) {
-            log.warn("[{}] delete failed: identifiers={}", TABLE, Map.of("SiteID", id));
+        UUID siteId = parseUuid(id, "SiteID");
+        if (siteService.getSiteById(siteId).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site deleted");
         }
-        log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("SiteID", id));
+        siteService.deleteSite(siteId);
+        audit.deleted(TABLE, Map.of("SiteID", id));
     }
 
+    /**
+     * Persists installed software assignments for the site.
+     *
+     * @param siteId site identifier.
+     * @param request request payload with assignments.
+     */
     private void persistAssignments(UUID siteId, SiteUpsertRequest request) {
         try {
             installedSoftwareService.replaceAssignmentsForSite(siteId, request.toInstalledSoftware(siteId));
@@ -309,6 +360,13 @@ public class SiteController {
         }
     }
 
+    /**
+     * Parses a UUID and converts parsing errors into a {@link ResponseStatusException}.
+     *
+     * @param raw raw string value.
+     * @param fieldName field label used in the error message.
+     * @return parsed UUID.
+     */
     private UUID parseUuid(String raw, String fieldName) {
         try {
             return UUID.fromString(raw);
@@ -318,13 +376,4 @@ public class SiteController {
         }
     }
 
-    private Set<String> summarizeUpdatedFields(Site patch) {
-        Set<String> fields = new LinkedHashSet<>();
-        if (patch.getSiteName() != null) fields.add("SiteName");
-        if (patch.getProjectID() != null) fields.add("ProjectID");
-        if (patch.getAddressID() != null) fields.add("AddressID");
-        if (patch.getFireZone() != null) fields.add("FireZone");
-        if (patch.getTenantCount() != null) fields.add("TenantCount");
-        return fields;
-    }
 }

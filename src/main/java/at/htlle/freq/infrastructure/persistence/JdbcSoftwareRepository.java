@@ -17,6 +17,10 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcSoftwareRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcSoftwareRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Software> mapper = (rs, n) -> new Software(
@@ -32,6 +36,11 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
             rs.getString("SupportEndDate")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Software> findById(UUID id) {
         String sql = """
@@ -43,6 +52,11 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Name using the supplied criteria and returns the matching data.
+     * @param name name.
+     * @return the matching By Name.
+     */
     @Override
     public List<Software> findByName(String name) {
         String sql = """
@@ -53,6 +67,10 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         return jdbc.query(sql, new MapSqlParameterSource("name", name), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Software> findAll() {
         String sql = """
@@ -63,6 +81,10 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Software WHERE SoftwareID = :id";

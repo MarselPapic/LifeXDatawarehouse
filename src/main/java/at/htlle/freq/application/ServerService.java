@@ -119,9 +119,6 @@ public class ServerService {
             existing.setPatchLevel(nvl(patch.getPatchLevel(), existing.getPatchLevel()));
             existing.setVirtualPlatform(nvl(patch.getVirtualPlatform(), existing.getVirtualPlatform()));
             existing.setVirtualVersion(nvl(patch.getVirtualVersion(), existing.getVirtualVersion()));
-            if (patch.getHighAvailability() != null) {
-                existing.setHighAvailability(patch.getHighAvailability());
-            }
 
             Server saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
@@ -148,12 +145,19 @@ public class ServerService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param s s.
+     */
     private void registerAfterCommitIndexing(Server s) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(s);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the server after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(s);
@@ -161,6 +165,11 @@ public class ServerService {
         });
     }
 
+    /**
+     * Indexes a server in Lucene for search operations.
+     *
+     * @param s server entity to index.
+     */
     private void indexToLucene(Server s) {
         try {
             lucene.indexServer(
@@ -172,8 +181,7 @@ public class ServerService {
                     s.getServerOS(),
                     s.getPatchLevel(),
                     s.getVirtualPlatform(),
-                    s.getVirtualVersion(),
-                    s.isHighAvailability()
+                    s.getVirtualVersion()
             );
             log.debug("Server indexed in Lucene: id={}", s.getServerID());
         } catch (Exception e) {
@@ -183,10 +191,23 @@ public class ServerService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
     }

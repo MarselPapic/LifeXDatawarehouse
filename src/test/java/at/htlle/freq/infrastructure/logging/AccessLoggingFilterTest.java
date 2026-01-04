@@ -1,6 +1,7 @@
 package at.htlle.freq.infrastructure.logging;
 
 import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.FilterChain;
@@ -28,6 +29,8 @@ class AccessLoggingFilterTest {
     private HttpServletRequest request;
     private MockHttpServletResponse response;
     private ListAppender<ILoggingEvent> listAppender;
+    private Logger logger;
+    private Level originalLevel;
 
     @BeforeEach
     void setUp() {
@@ -35,7 +38,9 @@ class AccessLoggingFilterTest {
         request = mock(HttpServletRequest.class);
         response = new MockHttpServletResponse();
         listAppender = new ListAppender<>();
-        Logger logger = (Logger) LoggerFactory.getLogger("at.htlle.freq.web");
+        logger = (Logger) LoggerFactory.getLogger("at.htlle.freq.web");
+        originalLevel = logger.getLevel();
+        logger.setLevel(Level.INFO);
         listAppender.start();
         logger.addAppender(listAppender);
         MDC.clear();
@@ -43,9 +48,11 @@ class AccessLoggingFilterTest {
 
     @AfterEach
     void tearDown() {
-        Logger logger = (Logger) LoggerFactory.getLogger("at.htlle.freq.web");
-        logger.detachAppender(listAppender);
-        listAppender.stop();
+        if (logger != null && listAppender != null) {
+            logger.detachAppender(listAppender);
+            logger.setLevel(originalLevel);
+            listAppender.stop();
+        }
         MDC.clear();
     }
 

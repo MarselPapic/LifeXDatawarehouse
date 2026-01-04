@@ -16,6 +16,12 @@ public record SiteSoftwareAssignmentDto(
         String rejectedDate,
         String outdatedDate
 ) {
+    /**
+     * Maps this DTO to an {@link InstalledSoftware} domain entity.
+     *
+     * @param siteId site identifier to associate with the installation.
+     * @return populated {@link InstalledSoftware} entity.
+     */
     public InstalledSoftware toDomain(UUID siteId) {
         InstalledSoftware entity = new InstalledSoftware();
         entity.setInstalledSoftwareID(installedSoftwareId);

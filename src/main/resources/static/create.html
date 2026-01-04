@@ -392,6 +392,360 @@
         });
     };
 
+    const createFilterableMultiSelect=(id,config={})=>{
+        const {
+            options=[],
+            placeholder='Select one or more items',
+            required=true,
+            name=id,
+            values=[],
+            emptyText='No matches',
+            className=''
+        }=config||{};
+        const safeOptions=escapeAttr(JSON.stringify(toChoices(options)));
+        const safePlaceholder=escapeAttr(placeholder);
+        const safeEmptyText=escapeAttr(emptyText);
+        const safeValues=escapeAttr(JSON.stringify(values||[]));
+        const componentClasses=['filterable-multi'];
+        if(className) componentClasses.push(className);
+        if(required) componentClasses.push('is-required');
+        return `
+            <div class="${componentClasses.join(' ')}" data-component="filterable-multi" data-field="${escapeAttr(id)}" data-placeholder="${safePlaceholder}" data-empty-text="${safeEmptyText}" data-required="${required?'true':'false'}" data-initial-values="${safeValues}">
+                <div class="filterable-select-control filterable-multi__control">
+                    <div class="filterable-multi__chips" aria-live="polite"></div>
+                    <input type="text" id="${escapeAttr(id)}-input" class="filterable-select-input" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="${escapeAttr(id)}-list" autocomplete="off" placeholder="${safePlaceholder}" ${required?'required':''}>
+                    <button type="button" class="filterable-select-toggle" aria-label="Select from list" aria-expanded="false" tabindex="-1"></button>
+                </div>
+                <div class="filterable-select-dropdown" id="${escapeAttr(id)}-list" role="listbox" aria-live="polite"></div>
+                <input type="hidden" id="${escapeAttr(id)}" name="${escapeAttr(name)}" value="${safeValues}" ${required?'required':''}>
+            </div>
+        `;
+    };
+
+    const filterableMultiState=new WeakMap();
+    const asyncSearchTimers=new Map();
+    const asyncOptionsCache=new Map();
+    const asyncRequestTokens=new Map();
+
+    const getFilterableMultiState=container=>{
+        if(!filterableMultiState.has(container)){
+            filterableMultiState.set(container,{options:[],filtered:[],selected:[],activeIndex:-1,pendingValues:[]});
+        }
+        return filterableMultiState.get(container);
+    };
+
+    const getFilterableMultiElements=container=>{
+        const fieldId=container?.dataset.field||'';
+        const hiddenSelector=(()=>{
+            if(!fieldId) return null;
+            if(typeof CSS!=='undefined' && typeof CSS.escape==='function'){
+                return `#${CSS.escape(fieldId)}`;
+            }
+            const safeId=fieldId.replace(/"/g,'\\"');
+            return `[id="${safeId}"]`;
+        })();
+        return {
+            input:container.querySelector('.filterable-select-input'),
+            dropdown:container.querySelector('.filterable-select-dropdown'),
+            toggle:container.querySelector('.filterable-select-toggle'),
+            chips:container.querySelector('.filterable-multi__chips'),
+            hidden:hiddenSelector?container.querySelector(hiddenSelector):null
+        };
+    };
+
+    const updateFilterableMultiPlaceholder=(container,text)=>{
+        if(!container) return;
+        container.dataset.placeholder=text??'';
+        const {input}=getFilterableMultiElements(container);
+        if(input){
+            input.placeholder=text??'';
+        }
+    };
+
+    const setFilterableMultiDisabled=(container,disabled)=>{
+        const {input,toggle}=getFilterableMultiElements(container);
+        if(disabled){
+            container.classList.add('is-disabled');
+            if(input){
+                input.setAttribute('disabled','');
+                input.setAttribute('aria-disabled','true');
+            }
+            toggle?.setAttribute('disabled','');
+        }else{
+            container.classList.remove('is-disabled');
+            if(input){
+                input.removeAttribute('disabled');
+                input.removeAttribute('aria-disabled');
+            }
+            toggle?.removeAttribute('disabled');
+        }
+    };
+
+    const syncFilterableMultiValue=(container,{notify=true}={})=>{
+        const state=getFilterableMultiState(container);
+        const {hidden,input}=getFilterableMultiElements(container);
+        const values=state.selected.map(item=>item.value);
+        const serialized=JSON.stringify(values);
+        if(hidden){
+            hidden.value=serialized;
+            if(notify){
+                hidden.dispatchEvent(new CustomEvent('value-changed',{bubbles:true,detail:{value:values}}));
+                hidden.dispatchEvent(new Event('change',{bubbles:true}));
+            }
+        }
+        if(input){
+            input.setAttribute('aria-expanded', container.classList.contains('is-open')?'true':'false');
+        }
+    };
+
+    const updateFilterableMultiChips=(container)=>{
+        const state=getFilterableMultiState(container);
+        const {chips}=getFilterableMultiElements(container);
+        if(!chips) return;
+        chips.innerHTML='';
+        if(!state.selected.length){
+            const placeholder=document.createElement('span');
+            placeholder.className='filterable-multi__placeholder';
+            placeholder.textContent=container.dataset.placeholder||'Select items';
+            chips.appendChild(placeholder);
+            container.dataset.hasSelection='false';
+            return;
+        }
+        container.dataset.hasSelection='true';
+        state.selected.forEach(item=>{
+            const chip=document.createElement('span');
+            chip.className='filterable-multi__chip';
+            chip.textContent=item.label||item.value;
+            chip.dataset.value=item.value;
+            const removeBtn=document.createElement('button');
+            removeBtn.type='button';
+            removeBtn.className='filterable-multi__remove';
+            removeBtn.setAttribute('aria-label',`Remove ${item.label||item.value}`);
+            removeBtn.innerHTML='&times;';
+            removeBtn.addEventListener('click',()=>{
+                commitFilterableMultiSelection(container,item,false);
+            });
+            chip.appendChild(removeBtn);
+            chips.appendChild(chip);
+        });
+    };
+
+    const renderFilterableMultiOptions=container=>{
+        const state=getFilterableMultiState(container);
+        const {dropdown}=getFilterableMultiElements(container);
+        if(!dropdown) return;
+        dropdown.innerHTML='';
+        const selectedValues=new Set(state.selected.map(item=>String(item.value)));
+        if(!state.filtered.length){
+            const empty=document.createElement('div');
+            empty.className='filterable-select-empty';
+            empty.textContent=container.dataset.emptyText||'No matches';
+            dropdown.appendChild(empty);
+            state.activeIndex=-1;
+            return;
+        }
+        state.filtered.forEach((option,index)=>{
+            const item=document.createElement('div');
+            item.className='filterable-select-option filterable-select-option--multi';
+            item.setAttribute('role','option');
+            item.dataset.optionIndex=String(index);
+            const checkbox=document.createElement('input');
+            checkbox.type='checkbox';
+            checkbox.tabIndex=-1;
+            checkbox.checked=selectedValues.has(String(option.value));
+            const label=document.createElement('span');
+            label.textContent=option.label||option.value;
+            item.appendChild(checkbox);
+            item.appendChild(label);
+            if(checkbox.checked) item.setAttribute('aria-selected','true');
+            dropdown.appendChild(item);
+        });
+        state.activeIndex=-1;
+    };
+
+    const filterFilterableMultiOptions=(container,query='')=>{
+        const state=getFilterableMultiState(container);
+        const lower=query.toLowerCase();
+        const filtered=state.options.filter(opt=>{
+            const label=(opt.label||'').toLowerCase();
+            const value=String(opt.value||'').toLowerCase();
+            return label.includes(lower)||value.includes(lower);
+        });
+        state.filtered=filtered;
+        renderFilterableMultiOptions(container);
+    };
+
+    const commitFilterableMultiSelection=(container,option,notify=true)=>{
+        const state=getFilterableMultiState(container);
+        if(!option) return;
+        const existingIndex=state.selected.findIndex(item=>String(item.value)===String(option.value));
+        if(existingIndex>=0){
+            state.selected.splice(existingIndex,1);
+        }else{
+            state.selected.push(option);
+        }
+        updateFilterableMultiChips(container);
+        renderFilterableMultiOptions(container);
+        syncFilterableMultiValue(container,{notify});
+    };
+
+    const clearFilterableMultiSelection=(container,{notify=true}={})=>{
+        const state=getFilterableMultiState(container);
+        state.selected=[];
+        updateFilterableMultiChips(container);
+        syncFilterableMultiValue(container,{notify});
+    };
+
+    const setFilterableMultiOptions=(container,options)=>{
+        if(!container) return;
+        const state=getFilterableMultiState(container);
+        state.options=toChoices(options||[]);
+        const availableValues=new Set(state.options.map(opt=>String(opt.value)));
+        state.selected=state.selected.filter(item=>availableValues.has(String(item.value)));
+        if(state.pendingValues?.length){
+            applyFilterableMultiValues(container,state.pendingValues,{silent:true});
+            state.pendingValues=[];
+        }
+        filterFilterableMultiOptions(container,(getFilterableMultiElements(container).input?.value)||'');
+        updateFilterableMultiChips(container);
+        syncFilterableMultiValue(container,{notify:false});
+    };
+
+    const applyFilterableMultiValues=(container,values,{silent=false}={})=>{
+        if(!container) return false;
+        const normalized=Array.isArray(values)?values.map(v=>String(v)).filter(Boolean):[];
+        const state=getFilterableMultiState(container);
+        if(!state.options.length){
+            state.pendingValues=normalized;
+            syncFilterableMultiValue(container,{notify:!silent});
+            return false;
+        }
+        const available=new Map(state.options.map(opt=>[String(opt.value),opt]));
+        state.selected=Array.from(new Set(normalized)).map(val=>available.get(String(val))||{value:val,label:val});
+        updateFilterableMultiChips(container);
+        renderFilterableMultiOptions(container);
+        syncFilterableMultiValue(container,{notify:!silent});
+        return true;
+    };
+
+    const openFilterableMultiSelect=container=>{
+        container.classList.add('is-open');
+        const {input,toggle,dropdown}=getFilterableMultiElements(container);
+        input?.setAttribute('aria-expanded','true');
+        toggle?.setAttribute('aria-expanded','true');
+        dropdown?.removeAttribute('aria-hidden');
+    };
+
+    const closeFilterableMultiSelect=container=>{
+        container.classList.remove('is-open');
+        const {input,toggle,dropdown}=getFilterableMultiElements(container);
+        input?.setAttribute('aria-expanded','false');
+        toggle?.setAttribute('aria-expanded','false');
+        dropdown?.setAttribute('aria-hidden','true');
+    };
+
+    const initializeFilterableMultiSelect=container=>{
+        if(!container || container.dataset.initialized==='true') return;
+        const {input,dropdown,toggle}=getFilterableMultiElements(container);
+        const initialValues=(()=>{
+            const raw=container.dataset.initialValues;
+            if(!raw) return [];
+            try{
+                const parsed=JSON.parse(raw);
+                return Array.isArray(parsed)?parsed.map(v=>String(v)):[String(parsed)];
+            }catch(_){
+                return [];
+            }
+        })();
+        const placeholder=container.dataset.placeholder||'Select one or more items';
+        if(input){
+            input.placeholder=placeholder;
+            input.addEventListener('focus',()=>{
+                filterFilterableMultiOptions(container,input.value||'');
+                openFilterableMultiSelect(container);
+            });
+            input.addEventListener('input',()=>{
+                const query=input.value||'';
+                filterFilterableMultiOptions(container,query);
+                const asyncWrapper=container.closest('.async-select');
+                const asyncFieldId=asyncWrapper?.dataset.field;
+                if(asyncFieldId){
+                    scheduleAsyncSearch(asyncFieldId,query);
+                }
+            });
+            input.addEventListener('keydown',event=>{
+                const state=getFilterableMultiState(container);
+                switch(event.key){
+                    case 'ArrowDown':
+                        event.preventDefault();
+                        state.activeIndex=Math.min(state.filtered.length-1,state.activeIndex+1);
+                        break;
+                    case 'ArrowUp':
+                        event.preventDefault();
+                        state.activeIndex=Math.max(0,state.activeIndex-1);
+                        break;
+                    case 'Enter':
+                        if(state.activeIndex>=0 && state.filtered[state.activeIndex]){
+                            event.preventDefault();
+                            commitFilterableMultiSelection(container,state.filtered[state.activeIndex]);
+                        }
+                        break;
+                    case 'Escape':
+                        if(container.classList.contains('is-open')){
+                            event.preventDefault();
+                            closeFilterableMultiSelect(container);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            });
+            input.addEventListener('blur',()=>{
+                setTimeout(()=>{
+                    if(container.contains(document.activeElement)) return;
+                    closeFilterableMultiSelect(container);
+                    if(!input.value && container.dataset.hasSelection!=='true'){
+                        clearFilterableMultiSelection(container,{notify:false});
+                    }
+                },100);
+            });
+        }
+
+        dropdown?.addEventListener('mousedown',event=>event.preventDefault());
+        dropdown?.addEventListener('click',event=>{
+            const optionEl=event.target.closest('.filterable-select-option');
+            if(!optionEl) return;
+            const state=getFilterableMultiState(container);
+            const option=state.filtered[Number(optionEl.dataset.optionIndex)];
+            if(option){
+                commitFilterableMultiSelection(container,option);
+            }
+        });
+
+        toggle?.addEventListener('mousedown',event=>event.preventDefault());
+        toggle?.addEventListener('click',()=>{
+            if(container.classList.contains('is-open')){
+                closeFilterableMultiSelect(container);
+            }else{
+                filterFilterableMultiOptions(container,input?.value||'');
+                openFilterableMultiSelect(container);
+                input?.focus();
+            }
+        });
+
+        container.dataset.initialized='true';
+        if(initialValues.length){
+            const success=applyFilterableMultiValues(container,initialValues,{silent:true});
+            if(!success){
+                const state=getFilterableMultiState(container);
+                state.pendingValues=initialValues;
+                syncFilterableMultiValue(container,{notify:false});
+            }
+        }else{
+            clearFilterableMultiSelection(container,{notify:false});
+        }
+    };
+
     const markFilterableSelection=(container,selected)=>{
         const required=container.dataset.required==='true';
         container.dataset.hasSelection=selected?'true':'false';
@@ -540,6 +894,18 @@
         return false;
     };
 
+    const scheduleAsyncSearch=(fieldId,searchTerm='')=>{
+        if(!fieldId) return;
+        const existing=asyncSearchTimers.get(fieldId);
+        if(existing){
+            clearTimeout(existing);
+        }
+        const timer=setTimeout(()=>{
+            loadOptionsForField(fieldId,{searchTerm});
+        },250);
+        asyncSearchTimers.set(fieldId,timer);
+    };
+
     const initializeFilterableSelect=container=>{
         if(!container || container.dataset.enhanced==='true') return;
         container.dataset.enhanced='true';
@@ -573,6 +939,11 @@
             openFilterableSelect(container);
             markFilterableSelection(container,false);
             updateValueProxy(fieldId,'');
+            const asyncWrapper=container.closest('.async-select');
+            const asyncFieldId=asyncWrapper?.dataset.field;
+            if(asyncFieldId){
+                scheduleAsyncSearch(asyncFieldId,current);
+            }
         };
 
         input?.addEventListener('input',handleInput);
@@ -667,11 +1038,16 @@
 
     const initializeFilterableSelects=(root=document)=>{
         (root.querySelectorAll?.('[data-component="filterable-select"]')||[]).forEach(container=>initializeFilterableSelect(container));
+        (root.querySelectorAll?.('[data-component="filterable-multi"]')||[]).forEach(container=>initializeFilterableMultiSelect(container));
         if(!globalFilterableHandlerAttached){
             document.addEventListener('click',event=>{
-                document.querySelectorAll('[data-component="filterable-select"].is-open').forEach(container=>{
+                document.querySelectorAll('[data-component="filterable-select"].is-open,[data-component="filterable-multi"].is-open').forEach(container=>{
                     if(!container.contains(event.target)){
-                        closeFilterableSelect(container);
+                        if(container.dataset.component==='filterable-multi'){
+                            closeFilterableMultiSelect(container);
+                        }else{
+                            closeFilterableSelect(container);
+                        }
                     }
                 });
             });
@@ -918,6 +1294,7 @@
                 emptyText: config.emptyText,
                 name: config.name,
                 value: config.value,
+                multiple: config.multiple===true,
                 wrapperClass: config.wrapperClass||'form-field'
             });
         }
@@ -1040,13 +1417,20 @@
             allowManual=false,
             placeholder='Please select',
             dependsOn=null,
+            dependsOnMessage=null,
             emptyText='No entries available',
             filter=null,
             name=null,
             value=null,
-            wrapperClass='form-field'
+            wrapperClass='form-field',
+            multiple=false
         } = options;
-        asyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
+        if(multiple){
+            const normalizedValues=Array.isArray(value)?value.filter(Boolean):value?[String(value)]:[];
+            asyncSelectConfigs[id]={sourceKey, required, allowManual:false, placeholder, dependsOn, dependsOnMessage, emptyText, filter, name, initialValues: normalizedValues, multiple:true};
+            return renderAsyncMultiSelect(id,label,placeholder,{required, dependsOn, dependsOnMessage, emptyText, name, values: normalizedValues, wrapperClass, sourceKey});
+        }
+        asyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, dependsOnMessage, emptyText, filter, name, initialValue:value, multiple:false};
         const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter free text</button>` : '';
         const manualValue = value ?? '';
         const manualInput = allowManual ? `<input type="text" id="${id}-manual" class="manual-input hidden" placeholder="Enter UUID" value="${escapeAttr(manualValue)}" ${required?'required':''}>` : '';
@@ -1063,6 +1447,38 @@
                 ${comboHtml}
                 ${manualInput}
                 ${manualToggle}
+            </div>
+        </label>`;
+    }
+
+    function renderAsyncMultiSelect(id,label,placeholder,options={}){
+        const {
+            required=true,
+            dependsOn=null,
+            dependsOnMessage=null,
+            emptyText='No entries available',
+            name=null,
+            values=[],
+            wrapperClass='form-field',
+            sourceKey=null
+        } = options;
+        const dependsAttr = dependsOn ? ` data-depends-on="${dependsOn}"` : '';
+        const selectedHint = values && values.length ? ` (${values.length} preselected)` : '';
+        const multiHtml=createFilterableMultiSelect(id,{
+            placeholder,
+            required,
+            name:name||id,
+            values,
+            emptyText,
+            className:'async-filterable-multi'
+        });
+        return `<label class="${wrapperClass}" for="${escapeAttr(id)}"><span class="form-field__label">${label}${selectedHint}</span>
+            <div class="async-select async-multi" data-field="${id}" data-source="${escapeAttr(sourceKey||'')}" data-required="${required}" data-placeholder="${escapeAttr(placeholder)}" data-empty-text="${escapeAttr(emptyText)}"${dependsAttr}>
+                ${multiHtml}
+                <div class="async-multi__controls">
+                    <button type="button" class="async-multi__clear" data-target="${escapeAttr(id)}">Clear selection</button>
+                </div>
+                <p class="form-hint async-multi__hint">${escapeHtml(placeholder || 'Select one or more items')}</p>
             </div>
         </label>`;
     }
@@ -1085,6 +1501,14 @@
         if(hidden.value===newValue) return;
         hidden.value=newValue;
         hidden.dispatchEvent(new CustomEvent('value-changed',{bubbles:true,detail:{value:newValue}}));
+    }
+
+    function getSelectedValues(select){
+        if(!select) return [];
+        const values=Array.from(select.selectedOptions||[])
+            .map(opt=>opt.value?.trim())
+            .filter(Boolean);
+        return values;
     }
 
     function getAsyncContainer(id){
@@ -1138,85 +1562,192 @@
         }
     }
 
-    async function loadOptionsForField(id){
+    const buildAsyncCacheKey=(sourceKey,dependencyValue,searchTerm='')=>{
+        return [sourceKey||'unknown',dependencyValue||'',searchTerm||''].join('|');
+    };
+
+    const clearAsyncCacheForSource=sourceKey=>{
+        if(!sourceKey) return;
+        Array.from(asyncOptionsCache.keys()).forEach(key=>{
+            if(key.startsWith(`${sourceKey}|`)){
+                asyncOptionsCache.delete(key);
+            }
+        });
+    };
+
+    const applyDefaultSearchParams=(url,{hasSearchTerm})=>{
+        if(!url) return url;
+        try{
+            const urlObj=new URL(url,window.location.origin);
+            if(!hasSearchTerm){
+                if(!urlObj.searchParams.has('q')){
+                    urlObj.searchParams.set('q','*');
+                }
+                if(!urlObj.searchParams.has('size') && !urlObj.searchParams.has('limit')){
+                    urlObj.searchParams.set('size','25');
+                }
+            }
+            return urlObj.toString();
+        }catch(_){
+            return url;
+        }
+    };
+
+    async function loadOptionsForField(id,{searchTerm:providedSearchTerm}={}){
         const config=asyncSelectConfigs[id];
         if(!config) return;
         const container=getAsyncContainer(id);
         if(!container) return;
+        const isMulti = config.multiple === true;
         const combo=container.querySelector('[data-component="filterable-select"]');
         const manual=container.querySelector(`#${id}-manual`);
-        if(!combo) return;
+        const multiSelect = container.querySelector('[data-component="filterable-multi"]');
+        if(!combo && !multiSelect) return;
         const dependencyId=config.dependsOn;
         const dependencyValue=dependencyId?document.getElementById(dependencyId)?.value?.trim():undefined;
         if(dependencyId && !dependencyValue){
-            setFilterableSelectOptions(combo,[]);
-            updateFilterableSelectPlaceholder(combo,'Please select the dependent option first');
-            setFilterableSelectDisabled(combo,true);
-            if(manual){
-                manual.value='';
-                if(container.dataset.mode!=='manual') updateValueProxy(id,'');
+            const dependencyPrompt=config.dependsOnMessage||'Please select the dependent option first';
+            if(isMulti && multiSelect){
+                clearFilterableMultiSelection(multiSelect,{notify:true});
+                setFilterableMultiOptions(multiSelect,[]);
+                updateFilterableMultiPlaceholder(multiSelect,dependencyPrompt);
+                setFilterableMultiDisabled(multiSelect,true);
+            }
+            if(!isMulti){
+                if(combo){
+                    setFilterableSelectOptions(combo,[]);
+                    updateFilterableSelectPlaceholder(combo,dependencyPrompt);
+                    setFilterableSelectDisabled(combo,true);
+                }
+                if(manual){
+                    manual.value='';
+                    if(container.dataset.mode!=='manual') updateValueProxy(id,'');
+                }
             }
             return;
         }
 
         const source=formConfig.asyncSources[config.sourceKey];
         if(!source){
-            setFilterableSelectOptions(combo,[]);
-            updateFilterableSelectPlaceholder(combo,'No source available');
-            setFilterableSelectDisabled(combo,true);
+            if(combo){
+                setFilterableSelectOptions(combo,[]);
+                updateFilterableSelectPlaceholder(combo,'No source available');
+                setFilterableSelectDisabled(combo,true);
+            }
             if(manual){
                 manual.value='';
                 if(container.dataset.mode!=='manual') updateValueProxy(id,'');
                 if(config.allowManual!==false) setManualMode(id,'manual');
             }
+            if(isMulti && multiSelect){
+                clearFilterableMultiSelection(multiSelect,{notify:true});
+                setFilterableMultiOptions(multiSelect,[]);
+                updateFilterableMultiPlaceholder(multiSelect,'No source available');
+                setFilterableMultiDisabled(multiSelect,true);
+            }
             return;
         }
 
-        setFilterableSelectDisabled(combo,true);
-        updateFilterableSelectPlaceholder(combo,'Loading data…');
+        const searchInput = isMulti ? multiSelect?.querySelector('.filterable-select-input') : combo?.querySelector('.filterable-select-input');
+        const rawSearch = providedSearchTerm ?? searchInput?.value;
+        const normalizedSearchTerm = typeof rawSearch==='string'?rawSearch.trim():'';
+        const effectiveSearchTerm = normalizedSearchTerm || '*';
+        const cacheKey=buildAsyncCacheKey(config.sourceKey,dependencyValue||'',normalizedSearchTerm);
+        const requestToken=Symbol('async-options');
+        const applyEntries=entries=>{
+            if(isMulti && multiSelect){
+                setFilterableMultiOptions(multiSelect,entries);
+                const placeholderText=entries.length===0 ? (config.emptyText||config.placeholder||'No entries available') : (config.placeholder||'Select items');
+                updateFilterableMultiPlaceholder(multiSelect,placeholderText);
+                const initialValues=Array.isArray(config.initialValues)?config.initialValues.map(v=>String(v)):[];
+                if(initialValues.length){
+                    applyFilterableMultiValues(multiSelect,initialValues,{silent:true});
+                }
+                setFilterableMultiDisabled(multiSelect,false);
+                config.initialValues=undefined;
+            }else{
+                setFilterableSelectOptions(combo,entries);
+                const placeholderText = entries.length===0 ? (config.emptyText||config.placeholder) : (config.placeholder||'Please select');
+                updateFilterableSelectPlaceholder(combo,placeholderText);
+                setFilterableSelectDisabled(combo,false);
+                const initialValue=config.initialValue;
+                if(container.dataset.mode!=='manual'){
+                    const hidden=document.getElementById(id);
+                    const desiredValue=initialValue!=null?initialValue:(hidden?.value||'');
+                    if(desiredValue){
+                        const matched=applyFilterableValue(combo,desiredValue,{silent:true});
+                        if(matched){
+                            updateValueProxy(id,desiredValue);
+                        }else{
+                            clearFilterableSelection(combo,{notify:true});
+                        }
+                    }else{
+                        clearFilterableSelection(combo,{notify:true});
+                    }
+                }
+                if(entries.length===0 && config.allowManual!==false){
+                    if(manual){
+                        manual.value=initialValue??'';
+                        setManualMode(id,'manual');
+                    }
+                }else if(container.dataset.mode!=='manual'){
+                    setManualMode(id,'select');
+                }
+                config.initialValue=undefined;
+            }
+        };
+        const startLoading=()=>{
+            if(isMulti && multiSelect){
+                multiSelect.dataset.loading='true';
+                setFilterableMultiDisabled(multiSelect,true);
+                updateFilterableMultiPlaceholder(multiSelect,'Loading data…');
+            }else{
+                setFilterableSelectDisabled(combo,true);
+                updateFilterableSelectPlaceholder(combo,'Loading data…');
+            }
+        };
+        const endLoading=()=>{
+            if(asyncRequestTokens.get(id)!==requestToken) return;
+            asyncRequestTokens.delete(id);
+            if(isMulti && multiSelect){
+                delete multiSelect.dataset.loading;
+            }
+        };
+        if(asyncOptionsCache.has(cacheKey)){
+            applyEntries(asyncOptionsCache.get(cacheKey));
+            return;
+        }
+        asyncRequestTokens.set(id,requestToken);
+        startLoading();
         try{
-            const url=typeof source.url==='function'?source.url(dependencyValue):source.url;
+            let url=typeof source.url==='function'?source.url(dependencyValue,{fieldId:id, dependsOn: dependencyId, searchTerm: effectiveSearchTerm}):source.url;
+            url=applyDefaultSearchParams(url,{hasSearchTerm:Boolean(normalizedSearchTerm)});
             const data=await fetchJson(url);
             let entries=(Array.isArray(data)?data:[]).map(source.map).filter(Boolean);
             if(typeof config.filter==='function'){
                 entries=entries.filter(entry=>config.filter(entry, dependencyValue));
             }
-            setFilterableSelectOptions(combo,entries);
-            const placeholderText = entries.length===0 ? (config.emptyText||config.placeholder) : (config.placeholder||'Please select');
-            updateFilterableSelectPlaceholder(combo,placeholderText);
-            setFilterableSelectDisabled(combo,false);
-            const initialValue=config.initialValue;
-            if(container.dataset.mode!=='manual'){
-                const hidden=document.getElementById(id);
-                const desiredValue=initialValue!=null?initialValue:(hidden?.value||'');
-                if(desiredValue){
-                    const matched=applyFilterableValue(combo,desiredValue,{silent:true});
-                    if(matched){
-                        updateValueProxy(id,desiredValue);
-                    }else{
-                        clearFilterableSelection(combo,{notify:true});
-                    }
-                }else{
-                    clearFilterableSelection(combo,{notify:true});
-                }
-            }
-            if(entries.length===0 && config.allowManual!==false){
-                if(manual){
-                    manual.value=initialValue??'';
-                    setManualMode(id,'manual');
-                }
-            }else if(container.dataset.mode!=='manual'){
-                setManualMode(id,'select');
-            }
-            config.initialValue=undefined;
+            asyncOptionsCache.set(cacheKey,entries);
+            if(asyncRequestTokens.get(id)!==requestToken) return;
+            applyEntries(entries);
         }catch(err){
             console.error(err);
-            setFilterableSelectOptions(combo,[]);
-            updateFilterableSelectPlaceholder(combo,'Error loading data');
-            setFilterableSelectDisabled(combo,true);
-            if(config.allowManual!==false){
-                setManualMode(id,'manual');
+            if(isMulti && multiSelect){
+                setFilterableMultiOptions(multiSelect,[]);
+                updateFilterableMultiPlaceholder(multiSelect,'Error loading data');
+                setFilterableMultiDisabled(multiSelect,true);
+            }else{
+                if(combo){
+                    setFilterableSelectOptions(combo,[]);
+                    updateFilterableSelectPlaceholder(combo,'Error loading data');
+                    setFilterableSelectDisabled(combo,true);
+                }
+                if(config.allowManual!==false){
+                    setManualMode(id,'manual');
+                }
             }
+        }finally{
+            endLoading();
         }
     }
 
@@ -1229,6 +1760,19 @@
             const toggle=container.querySelector('.toggle-manual');
             const hidden=form.querySelector(`#${id}`);
             const cfg=asyncSelectConfigs[id]||{};
+            if(cfg.multiple){
+                const multi=container.querySelector('[data-component="filterable-multi"]');
+                const clearBtn=container.querySelector('.async-multi__clear');
+                if(multi){
+                    initializeFilterableMultiSelect(multi);
+                }
+                if(clearBtn && multi){
+                    clearBtn.addEventListener('click',()=>{
+                        clearFilterableMultiSelection(multi,{notify:true});
+                    });
+                }
+                return;
+            }
             if(hidden && cfg.initialValue!=null) hidden.value=cfg.initialValue;
             if(combo && cfg.initialValue!=null){
                 applyFilterableValue(combo,cfg.initialValue,{silent:true});
@@ -1259,7 +1803,10 @@
             if(config.dependsOn){
                 const dep=document.getElementById(config.dependsOn);
                 if(dep){
-                    dep.addEventListener('value-changed',()=>loadOptionsForField(id));
+                    dep.addEventListener('value-changed',()=>{
+                        clearAsyncCacheForSource(config.sourceKey);
+                        loadOptionsForField(id);
+                    });
                 }
             }
             loadOptionsForField(id);
@@ -1268,10 +1815,23 @@
 
     async function ensureAsyncValue(fieldId,value,options={}){
         if(value===undefined || value===null) return;
-        const normalized=String(value);
-        if(!normalized) return;
         const container=getAsyncContainer(fieldId);
         if(container){
+            const cfg=asyncSelectConfigs[fieldId];
+            if(cfg?.multiple){
+                const multi=container.querySelector('[data-component="filterable-multi"]');
+                if(multi){
+                    await loadOptionsForField(fieldId);
+                    const desired=Array.isArray(value)?value:[value];
+                    applyFilterableMultiValues(multi,desired,{silent:true});
+                    if(options.lock){
+                        setFilterableMultiDisabled(multi,true);
+                    }
+                }
+                return;
+            }
+            const normalized=String(value);
+            if(!normalized) return;
             if(container.dataset.mode==='manual'){
                 setManualMode(fieldId,'select');
             }
@@ -1310,6 +1870,8 @@
         }
         const input=document.getElementById(fieldId);
         if(!input) return;
+        const normalized=String(value);
+        if(!normalized) return;
         input.value=normalized;
         if(options.lock){
             input.readOnly=true;
@@ -1424,6 +1986,30 @@
     }
 
     const v=id=>document.getElementById(id)?.value?.trim();
+    const mv=id=>{
+        const el=document.getElementById(id);
+        if(!el) return [];
+        if(el.multiple){
+            return getSelectedValues(el);
+        }
+        const raw=el.value?.trim();
+        if(!raw) return [];
+        try{
+            const parsed=JSON.parse(raw);
+            if(Array.isArray(parsed)){
+                return parsed.map(v=>String(v)).filter(Boolean);
+            }
+        }catch(_){
+            // fall through to string parsing
+        }
+        return raw.split(',').map(v=>v.trim()).filter(Boolean);
+    };
+
+    const normalizeIdList=list=>{
+        if(!list) return [];
+        const arr=Array.isArray(list)?list:[list];
+        return Array.from(new Set(arr.map(v=>String(v??'').trim()).filter(Boolean)));
+    };
     const toNull=value=>value && value.length>0 ? value : null;
 
     async function initializeFromQuery(){
@@ -1463,10 +2049,6 @@
                 break;
             case 'Site':
                 if(accountId) context.accountId=accountId;
-                if(projectId){
-                    await ensureAsyncValue('pId', projectId, {lock:true});
-                    context.projectId=projectId;
-                }
                 break;
             case 'Server':
             case 'WorkingPosition':
@@ -1482,10 +2064,9 @@
             case 'PhoneIntegration':
                 if(accountId) context.accountId=accountId;
                 if(projectId) context.projectId=projectId;
-                if(siteId) context.siteId=siteId;
-                if(clientId){
-                    await ensureAsyncValue('client', clientId, {lock:true});
-                    context.clientId=clientId;
+                if(siteId){
+                    await ensureAsyncValue('site', siteId, {lock:true});
+                    context.siteId=siteId;
                 }
                 break;
             case 'ServiceContract':
@@ -1519,6 +2100,37 @@
         showEntityMessage(option.value, context);
     }
 
+    function resolveCreatedId(parsedResponse, fallback){
+        const candidates=[
+            parsedResponse?.ProjectID,
+            parsedResponse?.projectID,
+            parsedResponse?.projectId,
+            parsedResponse?.SiteID,
+            parsedResponse?.siteID,
+            parsedResponse?.siteId,
+            parsedResponse?.id,
+            fallback
+        ].filter(Boolean);
+        if(!candidates.length) return null;
+        return String(candidates[0]).trim();
+    }
+
+    async function submitProjectSiteAssignments(projectIdOrIds, siteIds){
+        const normalizedSites=normalizeIdList(siteIds);
+        const projectIds=normalizeIdList(projectIdOrIds);
+        if(!projectIds.length || !normalizedSites.length) return {applied:false};
+        const endpoint='/projects/site-assignments';
+        try{
+            const payload=projectIds.length===1 ? {projectId: projectIds[0], siteIds: normalizedSites} : {projectIds, siteIds: normalizedSites};
+            const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            const responseText=await res.text();
+            return {applied:true, ok:res.ok, status:res.status, message:responseText?.trim(), projectIds};
+        }catch(err){
+            console.error('Assignment request failed', err);
+            return {applied:true, ok:false, status:null, message:'Network error while assigning sites'};
+        }
+    }
+
     async function submitForm(e){
         e.preventDefault();
         const t=e.target.dataset.type; result.textContent=''; result.setAttribute('aria-busy','true');
@@ -1529,6 +2141,7 @@
         };
         let url='',p={};
         let siteSoftwareEntries=[];
+        let selectedSites=[];
 
         switch(t){
             case 'Account':
@@ -1553,13 +2166,15 @@
 
             case 'Project':
                 url='/projects';
+                selectedSites = normalizeIdList(mv('siteIds'));
                 p={
                     projectSAPID: toNull(v('sap')),
                     projectName: v('pname'),
                     deploymentVariantID: v('variantId'),
                     bundleType: toNull(v('bundle')),
                     accountID: v('accId'),
-                    addressID: v('addrId')
+                    addressID: v('addrId'),
+                    siteIds: selectedSites
                 };
                 break;
 
@@ -1571,6 +2186,20 @@
                     fail('TenantCount must be a number.');
                     return;
                 }
+                const redundantRaw=v('redundant');
+                if(redundantRaw === ''){
+                    fail('RedundantServers is required.');
+                    return;
+                }
+                const redundantServers=Number(redundantRaw);
+                if(Number.isNaN(redundantServers)){
+                    fail('RedundantServers must be a number.');
+                    return;
+                }
+                if(redundantServers < 0){
+                    fail('RedundantServers must not be negative.');
+                    return;
+                }
                 const softwareCollection=collectSoftwareEntries(e.target);
                 if(softwareCollection.error){
                     fail(softwareCollection.error);
@@ -1578,11 +2207,11 @@
                 }
                 siteSoftwareEntries=softwareCollection.entries;
                 p={
-                    projectID: v('pId'),
                     siteName: v('name'),
                     addressID: v('addrId'),
                     fireZone: toNull(v('zone')),
                     tenantCount,
+                    redundantServers,
                     softwareAssignments: siteSoftwareEntries
                 };
                 break;
@@ -1638,16 +2267,17 @@
                 };
                 break;
 
-            case 'PhoneIntegration':
-                url='/phones';
-                p={
-                    clientID: v('client'),
-                    phoneType: v('type'),
-                    phoneBrand: toNull(v('brand')),
-                    phoneSerialNr: toNull(v('serial')),
-                    phoneFirmware: toNull(v('fw'))
-                };
-                break;
+        case 'PhoneIntegration':
+            url='/phones';
+            p={
+                siteID: v('site'),
+                phoneType: v('type'),
+                phoneBrand: toNull(v('brand')),
+                interfaceName: toNull(v('interfaceName')),
+                capacity: toIntOrNull(v('capacity')),
+                phoneFirmware: toNull(v('fw'))
+            };
+            break;
 
             case 'DeploymentVariant':
                 url='/deployment-variants';
@@ -1751,6 +2381,12 @@
         try{
             const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
             const responseText=await r.text();
+            let parsedResponse=null;
+            try{
+                parsedResponse=JSON.parse(responseText);
+            }catch(_){
+                parsedResponse=null;
+            }
             if(r.ok){
                 e.target.reset();
                 resetSoftwareLists(e.target);
@@ -1759,6 +2395,7 @@
                     await loadOptionsForField(id);
                 }
                 const trimmed=responseText?.trim();
+                const createdId=resolveCreatedId(parsedResponse, trimmed);
                 let successMessage=`${t} created.`;
                 if(t==='Site'){
                     const count=siteSoftwareEntries.length;
@@ -1767,6 +2404,17 @@
                         successMessage=`${t} created with ${count} ${noun}.`;
                     }else{
                         successMessage=`${t} created. No software entries were submitted.`;
+                    }
+                }
+                if(t==='Project' && selectedSites.length){
+                    const assignmentResult=await submitProjectSiteAssignments(createdId, selectedSites);
+                    if(assignmentResult.applied){
+                        if(assignmentResult.ok){
+                            successMessage+=` Site assignments saved.${assignmentResult.message?` ${assignmentResult.message}`:''}`;
+                        }else{
+                            const details=assignmentResult.message?` ${assignmentResult.message}`:'';
+                            successMessage+=` Site assignment failed (${assignmentResult.status??'n/a'}).${details}`;
+                        }
                     }
                 }
                 if(trimmed){

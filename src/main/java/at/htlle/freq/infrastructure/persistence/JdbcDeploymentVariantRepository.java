@@ -17,6 +17,10 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcDeploymentVariantRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcDeploymentVariantRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<DeploymentVariant> mapper = (rs, n) -> new DeploymentVariant(
@@ -27,6 +31,11 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
             rs.getObject("IsActive", Boolean.class)
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<DeploymentVariant> findById(UUID id) {
         String sql = """
@@ -38,6 +47,11 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Code using the supplied criteria and returns the matching data.
+     * @param code code.
+     * @return the matching By Code.
+     */
     @Override
     public Optional<DeploymentVariant> findByCode(String code) {
         String sql = """
@@ -49,6 +63,11 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Name using the supplied criteria and returns the matching data.
+     * @param name name.
+     * @return the matching By Name.
+     */
     @Override
     public Optional<DeploymentVariant> findByName(String name) {
         String sql = """
@@ -60,12 +79,20 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<DeploymentVariant> findAll() {
         String sql = "SELECT VariantID, VariantCode, VariantName, Description, IsActive FROM DeploymentVariant";
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM DeploymentVariant WHERE VariantID = :id";

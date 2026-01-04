@@ -2,6 +2,7 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.AccountService;
 import at.htlle.freq.domain.Account;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -19,12 +20,14 @@ import static org.mockito.Mockito.*;
 class AccountControllerTest {
 
     private AccountService service;
+    private AuditLogger audit;
     private AccountController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(AccountService.class);
-        controller = new AccountController(service);
+        audit = mock(AuditLogger.class);
+        controller = new AccountController(service, audit);
     }
 
     @Test
@@ -40,6 +43,19 @@ class AccountControllerTest {
         when(service.getAccountById(id)).thenReturn(Optional.empty());
         ResponseEntity<Account> response = controller.findById(id);
         assertEquals(404, response.getStatusCode().value());
+    }
+
+    @Test
+    void findByIdReturnsAccount() {
+        UUID id = UUID.randomUUID();
+        Account account = new Account();
+        account.setAccountID(id);
+        when(service.getAccountById(id)).thenReturn(Optional.of(account));
+
+        ResponseEntity<Account> response = controller.findById(id);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(account, response.getBody());
     }
 
     @Test

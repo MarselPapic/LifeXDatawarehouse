@@ -30,7 +30,18 @@ final class TestFixtures {
     }
 
     static Clients client() {
-        return new Clients(UUID1, UUID2, "Client", "Brand", "SN", "OS", "Patch", "LOCAL");
+        return new Clients(
+                UUID1,
+                UUID2,
+                "Client",
+                "Brand",
+                "SN",
+                "OS",
+                "Patch",
+                "LOCAL",
+                "Dispatcher",
+                "Office Suite"
+        );
     }
 
     static DeploymentVariant deploymentVariant() {
@@ -38,11 +49,12 @@ final class TestFixtures {
     }
 
     static Project project() {
-        return new Project(UUID3, "SAP-1", "Project", UUID2, "Bundle", "2024-01-01", ProjectLifecycleStatus.ACTIVE, UUID4, UUID5);
+        return new Project(UUID3, "SAP-1", "Project", UUID2, "Bundle", "2024-01-01", ProjectLifecycleStatus.ACTIVE, UUID4, UUID5,
+                "Requires on-site coordination");
     }
 
     static Site site() {
-        return new Site(UUID4, "Site", UUID3, UUID5, "Zone", 10);
+        return new Site(UUID4, "Site", UUID3, UUID5, "Zone", 10, 2, true);
     }
 
     static Software software() {
@@ -61,7 +73,7 @@ final class TestFixtures {
 
     static Server server() {
         return new Server(UUID2, UUID4, "Server", "Brand", "SERIAL", "Linux", "Patch",
-                "Platform", "1.0", true);
+                "Platform", "1.0");
     }
 
     static Radio radio() {
@@ -69,7 +81,7 @@ final class TestFixtures {
     }
 
     static PhoneIntegration phoneIntegration() {
-        return new PhoneIntegration(UUID2, UUID1, "TYPE", "Brand", "SERIAL", "FW");
+        return new PhoneIntegration(UUID2, UUID1, "TYPE", "Brand", "Interface", 4, "FW");
     }
 
     static InstalledSoftware installedSoftware() {

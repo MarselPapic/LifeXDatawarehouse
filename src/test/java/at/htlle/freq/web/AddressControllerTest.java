@@ -2,6 +2,7 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.AddressService;
 import at.htlle.freq.domain.Address;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -18,12 +19,14 @@ import static org.mockito.Mockito.*;
 class AddressControllerTest {
 
     private AddressService service;
+    private AuditLogger audit;
     private AddressController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(AddressService.class);
-        controller = new AddressController(service);
+        audit = mock(AuditLogger.class);
+        controller = new AddressController(service, audit);
     }
 
     @Test

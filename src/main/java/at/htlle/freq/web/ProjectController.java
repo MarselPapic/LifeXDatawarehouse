@@ -1,11 +1,13 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ProjectSiteAssignmentService;
 import at.htlle.freq.domain.ProjectLifecycleStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,11 +23,20 @@ import java.util.*;
 public class ProjectController {
 
     private final NamedParameterJdbcTemplate jdbc;
-    private static final Logger log = LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectSiteAssignmentService projectSites;
+    private final AuditLogger audit;
     private static final String TABLE = "Project";
 
-    public ProjectController(NamedParameterJdbcTemplate jdbc) {
+    /**
+     * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for project queries.
+     * @param projectSites service that maintains project/site assignments.
+     */
+    public ProjectController(NamedParameterJdbcTemplate jdbc, ProjectSiteAssignmentService projectSites, AuditLogger audit) {
         this.jdbc = jdbc;
+        this.projectSites = projectSites;
+        this.audit = audit;
     }
 
     // READ operations: list all projects or filter by account
@@ -43,13 +54,13 @@ public class ProjectController {
     public List<Map<String, Object>> findByAccount(@RequestParam(required = false) String accountId) {
         if (accountId != null) {
             return jdbc.queryForList("""
-                SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime
+                SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime, SpecialNotes
                 FROM Project
                 WHERE AccountID = :accId
                 """, new MapSqlParameterSource("accId", accountId));
         }
         return jdbc.queryForList("""
-            SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime
+            SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime, SpecialNotes
             FROM Project
             """, new HashMap<>());
     }
@@ -65,7 +76,7 @@ public class ProjectController {
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
-            SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime
+            SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime, SpecialNotes
             FROM Project
             WHERE ProjectID = :id
             """, new MapSqlParameterSource("id", id));
@@ -109,8 +120,8 @@ public class ProjectController {
         }
 
         String sql = """
-            INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID)
-            VALUES (:projectSAPID, :projectName, :deploymentVariantID, :bundleType, CURRENT_DATE, :lifecycleStatus, :accountID, :addressID)
+            INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes)
+            VALUES (:projectSAPID, :projectName, :deploymentVariantID, :bundleType, CURRENT_DATE, :lifecycleStatus, :accountID, :addressID, :specialNotes)
             """;
 
         Object statusRaw = Optional.ofNullable(body.get("lifecycleStatus"))
@@ -134,15 +145,29 @@ public class ProjectController {
         MapSqlParameterSource params = new MapSqlParameterSource();
         body.forEach((key, value) -> {
             String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
-            if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized)) {
+            if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized) && !"specialnotes".equals(normalized)) {
                 params.addValue(key, value);
             }
         });
         params.addValue("projectSAPID", sapId);
         params.addValue("lifecycleStatus", status.name());
+        params.addValue("specialNotes", extractSpecialNotes(body));
 
-        jdbc.update(sql, params);
-        log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbc.update(sql, params, keyHolder, new String[]{"ProjectID"});
+        UUID projectId = fetchProjectId(sapId, keyHolder);
+        List<UUID> siteIds = extractUuidList(body, "siteIds");
+        if (siteIds != null) {
+            projectSites.replaceSitesForProject(projectId, siteIds);
+        }
+        Map<String, Object> identifiers = new LinkedHashMap<>();
+        if (projectId != null) {
+            identifiers.put("ProjectID", projectId);
+        }
+        if (sapId != null) {
+            identifiers.put("ProjectSAPID", sapId);
+        }
+        audit.created(TABLE, identifiers, body);
     }
 
     // UPDATE operations
@@ -194,8 +219,13 @@ public class ProjectController {
         body.forEach((key, value) -> {
             String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
             if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized)) {
-                sets.add(key + " = :" + key);
-                params.addValue(key, value);
+                if ("specialnotes".equals(normalized)) {
+                    sets.add("SpecialNotes = :specialNotes");
+                    params.addValue("specialNotes", normalizeNotes(value));
+                } else {
+                    sets.add(key + " = :" + key);
+                    params.addValue(key, value);
+                }
             }
         });
 
@@ -212,10 +242,13 @@ public class ProjectController {
         int updated = jdbc.update(sql.toString(), params);
 
         if (updated == 0) {
-            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("ProjectID", id), body.keySet());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project updated");
         }
-        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("ProjectID", id), body.keySet());
+        List<UUID> siteIds = extractUuidList(body, "siteIds");
+        if (siteIds != null) {
+            projectSites.replaceSitesForProject(UUID.fromString(id), siteIds);
+        }
+        audit.updated(TABLE, Map.of("ProjectID", id), body);
     }
 
     // DELETE operations
@@ -235,12 +268,17 @@ public class ProjectController {
                 new MapSqlParameterSource("id", id));
 
         if (count == 0) {
-            log.warn("[{}] delete failed: identifiers={}", TABLE, Map.of("ProjectID", id));
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
         }
-        log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("ProjectID", id));
+        audit.deleted(TABLE, Map.of("ProjectID", id));
     }
 
+    /**
+     * Extracts the project SAP identifier from the incoming payload.
+     *
+     * @param body request payload.
+     * @return SAP ID value or null when missing.
+     */
     private String extractProjectSapId(Map<String, Object> body) {
         return body.entrySet().stream()
                 .filter(e -> e.getKey() != null && e.getKey().equalsIgnoreCase("projectsapid"))
@@ -249,6 +287,39 @@ public class ProjectController {
                 .orElse(null);
     }
 
+    /**
+     * Extracts and normalizes the special notes field from the payload.
+     *
+     * @param body request payload.
+     * @return normalized notes or null when missing.
+     */
+    private String extractSpecialNotes(Map<String, Object> body) {
+        return body.entrySet().stream()
+                .filter(e -> e.getKey() != null && e.getKey().equalsIgnoreCase("specialnotes"))
+                .map(Map.Entry::getValue)
+                .map(this::normalizeNotes)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Normalizes free-form notes to trimmed text or null when empty.
+     *
+     * @param value input value.
+     * @return trimmed notes or null.
+     */
+    private String normalizeNotes(Object value) {
+        if (value == null) return null;
+        String trimmed = value.toString().trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * Extracts identifier-like entries from the payload for logging.
+     *
+     * @param body request payload.
+     * @return key/value pairs whose names end with {@code id} (case-insensitive).
+     */
     private Map<String, Object> extractIdentifiers(Map<String, Object> body) {
         Map<String, Object> ids = new LinkedHashMap<>();
         body.forEach((key, value) -> {
@@ -257,5 +328,84 @@ public class ProjectController {
             }
         });
         return ids;
+    }
+
+    /**
+     * Resolves the project ID from the insert result or by querying the SAP identifier.
+     *
+     * @param sapId SAP identifier used for fallback lookup.
+     * @param keyHolder key holder returned by the insert.
+     * @return resolved project identifier.
+     */
+    private UUID fetchProjectId(String sapId, KeyHolder keyHolder) {
+        UUID fromKey = extractUuidFromKeyHolder(keyHolder);
+        if (fromKey != null) {
+            return fromKey;
+        }
+        return jdbc.queryForObject("SELECT ProjectID FROM Project WHERE ProjectSAPID = :sap",
+                new MapSqlParameterSource("sap", sapId), UUID.class);
+    }
+
+    /**
+     * Extracts a UUID value from the JDBC {@link KeyHolder}.
+     *
+     * @param keyHolder key holder returned by the insert.
+     * @return extracted UUID or null when unavailable.
+     */
+    private UUID extractUuidFromKeyHolder(KeyHolder keyHolder) {
+        if (keyHolder == null) return null;
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null) {
+            for (Object value : keys.values()) {
+                UUID converted = coerceUuid(value);
+                if (converted != null) return converted;
+            }
+        }
+        return coerceUuid(keyHolder.getKey());
+    }
+
+    /**
+     * Coerces a value into a {@link UUID} when possible.
+     *
+     * @param value raw value from JDBC.
+     * @return UUID value or null when conversion fails.
+     */
+    private UUID coerceUuid(Object value) {
+        if (value == null) return null;
+        if (value instanceof UUID uuid) return uuid;
+        try {
+            return UUID.fromString(value.toString());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a UUID list from the payload when the given key is present.
+     *
+     * @param body request payload.
+     * @param key key that should map to a UUID array.
+     * @return list of UUIDs, an empty list when explicitly empty, or null when absent.
+     */
+    private List<UUID> extractUuidList(Map<String, Object> body, String key) {
+        for (Map.Entry<String, Object> entry : body.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                Object raw = entry.getValue();
+                if (raw == null) return List.of();
+                if (raw instanceof Collection<?> collection) {
+                    try {
+                        return collection.stream()
+                                .filter(Objects::nonNull)
+                                .map(Object::toString)
+                                .map(UUID::fromString)
+                                .toList();
+                    } catch (IllegalArgumentException ex) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, key + " must contain valid UUIDs", ex);
+                    }
+                }
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, key + " must be an array");
+            }
+        }
+        return null;
     }
 }

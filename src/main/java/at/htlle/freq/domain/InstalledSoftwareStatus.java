@@ -21,14 +21,30 @@ public enum InstalledSoftwareStatus {
         this.label = label;
     }
 
+    /**
+     * Returns the database value used for persistence.
+     *
+     * @return database value string.
+     */
     public String dbValue() {
         return dbValue;
     }
 
+    /**
+     * Returns the localized display label.
+     *
+     * @return label text.
+     */
     public String label() {
         return label;
     }
 
+    /**
+     * Parses a status value into the matching enum constant.
+     *
+     * @param value status value from requests or storage.
+     * @return matching enum, defaults to {@link #OFFERED} when blank.
+     */
     public static InstalledSoftwareStatus from(String value) {
         if (value == null || value.isBlank()) {
             return OFFERED;

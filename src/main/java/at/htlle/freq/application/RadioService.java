@@ -144,12 +144,19 @@ public class RadioService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param r r.
+     */
     private void registerAfterCommitIndexing(Radio r) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(r);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the radio after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(r);
@@ -157,6 +164,11 @@ public class RadioService {
         });
     }
 
+    /**
+     * Indexes a radio in Lucene for search operations.
+     *
+     * @param r radio entity to index.
+     */
     private void indexToLucene(Radio r) {
         try {
             lucene.indexRadio(
@@ -176,10 +188,23 @@ public class RadioService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
     }

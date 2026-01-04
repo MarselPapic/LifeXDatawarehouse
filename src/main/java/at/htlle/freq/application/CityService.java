@@ -140,12 +140,20 @@ public class CityService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     *
+     * @param c city to index after the transaction commits.
+     */
     private void registerAfterCommitIndexing(City c) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(c);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the city after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(c);
@@ -153,6 +161,11 @@ public class CityService {
         });
     }
 
+    /**
+     * Indexes a city in Lucene for search operations.
+     *
+     * @param c city entity to index.
+     */
     private void indexToLucene(City c) {
         try {
             lucene.indexCity(
@@ -166,10 +179,23 @@ public class CityService {
         }
     }
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
     }

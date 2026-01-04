@@ -3,6 +3,9 @@ package at.htlle.freq.domain;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Audio Device instances.
+ */
 @Component
 public class AudioDeviceFactory {
     /**
@@ -17,7 +20,7 @@ public class AudioDeviceFactory {
      * @param deviceType classification such as headset, speaker, or microphone
      * @return a transient audio device instance
      */
-    public AudioDevice create(UUID clientID, String brand, String serialNr, String firmware, String deviceType) {
-        return new AudioDevice(null, clientID, brand, serialNr, firmware, deviceType);
+    public AudioDevice create(UUID clientID, String brand, String serialNr, String firmware, String deviceType, String direction) {
+        return new AudioDevice(null, clientID, brand, serialNr, firmware, deviceType, direction);
     }
 }

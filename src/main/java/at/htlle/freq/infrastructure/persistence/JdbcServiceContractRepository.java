@@ -19,6 +19,10 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcServiceContractRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcServiceContractRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<ServiceContract> mapper = (rs, n) -> new ServiceContract(
@@ -32,6 +36,11 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
             rs.getObject("EndDate", LocalDate.class)
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<ServiceContract> findById(UUID id) {
         String sql = """
@@ -42,6 +51,11 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Account using the supplied criteria and returns the matching data.
+     * @param accountId account identifier.
+     * @return the matching By Account.
+     */
     @Override
     public List<ServiceContract> findByAccount(UUID accountId) {
         String sql = """
@@ -51,6 +65,10 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
         return jdbc.query(sql, new MapSqlParameterSource("aid", accountId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<ServiceContract> findAll() {
         return jdbc.query("""
@@ -59,6 +77,10 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
             """, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM ServiceContract WHERE ContractID = :id";
@@ -115,6 +137,11 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
         return s;
     }
 
+    /**
+     * Executes the to SQL Date operation.
+     * @param date date.
+     * @return the computed result.
+     */
     private static Date toSqlDate(LocalDate date) {
         return date != null ? Date.valueOf(date) : null;
     }

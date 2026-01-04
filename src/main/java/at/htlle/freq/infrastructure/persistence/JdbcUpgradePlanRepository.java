@@ -19,6 +19,10 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcUpgradePlanRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcUpgradePlanRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<UpgradePlan> mapper = (rs, n) -> new UpgradePlan(
@@ -32,6 +36,11 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             rs.getString("CreatedBy")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<UpgradePlan> findById(UUID id) {
         String sql = """
@@ -43,6 +52,11 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Site using the supplied criteria and returns the matching data.
+     * @param siteId site identifier.
+     * @return the matching By Site.
+     */
     @Override
     public List<UpgradePlan> findBySite(UUID siteId) {
         String sql = """
@@ -53,6 +67,10 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<UpgradePlan> findAll() {
         return jdbc.query("""
@@ -62,6 +80,10 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             """, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM UpgradePlan WHERE UpgradePlanID = :id";
@@ -118,6 +140,11 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
         return u;
     }
 
+    /**
+     * Executes the to SQL Date operation.
+     * @param date date.
+     * @return the computed result.
+     */
     private static Date toSqlDate(LocalDate date) {
         return date != null ? Date.valueOf(date) : null;
     }

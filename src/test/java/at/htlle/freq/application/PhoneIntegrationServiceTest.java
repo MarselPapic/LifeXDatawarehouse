@@ -38,12 +38,12 @@ class PhoneIntegrationServiceTest {
     }
 
     @Test
-    void getPhoneIntegrationsByClientRejectsNull() {
-        assertThrows(NullPointerException.class, () -> service.getPhoneIntegrationsByClient(null));
+    void getPhoneIntegrationsBySiteRejectsNull() {
+        assertThrows(NullPointerException.class, () -> service.getPhoneIntegrationsBySite(null));
     }
 
     @Test
-    void createPhoneIntegrationRequiresClientId() {
+    void createPhoneIntegrationRequiresSiteId() {
         PhoneIntegration value = new PhoneIntegration();
         value.setPhoneType("TYPE");
         assertThrows(IllegalArgumentException.class, () -> service.createOrUpdatePhoneIntegration(value));
@@ -52,7 +52,7 @@ class PhoneIntegrationServiceTest {
     @Test
     void createPhoneIntegrationRequiresType() {
         PhoneIntegration value = new PhoneIntegration();
-        value.setClientID(UUID.randomUUID());
+        value.setSiteID(UUID.randomUUID());
         assertThrows(IllegalArgumentException.class, () -> service.createOrUpdatePhoneIntegration(value));
     }
 
@@ -63,7 +63,7 @@ class PhoneIntegrationServiceTest {
 
         PhoneIntegration saved = service.createOrUpdatePhoneIntegration(value);
         assertSame(value, saved);
-        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("SERIAL"), eq("FW"));
+        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("Interface"), eq(4), eq("FW"));
     }
 
     @Test
@@ -75,18 +75,18 @@ class PhoneIntegrationServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("SERIAL"), eq("FW"));
+        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("Interface"), eq(4), eq("FW"));
     }
 
     @Test
     void createPhoneIntegrationContinuesWhenLuceneFails() {
         PhoneIntegration value = phoneIntegration();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexPhoneIntegration(any(), any(), any(), any(), any(), any());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexPhoneIntegration(any(), any(), any(), any(), any(), any(), any());
 
         PhoneIntegration saved = service.createOrUpdatePhoneIntegration(value);
         assertSame(value, saved);
-        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("SERIAL"), eq("FW"));
+        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(UUID1.toString()), eq("TYPE"), eq("Brand"), eq("Interface"), eq(4), eq("FW"));
     }
 
     @Test
@@ -96,10 +96,11 @@ class PhoneIntegrationServiceTest {
         when(repo.save(existing)).thenReturn(existing);
 
         PhoneIntegration patch = new PhoneIntegration();
-        patch.setClientID(UUID.randomUUID());
+        patch.setSiteID(UUID.randomUUID());
         patch.setPhoneType("NEW");
         patch.setPhoneBrand("NewBrand");
-        patch.setPhoneSerialNr("NewSerial");
+        patch.setInterfaceName("NewInterface");
+        patch.setCapacity(12);
         patch.setPhoneFirmware("NewFW");
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
@@ -107,11 +108,12 @@ class PhoneIntegrationServiceTest {
             assertTrue(updated.isPresent());
             assertEquals("NEW", existing.getPhoneType());
             assertEquals("NewBrand", existing.getPhoneBrand());
-            assertEquals("NewSerial", existing.getPhoneSerialNr());
+            assertEquals("NewInterface", existing.getInterfaceName());
+            assertEquals(12, existing.getCapacity());
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(existing.getClientID().toString()), eq("NEW"), eq("NewBrand"), eq("NewSerial"), eq("NewFW"));
+        verify(lucene).indexPhoneIntegration(eq(UUID2.toString()), eq(existing.getSiteID().toString()), eq("NEW"), eq("NewBrand"), eq("NewInterface"), eq(12), eq("NewFW"));
     }
 
     @Test

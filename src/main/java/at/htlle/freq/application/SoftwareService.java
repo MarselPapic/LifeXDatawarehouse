@@ -148,12 +148,20 @@ public class SoftwareService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     *
+     * @param sw software to index after the transaction commits.
+     */
     private void registerAfterCommitIndexing(Software sw) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(sw);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the software after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(sw);
@@ -161,6 +169,11 @@ public class SoftwareService {
         });
     }
 
+    /**
+     * Indexes a software record in Lucene for search operations.
+     *
+     * @param sw software entity to index.
+     */
     private void indexToLucene(Software sw) {
         try {
             lucene.indexSoftware(
@@ -183,10 +196,23 @@ public class SoftwareService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
     }

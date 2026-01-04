@@ -38,28 +38,28 @@ INSERT INTO DeploymentVariant (VariantID, VariantCode, VariantName, Description,
 INSERT INTO Project (ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID) VALUES
     ('00000000-0000-0000-0000-000000000401', 'PX-1001', 'Vienna Digital Response', '00000000-0000-0000-0000-000000000301', 'Premium', DATEADD('DAY', -50, CURRENT_DATE), 'ACTIVE', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101'),
     ('00000000-0000-0000-0000-000000000402', 'PX-2002', 'Bavarian Emergency Grid', '00000000-0000-0000-0000-000000000303', 'Standard', DATEADD('DAY', -20, CURRENT_DATE), 'MAINTENANCE', '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000103'),
-    ('00000000-0000-0000-0000-000000000403', 'PX-3003', 'Coastline Dispatch Modernization', '00000000-0000-0000-0000-000000000302', 'Hybrid', DATEADD('DAY', -190, CURRENT_DATE), 'PLANNED', '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000104');
+    ('00000000-0000-0000-0000-000000000403', 'PX-3003', 'Coastline Dispatch Modernization', '00000000-0000-0000-0000-000000000302', 'Hybrid', DATEADD('DAY', -190, CURRENT_DATE), 'OFFERED', '00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000104');
 
 -- Sites (project locations with zones and tenants)
-INSERT INTO Site (SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount) VALUES
-    ('00000000-0000-0000-0000-000000000501', 'HQ Wien', '00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000102', 'Alpha', 12),
-    ('00000000-0000-0000-0000-000000000502', 'Dispatch Wien', '00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000105', 'Beta', 8),
-    ('00000000-0000-0000-0000-000000000503', 'Munich Control Center', '00000000-0000-0000-0000-000000000402', '00000000-0000-0000-0000-000000000103', 'Gamma', 10),
-    ('00000000-0000-0000-0000-000000000504', 'Bay Operations', '00000000-0000-0000-0000-000000000403', '00000000-0000-0000-0000-000000000104', 'Delta', 18);
+INSERT INTO Site (SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount, RedundantServers, HighAvailability) VALUES
+    ('00000000-0000-0000-0000-000000000501', 'HQ Wien', '00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000102', 'Alpha', 12, 2, TRUE),
+    ('00000000-0000-0000-0000-000000000502', 'Dispatch Wien', '00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000105', 'Beta', 8, 1, FALSE),
+    ('00000000-0000-0000-0000-000000000503', 'Munich Control Center', '00000000-0000-0000-0000-000000000402', '00000000-0000-0000-0000-000000000103', 'Gamma', 10, 1, FALSE),
+    ('00000000-0000-0000-0000-000000000504', 'Bay Operations', '00000000-0000-0000-0000-000000000403', '00000000-0000-0000-0000-000000000104', 'Delta', 18, 2, TRUE);
 
 -- Servers (hardware inventory by site)
-INSERT INTO Server (ServerID, SiteID, ServerName, ServerBrand, ServerSerialNr, ServerOS, PatchLevel, VirtualPlatform, VirtualVersion, HighAvailability) VALUES
-    ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000501', 'SRV-VIE-01', 'Lenovo', 'SRV-VIE-01', 'Windows Server 2022', '2025.06', 'vSphere', '8.0', TRUE),
-    ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000501', 'SRV-VIE-02', 'HPE', 'SRV-VIE-02', 'Windows Server 2019', '2024.11', 'HyperV', '2022', TRUE),
-    ('00000000-0000-0000-0000-000000000603', '00000000-0000-0000-0000-000000000503', 'SRV-MUC-01', 'Lenovo', 'SRV-MUC-01', 'Ubuntu 22.04 LTS', '2025.04', 'BareMetal', NULL, FALSE),
-    ('00000000-0000-0000-0000-000000000604', '00000000-0000-0000-0000-000000000504', 'SRV-BAY-01', 'Dell', 'SRV-BAY-01', 'Red Hat Enterprise 9', '2025.05', 'vSphere', '8.0', TRUE);
+INSERT INTO Server (ServerID, SiteID, ServerName, ServerBrand, ServerSerialNr, ServerOS, PatchLevel, VirtualPlatform, VirtualVersion) VALUES
+    ('00000000-0000-0000-0000-000000000601', '00000000-0000-0000-0000-000000000501', 'SRV-VIE-01', 'Lenovo', 'SRV-VIE-01', 'Windows Server 2022', '2025.06', 'vSphere', '8.0'),
+    ('00000000-0000-0000-0000-000000000602', '00000000-0000-0000-0000-000000000501', 'SRV-VIE-02', 'HPE', 'SRV-VIE-02', 'Windows Server 2019', '2024.11', 'HyperV', '2022'),
+    ('00000000-0000-0000-0000-000000000603', '00000000-0000-0000-0000-000000000503', 'SRV-MUC-01', 'Lenovo', 'SRV-MUC-01', 'Ubuntu 22.04 LTS', '2025.04', 'BareMetal', NULL),
+    ('00000000-0000-0000-0000-000000000604', '00000000-0000-0000-0000-000000000504', 'SRV-BAY-01', 'Dell', 'SRV-BAY-01', 'Red Hat Enterprise 9', '2025.05', 'vSphere', '8.0');
 
 -- Client workstations (operator endpoints)
-INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType) VALUES
-    ('00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000501', 'Operator Desk 1', 'Dell', 'CL-VIE-01', 'Windows 11', '2025.06', 'LOCAL'),
-    ('00000000-0000-0000-0000-000000000702', '00000000-0000-0000-0000-000000000501', 'Operator Desk 2', 'Dell', 'CL-VIE-02', 'Windows 11', '2025.05', 'BROWSER'),
-    ('00000000-0000-0000-0000-000000000703', '00000000-0000-0000-0000-000000000503', 'Responder Tablet', 'Panasonic', 'CL-MUC-01', 'Windows 10', '2024.12', 'BROWSER'),
-    ('00000000-0000-0000-0000-000000000704', '00000000-0000-0000-0000-000000000504', 'Dispatch Console', 'Lenovo', 'CL-BAY-01', 'Windows 11', '2025.04', 'LOCAL');
+INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType, WorkingPositionType, OtherInstalledSoftware) VALUES
+    ('00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000501', 'Operator Desk 1', 'Dell', 'CL-VIE-01', 'Windows 11', '2025.06', 'LOCAL', 'Dispatcher', 'Office suite'),
+    ('00000000-0000-0000-0000-000000000702', '00000000-0000-0000-0000-000000000501', 'Operator Desk 2', 'Dell', 'CL-VIE-02', 'Windows 11', '2025.05', 'BROWSER', 'Dispatcher', 'Office suite'),
+    ('00000000-0000-0000-0000-000000000703', '00000000-0000-0000-0000-000000000503', 'Responder Tablet', 'Panasonic', 'CL-MUC-01', 'Windows 10', '2024.12', 'BROWSER', 'Dispatcher', 'Office suite'),
+    ('00000000-0000-0000-0000-000000000704', '00000000-0000-0000-0000-000000000504', 'Dispatch Console', 'Lenovo', 'CL-BAY-01', 'Windows 11', '2025.04', 'LOCAL', 'Dispatcher', 'Office suite');
 
 -- Radios (site radios and modes)
 INSERT INTO Radio (RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr, Mode, DigitalStandard) VALUES
@@ -72,18 +72,40 @@ INSERT INTO AudioDevice (AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerial
     ('00000000-0000-0000-0000-000000000902', '00000000-0000-0000-0000-000000000702', 'Bose', 'AD-VIE-02', '1.9.0', 'SPEAKER'),
     ('00000000-0000-0000-0000-000000000903', '00000000-0000-0000-0000-000000000704', 'Poly', 'AD-BAY-01', '2.1.5', 'HEADSET');
 
--- Phone integrations (client telephony setup)
-INSERT INTO PhoneIntegration (PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware) VALUES
-    ('00000000-0000-0000-0000-000000000a01', '00000000-0000-0000-0000-000000000701', 'Emergency', 'Avaya', 'PH-VIE-01', '1.4.0'),
-    ('00000000-0000-0000-0000-000000000a02', '00000000-0000-0000-0000-000000000703', 'NonEmergency', 'Cisco', 'PH-MUC-01', '2.0.1');
-
--- Software catalogue entries (releases and lifecycle data)
-INSERT INTO Software (SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty, EndOfSalesDate, SupportStartDate, SupportEndDate) VALUES
-    ('00000000-0000-0000-0000-000000000b01', 'LifeX Core', '2024.4', '8', 'Production', 'Subscription', FALSE, DATEADD('DAY', 365, CURRENT_DATE), DATEADD('DAY', -180, CURRENT_DATE), DATEADD('DAY', 20, CURRENT_DATE)),
-    ('00000000-0000-0000-0000-000000000b02', 'LifeX Core', '2025.1', '15', 'Production', 'Subscription', FALSE, DATEADD('DAY', 540, CURRENT_DATE), DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY', 240, CURRENT_DATE)),
-    ('00000000-0000-0000-0000-000000000b03', 'Command Center', '2024.3', '5', 'Production', 'Perpetual', FALSE, DATEADD('DAY', 720, CURRENT_DATE), DATEADD('DAY', -210, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE)),
-    ('00000000-0000-0000-0000-000000000b04', 'Command Center', '2025.1', '2', 'Preview', 'Perpetual', FALSE, DATEADD('DAY', 900, CURRENT_DATE), DATEADD('DAY', 10, CURRENT_DATE), DATEADD('DAY', 370, CURRENT_DATE)),
-    ('00000000-0000-0000-0000-000000000b05', 'Edge Gateway', '2024.2', '9', 'Production', 'Subscription', TRUE, DATEADD('DAY', 400, CURRENT_DATE), DATEADD('DAY', -120, CURRENT_DATE), DATEADD('DAY', 60, CURRENT_DATE));
+-- Phone integrations (telephony endpoints per site)
+INSERT INTO PhoneIntegration (PhoneIntegrationID, SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware) VALUES
+    ('65650bf6-8635-42e4-952b-0D0000000001', '9356ae01-fce4-4d24-84ca-080000000001', 'Emergency', 'Avaya', 'IF-0501', 4, 'v1.0'),
+    ('c822b9c9-25c1-42a8-b236-0D0000000002', '7e723334-3ac1-454c-8e6d-080000000002', 'NonEmergency', 'Cisco', 'IF-0502', 6, 'v2.1'),
+    ('01226f43-9f96-4483-88ac-0D0000000003', 'c5314a99-d4d0-4939-8f0f-080000000003', 'Both', 'Unify', 'IF-0503', 8, 'v3.2'),
+    ('885a6d35-df3b-497f-9c65-0D0000000004', '572031c7-2b2b-4914-b228-080000000004', 'Emergency', 'Alcatel', 'IF-0504', 2, 'v4.3'),
+    ('e4d52b56-cc2a-4c87-af66-0D0000000005', '7c82162b-ef58-4f14-96db-080000000005', 'NonEmergency', 'Mitel', 'IF-0505', 4, 'v1.4'),
+    ('e3f6e6bf-7774-40e1-bf26-0D0000000006', '65a3be41-4d28-4276-a711-080000000006', 'Both', 'Avaya', 'IF-0506', 6, 'v2.5'),
+    ('52d5dcba-72e3-4651-9a2c-0D0000000007', 'fcde8ce1-ab84-404a-8fc7-080000000007', 'Emergency', 'Cisco', 'IF-0507', 8, 'v3.6'),
+    ('a01bef2a-603e-4da9-bd7e-0D0000000008', '7b77662c-09b5-4b48-a3fd-080000000008', 'NonEmergency', 'Unify', 'IF-0508', 2, 'v4.7'),
+    ('2b8b4e9c-0cb0-405e-863b-0D0000000009', '95ae3b4a-058a-4412-9302-080000000009', 'Both', 'Alcatel', 'IF-0509', 4, 'v1.8'),
+    ('c02791b6-4364-4b03-a244-0D0000000010', '9f40a081-9821-4962-a5d7-080000000010', 'Emergency', 'Mitel', 'IF-0510', 6, 'v2.9'),
+    ('cfc5f398-85c9-4194-a42e-0D0000000011', 'f0227786-e7a8-4612-bb1a-080000000011', 'NonEmergency', 'Avaya', 'IF-0511', 8, 'v3.0'),
+    ('320fa169-a5c0-4ec4-bf71-0D0000000012', '5542cc53-724f-4d4f-85fd-080000000012', 'Both', 'Cisco', 'IF-0512', 2, 'v4.1'),
+    ('184a5312-08fa-4d06-884f-0D0000000013', '65aec290-3c78-4380-aaa8-080000000013', 'Emergency', 'Unify', 'IF-0513', 4, 'v1.2'),
+    ('90866ffb-645f-40fa-974e-0D0000000014', '2e4e3983-fe01-4281-b33d-080000000014', 'NonEmergency', 'Alcatel', 'IF-0514', 6, 'v2.3'),
+    ('24743506-e452-410a-b690-0D0000000015', 'a474481c-e010-46ff-8b18-080000000015', 'Both', 'Mitel', 'IF-0515', 8, 'v3.4'),
+    ('c95ad6d9-2f49-4018-9f4f-0D0000000016', '59ced102-d984-47dd-823b-080000000016', 'Emergency', 'Avaya', 'IF-0516', 2, 'v4.5'),
+    ('5f700b13-5be6-47b4-8d91-0D0000000017', 'a78012f5-46a9-4623-bc92-080000000017', 'NonEmergency', 'Cisco', 'IF-0517', 4, 'v1.6'),
+    ('91f3dffb-86df-4fb0-bb95-0D0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', 'Both', 'Unify', 'IF-0518', 6, 'v2.7'),
+    ('033ac93c-0ab3-4274-8681-0D0000000019', 'eb06be2e-3fe7-43d7-99b2-080000000019', 'Emergency', 'Alcatel', 'IF-0519', 8, 'v3.8'),
+    ('ffcba82e-e978-4cea-bf71-0D0000000020', 'be84bbb8-a994-403c-ad7f-080000000020', 'NonEmergency', 'Mitel', 'IF-0520', 2, 'v4.9'),
+    ('1428bbb0-cc78-4095-bc97-0D0000000021', 'aa74e93e-7939-46b6-a56d-080000000021', 'Both', 'Avaya', 'IF-0521', 4, 'v1.0'),
+    ('f1c634b9-70e7-45b0-b6a3-0D0000000022', '942f3664-f6e4-4260-8432-080000000022', 'Emergency', 'Cisco', 'IF-0522', 6, 'v2.1'),
+    ('ecdbba79-3125-46bc-bacc-0D0000000023', 'c3fa62be-1106-41c5-858d-080000000023', 'NonEmergency', 'Unify', 'IF-0523', 8, 'v3.2'),
+    ('d6f6e959-edd4-44ae-97c8-0D0000000024', '7db4d198-9ddb-46dd-be3f-080000000024', 'Both', 'Alcatel', 'IF-0524', 2, 'v4.3'),
+    ('89ba3fc1-8fa5-442c-a57c-0D0000000025', '497f21ca-c4d9-4a0f-aad2-080000000025', 'Emergency', 'Mitel', 'IF-0525', 4, 'v1.4'),
+    ('80dc1e2a-4c3f-4227-a89d-0D0000000026', '1434b4e1-d3b2-4e26-939d-080000000026', 'NonEmergency', 'Avaya', 'IF-0526', 6, 'v2.5'),
+    ('81875994-5f73-43a6-bdeb-0D0000000027', 'c332e001-d195-4049-b558-080000000027', 'Both', 'Cisco', 'IF-0527', 8, 'v3.6'),
+    ('ad3637db-6783-4291-987b-0D0000000028', '2f7c3f72-7023-4c77-9864-080000000028', 'Emergency', 'Unify', 'IF-0528', 2, 'v4.7'),
+    ('db5c9e47-9613-4374-8207-0D0000000029', 'b76a3f2d-2b0a-44a9-b711-080000000029', 'NonEmergency', 'Alcatel', 'IF-0529', 4, 'v1.8'),
+    ('00512a55-9e03-4989-80ce-0D0000000030', 'bb016efc-0902-41cc-88fb-080000000030', 'Both', 'Mitel', 'IF-0530', 6, 'v2.9'),
+    ('b992dba9-4f53-4c99-93d8-0D0000000031', 'ebdc917c-2c9d-409b-a942-080000000031', 'Emergency', 'Avaya', 'IF-0531', 8, 'v3.0'),
+    ('8475e87f-4869-4723-a6be-0D0000000032', '4c0b8185-e61a-4e6f-be92-080000000032', 'NonEmergency', 'Cisco', 'IF-0532', 2, 'v4.1');
 
 -- Installed software per site (site-to-software mapping)
 INSERT INTO InstalledSoftware (InstalledSoftwareID, SiteID, SoftwareID) VALUES

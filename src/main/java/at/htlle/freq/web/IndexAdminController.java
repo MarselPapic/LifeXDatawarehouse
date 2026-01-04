@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.Map;
 
 /**
  * Administrative controller for Lucene reindexing.
@@ -25,6 +26,12 @@ public class IndexAdminController {
     private final LuceneIndexService lucene;
     private final TaskExecutor taskExecutor;
 
+    /**
+     * Creates an admin controller for triggering Lucene reindexing.
+     *
+     * @param lucene service that performs indexing work.
+     * @param taskExecutor executor for running reindexing asynchronously.
+     */
     public IndexAdminController(LuceneIndexService lucene, TaskExecutor taskExecutor) {
         this.lucene = lucene;
         this.taskExecutor = taskExecutor;
@@ -42,21 +49,49 @@ public class IndexAdminController {
     @PostMapping("/reindex")
     public void reindex(Principal principal) {
         String actorDetail = resolveActor(principal);
-        LOG.info("Manual reindex requested ({})", actorDetail);
+        if (principal != null) {
+            MDC.put("principal", principal.getName());
+        }
+        try {
+            LOG.info("Manual reindex requested ({})", actorDetail);
 
-        Runnable task = () -> {
-            LOG.info("Manual reindex task started ({})", actorDetail);
-            try {
-                lucene.reindexAll();
-                LOG.info("Manual reindex task completed successfully ({})", actorDetail);
-            } catch (Exception e) {
-                LOG.error("Manual reindex task failed ({})", actorDetail, e);
+            Map<String, String> contextMap = MDC.getCopyOfContextMap();
+            Runnable task = () -> {
+                Map<String, String> previous = MDC.getCopyOfContextMap();
+                if (contextMap != null) {
+                    MDC.setContextMap(contextMap);
+                } else {
+                    MDC.clear();
+                }
+                try {
+                    LOG.info("Manual reindex task started ({})", actorDetail);
+                    lucene.reindexAll();
+                    LOG.info("Manual reindex task completed successfully ({})", actorDetail);
+                } catch (Exception e) {
+                    LOG.error("Manual reindex task failed ({})", actorDetail, e);
+                } finally {
+                    if (previous != null) {
+                        MDC.setContextMap(previous);
+                    } else {
+                        MDC.clear();
+                    }
+                }
+            };
+
+            taskExecutor.execute(task);
+        } finally {
+            if (principal != null) {
+                MDC.remove("principal");
             }
-        };
-
-        taskExecutor.execute(task);
+        }
     }
 
+    /**
+     * Resolves an actor label for log messages.
+     *
+     * @param principal authenticated principal, when available.
+     * @return actor label derived from the principal or request ID.
+     */
     private String resolveActor(Principal principal) {
         if (principal != null) {
             return "principal=" + principal.getName();

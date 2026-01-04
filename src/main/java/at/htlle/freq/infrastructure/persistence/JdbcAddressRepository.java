@@ -18,6 +18,11 @@ public class JdbcAddressRepository implements AddressRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a repository backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for address queries.
+     */
     public JdbcAddressRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Address> mapper = (rs, n) -> new Address(
@@ -26,6 +31,12 @@ public class JdbcAddressRepository implements AddressRepository {
             rs.getString("CityID")
     );
 
+    /**
+     * Loads an address by its primary key.
+     *
+     * @param id identifier of the address row.
+     * @return optional address when found.
+     */
     @Override
     public Optional<Address> findById(UUID id) {
         String sql = "SELECT AddressID, Street, CityID FROM Address WHERE AddressID = :id";
@@ -34,11 +45,21 @@ public class JdbcAddressRepository implements AddressRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Retrieves all addresses from the {@code Address} table.
+     *
+     * @return all address rows.
+     */
     @Override
     public List<Address> findAll() {
         return jdbc.query("SELECT AddressID, Street, CityID FROM Address", mapper);
     }
 
+    /**
+     * Deletes an address row by its primary key.
+     *
+     * @param id identifier of the address to remove.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Address WHERE AddressID = :id";

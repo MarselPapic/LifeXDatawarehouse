@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,12 +20,14 @@ import static org.mockito.Mockito.*;
 class AudioDeviceControllerTest {
 
     private NamedParameterJdbcTemplate jdbc;
+    private AuditLogger audit;
     private AudioDeviceController controller;
 
     @BeforeEach
     void setUp() {
         jdbc = mock(NamedParameterJdbcTemplate.class);
-        controller = new AudioDeviceController(jdbc);
+        audit = mock(AuditLogger.class);
+        controller = new AudioDeviceController(jdbc, audit);
     }
 
     @Test
@@ -35,22 +38,36 @@ class AudioDeviceControllerTest {
         body.put("deviceSerialNr", "SER-123");
         body.put("audioDeviceFirmware", "1.0");
         body.put("deviceType", "speaker");
+        body.put("direction", "input + output");
 
         controller.create(body);
 
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture());
         assertEquals("SPEAKER", paramsCaptor.getValue().getValue("deviceType"));
+        assertEquals("Input + Output", paramsCaptor.getValue().getValue("direction"));
     }
 
     @Test
     void createRejectsInvalidDeviceType() {
         Map<String, Object> body = new HashMap<>();
         body.put("deviceType", "unknown");
+        body.put("direction", "Input");
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.create(body));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("DeviceType"));
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
+    void createRequiresDirection() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("deviceType", "HEADSET");
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.create(body));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Direction"));
         verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
     }
 

@@ -390,11 +390,13 @@ async function loadShortcutItems(kind){
                     const id        = val(row,'SiteID');
                     const name      = val(row,'SiteName');
                     const tenants   = val(row,'TenantCount');
+                    const redundant = val(row,'RedundantServers');
                     const projectId = val(row,'ProjectID');
                     const zone      = val(row,'FireZone');
                     const meta = [];
                     if (zone) meta.push(`Zone ${zone}`);
                     if (tenants !== undefined && tenants !== null && tenants !== '') meta.push(`${tenants} units`);
+                    if (redundant !== undefined && redundant !== null && redundant !== '') meta.push(`${redundant} redundant srv`);
                     if (projectId) meta.push(`Project ${shortUuid(projectId)}`);
                     const primary = (name && name.trim()) || (id ? `Site ${shortUuid(id)}` : 'Site');
                     return {
@@ -795,9 +797,10 @@ function formatPreview(type, row){
             const v=val(row,k); if(v) parts.push(v);
         });
     } else if (t==='client'){
-        ['ClientBrand','ClientOS'].forEach(k=>{
+        ['ClientBrand','ClientOS','WorkingPositionType'].forEach(k=>{
             const v=val(row,k); if(v) parts.push(v);
         });
+        const other = val(row,'OtherInstalledSoftware'); if(other) parts.push(other);
     } else if (t==='radio'){
         const br=val(row,'RadioBrand'); if (br) parts.push(br);
         const md=val(row,'Mode'); if (md) parts.push(md);

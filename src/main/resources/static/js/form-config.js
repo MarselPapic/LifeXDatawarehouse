@@ -47,7 +47,24 @@
             }
         },
         sites:{
-            url:projectId=>projectId?`/sites?projectId=${encodeURIComponent(projectId)}`:'/sites',
+            url:(dependencyValue,meta={})=>{
+                const params=new URLSearchParams();
+                const dependsOnKey=String(meta.dependsOn||'').toLowerCase();
+                const normalizedDependency=typeof dependencyValue==='string'?dependencyValue.trim():dependencyValue;
+                const query=meta.searchTerm?.trim();
+                if(normalizedDependency){
+                    if(dependsOnKey.includes('acc')){
+                        params.set('accountId',normalizedDependency);
+                    }else{
+                        params.set('projectId',normalizedDependency);
+                    }
+                }
+                if(query){
+                    params.set('q',query);
+                }
+                const qs=params.toString();
+                return qs?`/sites?${qs}`:'/sites';
+            },
             map:item=>{
                 const value = pick(item,'siteID','siteId','SiteID');
                 const name = pick(item,'siteName','SiteName');
@@ -149,8 +166,8 @@
             notes: ['Inactive variants should only be used for historical records.']
         },
         PhoneIntegration: {
-            summary: 'Document the phone integration that connects a client to telephony services.',
-            notes: ['Capture firmware and serial numbers when needed for troubleshooting.']
+            summary: 'Document the phone integration that connects a site to telephony services.',
+            notes: ['Track the interface name and line capacity to align with local infrastructure.']
         },
         Project: {
             summary: 'Create a project that ties an account to a deployment variant and address.',
@@ -239,10 +256,11 @@
             { id: 'active', label: 'IsActive', component: 'select', options: ['true','false'], name: 'IsActive', valueType: 'boolean' }
         ],
         PhoneIntegration: [
-            { id: 'client', label: 'Select client', component: 'asyncSelect', source: 'clients', placeholder: 'Select client', allowManual: false, name: 'ClientID', hint: 'Integrations attach to the working position using the phone.' },
+            { id: 'site', label: 'Select site', component: 'asyncSelect', source: 'sites', placeholder: 'Select site', allowManual: false, name: 'SiteID', hint: 'Integrations now attach directly to the site.' },
             { id: 'type', label: 'PhoneType', component: 'select', options: ['Emergency','NonEmergency','Both'], name: 'PhoneType' },
             { id: 'brand', label: 'Brand', component: 'input', name: 'PhoneBrand', required: false },
-            { id: 'serial', label: 'Serial Number', component: 'input', name: 'PhoneSerialNr', required: false },
+            { id: 'interfaceName', label: 'Interface Name', component: 'input', name: 'InterfaceName', required: false },
+            { id: 'capacity', label: 'Capacity', component: 'input', name: 'Capacity', required: false, inputmode: 'numeric', pattern: '[0-9]*' },
             { id: 'fw', label: 'Firmware', component: 'input', name: 'PhoneFirmware', required: false }
         ],
         Project: [
@@ -250,14 +268,16 @@
             { id: 'pname', label: 'Project Name', component: 'input', name: 'ProjectName' },
             { id: 'variantId', label: 'Select deployment variant', component: 'asyncSelect', source: 'deploymentVariants', placeholder: 'Select deployment variant', allowManual: false, name: 'DeploymentVariantID', hint: 'Determines the LifeX deployment flavor.' },
             { id: 'bundle', label: 'Bundle Type', component: 'input', name: 'BundleType', required: false },
+            { id: 'specialNotes', label: 'Special Notes', component: 'input', name: 'SpecialNotes', required: false, hint: 'Document special installations or other noteworthy project details.' },
             { id: 'lifecycle', label: 'Lifecycle Status', component: 'select', name: 'LifecycleStatus', options: [
-                { value: 'PLANNED', label: 'Planned' },
+                { value: 'OFFERED', label: 'Offered' },
                 { value: 'ACTIVE', label: 'Active' },
                 { value: 'MAINTENANCE', label: 'Maintenance' },
-                { value: 'RETIRED', label: 'Retired' }
+                { value: 'EOL', label: 'EOL' }
             ] },
             { id: 'accId', label: 'Select account', component: 'asyncSelect', source: 'accounts', allowManual: false, name: 'AccountID' },
-            { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' }
+            { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID' },
+            { id: 'siteIds', label: 'Link existing sites', component: 'asyncSelect', source: 'sites', allowManual: false, placeholder: 'Select sites for the chosen account', name: 'SiteIDs', required: false, dependsOn: 'accId', dependsOnMessage: 'Please select an account first', hint: 'Sites become available after choosing an account and list all entries for that account.' }
         ],
         Radio: [
             { id: 'siteId', label: 'Select site', component: 'asyncSelect', source: 'sites', allowManual: false, name: 'SiteID', hint: 'Radios are installed at a specific site.' },
@@ -275,8 +295,7 @@
             { id: 'os', label: 'Operating System', component: 'input', name: 'ServerOS', required: false },
             { id: 'patch', label: 'Patch Level', component: 'input', name: 'PatchLevel', required: false },
             { id: 'vplat', label: 'Virtual Platform', component: 'select', options: ['BareMetal','HyperV','vSphere'], name: 'VirtualPlatform' },
-            { id: 'vver', label: 'Virtual Version', component: 'input', name: 'VirtualVersion', required: false },
-            { id: 'ha', label: 'HighAvailability', component: 'select', options: ['true','false'], name: 'HighAvailability', valueType: 'boolean' }
+            { id: 'vver', label: 'Virtual Version', component: 'input', name: 'VirtualVersion', required: false }
         ],
         ServiceContract: [
             { id: 'accountID', label: 'Select account', component: 'asyncSelect', source: 'accounts', placeholder: 'Select account', allowManual: false, name: 'AccountID', hint: 'Contracts start at the account level.' },
@@ -288,11 +307,13 @@
             { id: 'endDate', label: 'End Date', component: 'input', inputType: 'date', name: 'EndDate', hint: 'End date may remain empty for ongoing contracts.' }
         ],
         Site: [
-            { id: 'pId', label: 'Select project', component: 'asyncSelect', source: 'projects', allowManual: false, name: 'ProjectID', hint: 'Each site must belong to an existing project.' },
+            { id: 'accountId', label: 'Select account', component: 'asyncSelect', source: 'accounts', allowManual: false, name: 'AccountID', placeholder: 'Select account', hint: 'Choose an account to provide context for the site.' },
             { id: 'name', label: 'Site Name', component: 'input', name: 'SiteName' },
             { id: 'addrId', label: 'Select address', component: 'asyncSelect', source: 'addresses', allowManual: false, placeholder: 'Select address', name: 'AddressID', hint: 'Choose the physical location for this site.' },
             { id: 'zone', label: 'FireZone', component: 'input', name: 'FireZone', required: false },
             { id: 'tenant', label: 'TenantCount', component: 'input', inputType: 'number', min: '0', step: '1', required: false, name: 'TenantCount' },
+            { id: 'redundant', label: 'RedundantServers', component: 'input', inputType: 'number', min: '0', step: '1', name: 'RedundantServers', hint: 'Minimum count of redundant servers deployed at the site.' },
+            { id: 'ha', label: 'HighAvailability', component: 'select', options: ['true','false'], name: 'HighAvailability', valueType: 'boolean', hint: 'Indicates whether the site is configured for high availability.' },
             { id: 'softwareInstallations', label: 'Software installations', component: 'softwareList', required: false, hint: 'Add deployed software packages with their status and key dates.', addLabel: 'Add software entry', emptyLabel: 'No software entries added yet.' }
         ],
         Software: [
@@ -327,6 +348,8 @@
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ClientSerialNr', required: false },
             { id: 'os', label: 'OS', component: 'input', name: 'ClientOS', required: false },
             { id: 'patch', label: 'Patch Level', component: 'input', name: 'PatchLevel', required: false },
+            { id: 'workingPositionType', label: 'Type of Working Position', component: 'input', name: 'WorkingPositionType', required: false, hint: 'Dispatcher, Call-taking, Supervisor, etc.' },
+            { id: 'otherSoftware', label: 'Other SW installed at client', component: 'input', name: 'OtherInstalledSoftware', required: false, hint: 'e.g., Office suite, CAD, analytics tools' },
             { id: 'install', label: 'InstallType', component: 'select', options: ['LOCAL','BROWSER'], name: 'InstallType' }
         ]
     };

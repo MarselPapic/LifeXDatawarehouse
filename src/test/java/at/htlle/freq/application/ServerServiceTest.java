@@ -85,7 +85,7 @@ class ServerServiceTest {
 
         Server saved = service.createOrUpdateServer(value);
         assertSame(value, saved);
-        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"), eq(true));
+        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"));
     }
 
     @Test
@@ -97,18 +97,18 @@ class ServerServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"), eq(true));
+        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"));
     }
 
     @Test
     void createServerContinuesWhenLuceneFails() {
         Server value = server();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexServer(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexServer(any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         Server saved = service.createOrUpdateServer(value);
         assertSame(value, saved);
-        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"), eq(true));
+        verify(lucene).indexServer(eq(UUID2.toString()), eq(UUID4.toString()), eq("Server"), eq("Brand"), eq("SERIAL"), eq("Linux"), eq("Patch"), eq("Platform"), eq("1.0"));
     }
 
     @Test
@@ -126,7 +126,6 @@ class ServerServiceTest {
         patch.setPatchLevel("NewPatch");
         patch.setVirtualPlatform("NewPlatform");
         patch.setVirtualVersion("NewVersion");
-        patch.setHighAvailability(false);
 
         List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
             Optional<Server> updated = service.updateServer(UUID2, patch);
@@ -135,34 +134,10 @@ class ServerServiceTest {
             assertEquals("NewBrand", existing.getServerBrand());
             assertEquals("NewSerial", existing.getServerSerialNr());
             assertEquals("NewOS", existing.getServerOS());
-            assertFalse(existing.isHighAvailability());
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexServer(eq(UUID2.toString()), eq(existing.getSiteID().toString()), eq("NewServer"), eq("NewBrand"), eq("NewSerial"), eq("NewOS"), eq("NewPatch"), eq("NewPlatform"), eq("NewVersion"), eq(false));
-    }
-
-    @Test
-    void updateServerKeepsHighAvailabilityWhenPatchOmitsFlag() {
-        Server existing = server();
-        when(repo.findById(UUID2)).thenReturn(Optional.of(existing));
-        when(repo.save(existing)).thenReturn(existing);
-
-        Server patch = new Server();
-        patch.setServerName("PartialUpdate");
-        patch.setServerBrand("Brand");
-
-        List<TransactionSynchronization> synchronizations = TransactionTestUtils.executeWithinTransaction(() -> {
-            Optional<Server> updated = service.updateServer(UUID2, patch);
-            assertTrue(updated.isPresent());
-            assertTrue(existing.isHighAvailability());
-            assertEquals("PartialUpdate", existing.getServerName());
-        });
-        synchronizations.forEach(TransactionSynchronization::afterCommit);
-
-        verify(lucene).indexServer(eq(UUID2.toString()), eq(existing.getSiteID().toString()), eq("PartialUpdate"), eq("Brand"),
-                eq(existing.getServerSerialNr()), eq(existing.getServerOS()), eq(existing.getPatchLevel()),
-                eq(existing.getVirtualPlatform()), eq(existing.getVirtualVersion()), eq(true));
+        verify(lucene).indexServer(eq(UUID2.toString()), eq(existing.getSiteID().toString()), eq("NewServer"), eq("NewBrand"), eq("NewSerial"), eq("NewOS"), eq("NewPatch"), eq("NewPlatform"), eq("NewVersion"));
     }
 
     @Test

@@ -50,8 +50,8 @@ class RadioControllerIntegrationTest {
                 "assignedClientID", clientId,
                 "radioBrand", "TestBrand",
                 "radioSerialNr", "SER-123",
-                "mode", "MODE",
-                "digitalStandard", "STANDARD"
+                "mode", "Analog",
+                "digitalStandard", "Motorola"
         );
 
         mockMvc.perform(post("/radios")
@@ -82,7 +82,7 @@ class RadioControllerIntegrationTest {
     void updateUnknownRadioReturns404() throws Exception {
         mockMvc.perform(put("/radios/{id}", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mode\":\"NEW\"}"))
+                        .content("{\"mode\":\"Analog\"}"))
                 .andExpect(status().isNotFound());
     }
 }

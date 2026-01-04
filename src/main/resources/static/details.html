@@ -115,10 +115,10 @@
     };
 
     const LIFECYCLE_STATUS_DISPLAY = {
-        PLANNED: { label: 'Planned', tone: 'planned' },
+        OFFERED: { label: 'Offered', tone: 'offered' },
         ACTIVE: { label: 'Active', tone: 'active' },
         MAINTENANCE: { label: 'Maintenance', tone: 'maintenance' },
-        RETIRED: { label: 'Retired', tone: 'retired' }
+        EOL: { label: 'EOL', tone: 'retired' }
     };
 
     const INSTALL_STATUS_DISPLAY = {
@@ -430,17 +430,19 @@
     };
 
     function renderDetailAsyncSelect(id,label,sourceKey,options={}){
-        const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null} = options;
-        detailAsyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value};
+        const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null, multiple=false, valueType='text'} = options;
+        detailAsyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value, multiple, valueType};
         const manualToggle = allowManual ? `<button type="button" class="toggle-manual" data-field="${id}">Enter manual value</button>` : '';
         const manualValue = value ?? '';
         const manualInput = allowManual ? `<input type="text" id="${id}-manual" class="hidden" placeholder="Enter UUID" value="${escapeAttr(manualValue)}" ${required?'required':''}>` : '';
         const hiddenName = name ? ` name="${escapeAttr(name)}"` : '';
-        const hiddenValue = value!=null ? ` value="${escapeAttr(value)}"` : '';
-        const valueTypeAttr = ` data-value-type="${escapeAttr(options.valueType || 'text')}"`;
+        const serializedValue = multiple ? JSON.stringify(normalizeArrayValue(value)) : value;
+        const hiddenValue = serializedValue!=null ? ` value="${escapeAttr(serializedValue)}"` : '';
+        const valueTypeAttr = ` data-value-type="${escapeAttr(valueType || 'text')}"`;
+        const multipleAttr = multiple ? ' multiple' : '';
         return `<label class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span>
             <div class="async-select" data-field="${id}" data-source="${sourceKey}" data-required="${required}"${dependsOn?` data-depends-on="${dependsOn}"`:''}>
-                <select id="${id}-select" class="detail-input" ${required?'required':''}>
+                <select id="${id}-select" class="detail-input"${multipleAttr} ${required?'required':''}>
                     <option value="">${escapeAttr(placeholder)}</option>
                 </select>
                 ${manualInput}
@@ -460,7 +462,7 @@
         if(component==='select'){
             if(!config.valueType) config.valueType='text';
         }else if(component==='asyncselect'){
-            if(!config.valueType) config.valueType='text';
+            if(!config.valueType) config.valueType=config.multiple ? 'array' : 'text';
         }else{
             const hint=(config.inputType||config.type||'').toLowerCase();
             if(!config.valueType){
@@ -481,7 +483,8 @@
                 emptyText: config.emptyText,
                 name: config.name,
                 value: config.value,
-                valueType: config.valueType
+                valueType: config.valueType,
+                multiple: config.multiple===true
             });
         }
         const inputConfig={
@@ -529,10 +532,25 @@
         }
     }
 
+    function normalizeArrayValue(value){
+        if(value === null || value === undefined) return [];
+        if(Array.isArray(value)) return value.filter(v => v !== null && v !== undefined).map(v => String(v));
+        if(typeof value === 'string'){
+            const trimmed = value.trim();
+            if(!trimmed) return [];
+            try{
+                const parsed = JSON.parse(trimmed);
+                if(Array.isArray(parsed)) return parsed.filter(v => v !== null && v !== undefined).map(v => String(v));
+            }catch{/* ignore parse errors */}
+            return trimmed.split(',').map(v => v.trim()).filter(Boolean);
+        }
+        return [String(value)];
+    }
+
     function detailUpdateValueProxy(id,value){
         const hidden=document.getElementById(id);
         if(!hidden) return;
-        const newValue=value??'';
+        const newValue=Array.isArray(value)?JSON.stringify(normalizeArrayValue(value)):(value??'');
         if(hidden.value===newValue) return;
         hidden.value=newValue;
         hidden.dispatchEvent(new CustomEvent('value-changed',{bubbles:true,detail:{value:newValue}}));
@@ -598,7 +616,7 @@
             select.disabled=true;
             if(manual){
                 manual.value='';
-                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,'');
+                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,config.multiple?[]:'');
             }
             return;
         }
@@ -609,7 +627,7 @@
             select.disabled=true;
             if(manual){
                 manual.value='';
-                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,'');
+                if(container.dataset.mode!=='manual') detailUpdateValueProxy(id,config.multiple?[]:'');
                 if(config.allowManual!==false) detailSetManualMode(id,'manual');
             }
             return;
@@ -629,7 +647,15 @@
             select.disabled=entries.length===0;
             const initialValue=config.initialValue;
             if(container.dataset.mode!=='manual'){
-                if(initialValue!=null && entries.some(entry=>entry && String(entry.value)===String(initialValue))){
+                if(config.multiple){
+                    const normalizedSelected=new Set(normalizeArrayValue(initialValue).map(String));
+                    Array.from(select.options).forEach(opt=>{
+                        if(!opt.value) return;
+                        opt.selected = normalizedSelected.has(String(opt.value));
+                    });
+                    const selectedValues=Array.from(select.selectedOptions).map(opt=>opt.value).filter(Boolean);
+                    detailUpdateValueProxy(id,selectedValues);
+                }else if(initialValue!=null && entries.some(entry=>entry && String(entry.value)===String(initialValue))){
                     select.value=initialValue;
                     detailUpdateValueProxy(id,initialValue);
                 }else{
@@ -666,7 +692,8 @@
             const toggle=container.querySelector('.toggle-manual');
             const hidden=form.querySelector(`#${id}`);
             const cfg=detailAsyncSelectConfigs[id]||{};
-            if(hidden) hidden.value=cfg.initialValue??'';
+            const initialValue = cfg.multiple ? JSON.stringify(normalizeArrayValue(cfg.initialValue)) : (cfg.initialValue ?? '');
+            if(hidden) hidden.value=initialValue;
             if(manual && cfg.initialValue!=null){
                 manual.value=cfg.initialValue;
             }
@@ -674,7 +701,12 @@
             if(select){
                 select.addEventListener('change',()=>{
                     if(container.dataset.mode!=='manual'){
-                        detailUpdateValueProxy(id,select.value);
+                        if(cfg.multiple){
+                            const selectedValues=Array.from(select.selectedOptions).map(opt=>opt.value).filter(Boolean);
+                            detailUpdateValueProxy(id,selectedValues);
+                        }else{
+                            detailUpdateValueProxy(id,select.value);
+                        }
                     }
                 });
             }
@@ -1908,6 +1940,9 @@
             }
             return str;
         }
+        if(type === 'array'){
+            return JSON.stringify(normalizeArrayValue(value));
+        }
         return String(value ?? '');
     }
 
@@ -2008,27 +2043,38 @@
         configFields.forEach(field => {
             const rowKey = field.name || field.rowKey || field.id;
             if(rowKey) usedKeys.add(rowKey.toLowerCase());
-            const rawValue = rowKey ? val(row, rowKey) : undefined;
+            let rawValue = rowKey ? val(row, rowKey) : undefined;
+            if((field.name || '').toLowerCase() === 'projectids' && (rawValue === undefined || rawValue === null)){
+                const fallbackProject = val(row, 'ProjectID');
+                if(fallbackProject !== undefined && fallbackProject !== null){
+                    rawValue = [fallbackProject];
+                }
+            }
             const overrides = { name: rowKey };
             if(field.dataset) overrides.dataset = field.dataset;
             if(rawValue !== undefined && rawValue !== null){
-                const hint = (field.inputType || field.type || '').toLowerCase();
-                let valueType;
-                if(field.component && field.component.toLowerCase()==='select'){
-                    valueType=field.valueType || 'text';
-                }else if(field.component && field.component.toLowerCase()==='asyncselect'){
-                    valueType=field.valueType || 'text';
-                }else if(hint==='number'){
-                    valueType='number';
-                }else if(hint==='date'){
-                    valueType='date';
+                if(Array.isArray(rawValue)){
+                    overrides.valueType = field.valueType || 'array';
+                    overrides.value = rawValue;
                 }else{
-                    valueType=inferValueType(rawValue);
+                    const hint = (field.inputType || field.type || '').toLowerCase();
+                    let valueType;
+                    if(field.component && field.component.toLowerCase()==='select'){
+                        valueType=field.valueType || 'text';
+                    }else if(field.component && field.component.toLowerCase()==='asyncselect'){
+                        valueType=field.valueType || 'text';
+                    }else if(hint==='number'){
+                        valueType='number';
+                    }else if(hint==='date'){
+                        valueType='date';
+                    }else{
+                        valueType=inferValueType(rawValue);
+                    }
+                    overrides.valueType = valueType;
+                    overrides.value = formatInputValue(rawValue, valueType);
                 }
-                overrides.valueType = valueType;
-                overrides.value = formatInputValue(rawValue, valueType);
             }else if(field.component && field.component.toLowerCase()==='asyncselect'){
-                overrides.valueType = field.valueType || 'text';
+                overrides.valueType = field.valueType || (field.multiple ? 'array' : 'text');
             }
             html += renderFieldForDetails(field, overrides);
         });
@@ -2216,6 +2262,17 @@
                         return;
                     }
                 }
+            }else if(type === 'array'){
+                if(!el.value){
+                    payload[el.name] = [];
+                }else{
+                    try{
+                        const parsed = JSON.parse(el.value);
+                        payload[el.name] = Array.isArray(parsed) ? parsed : [];
+                    }catch{
+                        payload[el.name] = [];
+                    }
+                }
             }else{
                 payload[el.name] = el.value;
             }
@@ -2259,6 +2316,25 @@
                 }
                 payload.TenantCount = num;
             }
+            const redundantRaw = payload.RedundantServers ?? payload.redundantServers;
+            if(redundantRaw === undefined || redundantRaw === null || redundantRaw === ''){
+                if(fail('RedundantServers is required.')) return;
+            }else{
+                const redundantNum = Number(redundantRaw);
+                if(Number.isNaN(redundantNum)){
+                    if(fail('RedundantServers must be a number.')) return;
+                }
+                if(redundantNum < 0){
+                    if(fail('RedundantServers must not be negative.')) return;
+                }
+                payload.RedundantServers = redundantNum;
+            }
+            const projectIds = Array.isArray(payload.ProjectIDs) ? payload.ProjectIDs.filter(Boolean).map(String) : [];
+            const primaryProjectId = normalizeEmpty(projectIds[0] ?? payload.ProjectID ?? payload.projectID);
+            const normalizedProjects = projectIds.length ? projectIds.map(id => String(id).trim()).filter(Boolean) : (primaryProjectId ? [String(primaryProjectId).trim()] : []);
+            if(normalizedProjects.length === 0){
+                if(fail('Please select at least one project.')) return;
+            }
             const assignments = collectSoftwareAssignments(form);
             if(assignments === null){
                 setStatus('Please resolve the highlighted software entries.', 'error');
@@ -2267,10 +2343,12 @@
             requestUrl = `/sites/${encodeURIComponent(currentId)}`;
             requestPayload = {
                 siteName: normalizeEmpty(payload.SiteName ?? payload.siteName),
-                projectID: normalizeEmpty(payload.ProjectID ?? payload.projectID),
+                projectID: normalizedProjects[0] ?? null,
+                projectIds: normalizedProjects,
                 addressID: normalizeEmpty(payload.AddressID ?? payload.addressID),
                 fireZone: normalizeEmpty(payload.FireZone ?? payload.fireZone),
                 tenantCount: payload.TenantCount ?? payload.tenantCount ?? null,
+                redundantServers: payload.RedundantServers ?? payload.redundantServers,
                 softwareAssignments: assignments
             };
         }else if(entityKey === 'UpgradePlan'){
@@ -2419,20 +2497,33 @@
                 });
             }
         } else if (type === 'Site') {
-            const projId = val(row,'ProjectID');
-            if (projId != null) {
+            const projectIdsRaw = val(row,'ProjectIDs') ?? val(row,'projectIds');
+            const singleProject = val(row,'ProjectID');
+            const projectIds = Array.isArray(projectIdsRaw) ? projectIdsRaw.filter(Boolean) : (projectIdsRaw ? [projectIdsRaw] : []);
+            if(singleProject && projectIds.length === 0) projectIds.push(singleProject);
+            const pills = [];
+            const seenProjects = new Set();
+            const seenAccounts = new Set();
+            for(const projId of projectIds){
+                if(projId == null) continue;
+                const key = String(projId);
+                if(seenProjects.has(key)) continue;
+                seenProjects.add(key);
                 const proj = await rowProject(projId);
-                const pills = [];
                 if (proj) {
                     pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
                     const accId = val(proj,'AccountID');
                     if (accId != null) {
-                        const acc = await rowAccount(accId);
-                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+                        const accKey = String(accId);
+                        if(!seenAccounts.has(accKey)){
+                            seenAccounts.add(accKey);
+                            const acc = await rowAccount(accId);
+                            if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
+                        }
                     }
                 }
-                if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
+            if (pills.length) sections.push({ title: 'Belongs to', pills });
         } else if (type === 'Server') {
             const siteId = val(row,'SiteID');
             if (siteId != null) {
@@ -2479,27 +2570,20 @@
             }
         } else if (type === 'PhoneIntegration') {
             const pills = [];
-            const clientId = val(row,'ClientID');
-            if (clientId != null) {
-                const client = await rowClient(clientId);
-                if (client) {
-                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
-                    const siteId = val(client,'SiteID');
-                    if (siteId != null) {
-                        const site = await rowSite(siteId);
-                        if (site) {
-                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
-                            const projId = val(site,'ProjectID');
-                            if (projId != null) {
-                                const proj = await rowProject(projId);
-                                if (proj) {
-                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
-                                    const accId = val(proj,'AccountID');
-                                    if (accId != null) {
-                                        const acc = await rowAccount(accId);
-                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
-                                    }
-                                }
+            const siteId = val(row,'SiteID');
+            if (siteId != null) {
+                const site = await rowSite(siteId);
+                if (site) {
+                    pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
+                    const projId = val(site,'ProjectID');
+                    if (projId != null) {
+                        const proj = await rowProject(projId);
+                        if (proj) {
+                            pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
+                            const accId = val(proj,'AccountID');
+                            if (accId != null) {
+                                const acc = await rowAccount(accId);
+                                if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
                             }
                         }
                     }
@@ -2871,12 +2955,15 @@
                 return pillLink(`/details.html?type=audio&id=${encodeURIComponent(aid)}`, null, aid, brand);
             }, { entity: 'AudioDevice', label: 'AudioDevice', params: { clientId: id, siteId: val(row,'SiteID') } });
 
-            const ph = await fetchJson(`/phones?clientId=${id}`);
-            addSection(box, 'Phone Integrations', ph, p => {
-                const pid = val(p,'PhoneIntegrationID');
-                const brand = val(p,'PhoneBrand');
-                return pillLink(`/details.html?type=phone&id=${encodeURIComponent(pid)}`, null, pid, brand);
-            }, { entity: 'PhoneIntegration', label: 'PhoneIntegration', params: { clientId: id, siteId: val(row,'SiteID') } });
+            const siteId = val(row,'SiteID');
+            if (siteId != null) {
+                const ph = await fetchJson(`/phones?siteId=${siteId}`);
+                addSection(box, 'Phone Integrations', ph, p => {
+                    const pid = val(p,'PhoneIntegrationID');
+                    const brand = val(p,'PhoneBrand');
+                    return pillLink(`/details.html?type=phone&id=${encodeURIComponent(pid)}`, null, pid, brand);
+                }, { entity: 'PhoneIntegration', label: 'PhoneIntegration', params: { siteId } });
+            }
         }
         else if(type==='Software'){
             const softwareContextLabel = (() => {

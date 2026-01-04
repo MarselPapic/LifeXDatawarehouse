@@ -16,7 +16,7 @@ The following target volumes are based on the schema from `src/main/resources/sc
 | `Clients` | 40 | Operator station names (`Operator Console 014`), serial numbers, and a mix of installation types (`LOCAL` and `BROWSER`). |
 | `Radio` | 18 | Serial numbers include site abbreviations, with modes toggling between `Analog` and `Digital` and standards rotating accordingly. |
 | `AudioDevice` | 36 | Device labels (`Headset 021`), firmware versions, and device types (`HEADSET`, `SPEAKER`, `MIC`). |
-| `PhoneIntegration` | 32 | Telephone types rotate (`Emergency`, `NonEmergency`, `Both`), and manufacturer/serial pairs change per record. |
+| `PhoneIntegration` | 32 | Telephone types rotate (`Emergency`, `NonEmergency`, `Both`), with interface names and capacities varying per record. |
 | `InstalledSoftware` | 55 | Each installation links a site to software; release combinations alternate for coverage. |
 | `UpgradePlan` | 18 | Time windows use `DATEADD` offsets, and status values rotate through `Planned`, `Approved`, and more. |
 | `ServiceContract` | 28 | Contract numbers such as `SC-2025-030`, status values rotate, and durations use relative date values. |

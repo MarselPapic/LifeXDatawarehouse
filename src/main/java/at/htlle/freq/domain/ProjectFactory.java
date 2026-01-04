@@ -3,6 +3,9 @@ package at.htlle.freq.domain;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Project instances.
+ */
 @Component
 public class ProjectFactory {
     /**
@@ -18,6 +21,7 @@ public class ProjectFactory {
      * @param lifecycleStatus lifecycle position of the project
      * @param accountID owning customer {@link Account} identifier
      * @param addressID headquarters {@link Address} identifier
+     * @param specialNotes optional free-text notes for special installation considerations
      * @return transient project entity
      */
     public Project create(String projectSAPID,
@@ -27,8 +31,9 @@ public class ProjectFactory {
                           String createDateTime,
                           ProjectLifecycleStatus lifecycleStatus,
                           UUID accountID,
-                          UUID addressID) {
+                          UUID addressID,
+                          String specialNotes) {
         return new Project(null, projectSAPID, projectName, deploymentVariantID, bundleType,
-                createDateTime, lifecycleStatus, accountID, addressID);
+                createDateTime, lifecycleStatus, accountID, addressID, specialNotes);
     }
 }

@@ -50,7 +50,7 @@ class ServerControllerIntegrationTest {
                 "serverSerialNr", "SER-987",
                 "serverOS", "Linux",
                 "patchLevel", "1.0",
-                "virtualPlatform", "VMware",
+                "virtualPlatform", "vSphere",
                 "virtualVersion", "7",
                 "highAvailability", true
         );

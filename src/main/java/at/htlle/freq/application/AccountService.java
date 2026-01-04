@@ -144,6 +144,11 @@ public class AccountService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     *
+     * @param a account to index after the transaction commits.
+     */
     private void registerAfterCommitIndexing(Account a) {
         // When no transaction is active, index immediately (useful for tests).
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -151,6 +156,9 @@ public class AccountService {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the account after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(a);
@@ -158,12 +166,20 @@ public class AccountService {
         });
     }
 
+    /**
+     * Registers the After Commit Deletion for deferred execution.
+     *
+     * @param id account identifier to remove from the index.
+     */
     private void registerAfterCommitDeletion(UUID id) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             deleteFromLucene(id);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Removes the account from the index after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 deleteFromLucene(id);
@@ -171,6 +187,11 @@ public class AccountService {
         });
     }
 
+    /**
+     * Removes the account document from the Lucene index.
+     *
+     * @param id account identifier.
+     */
     private void deleteFromLucene(UUID id) {
         if (id == null) {
             return;
@@ -183,6 +204,11 @@ public class AccountService {
         }
     }
 
+    /**
+     * Indexes an account in Lucene for search operations.
+     *
+     * @param a account entity to index.
+     */
     private void indexToLucene(Account a) {
         try {
             lucene.indexAccount(
@@ -198,10 +224,23 @@ public class AccountService {
         }
     }
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
     }

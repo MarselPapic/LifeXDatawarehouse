@@ -3,6 +3,9 @@ package at.htlle.freq.domain;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Installed Software instances.
+ */
 @Component
 public class InstalledSoftwareFactory {
     /**

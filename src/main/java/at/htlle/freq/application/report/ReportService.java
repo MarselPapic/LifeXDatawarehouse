@@ -125,6 +125,12 @@ public class ReportService {
         return sb.toString();
     }
 
+    /**
+     * Maps the supplied input into a Support Row representation.
+     * @param rs rs.
+     * @return the computed result.
+     * @throws SQLException if the operation cannot be completed.
+     */
     private Map<String, Object> mapSupportRow(ResultSet rs) throws SQLException {
         LocalDate supportStart = getLocalDate(rs, "SupportStartDate");
         LocalDate supportEnd = getLocalDate(rs, "SupportEndDate");
@@ -138,25 +144,50 @@ public class ReportService {
         row.put("name", rs.getString("Name"));
         row.put("release", rs.getString("Release"));
         row.put("revision", rs.getString("Revision"));
-        row.put("supportStart", supportStart != null ? formatDate(supportStart) : "—");
-        row.put("supportEnd", supportEnd != null ? formatDate(supportEnd) : "—");
-        row.put("daysRemaining", daysRemaining != null ? INT_FMT.format(daysRemaining) : "—");
+        row.put("supportStart", supportStart != null ? formatDate(supportStart) : "n/a");
+        row.put("supportEnd", supportEnd != null ? formatDate(supportEnd) : "n/a");
+        row.put("daysRemaining", daysRemaining != null ? INT_FMT.format(daysRemaining) : "n/a");
         return row;
     }
 
+    /**
+     * Copies rows into a mutable list to avoid downstream side effects.
+     *
+     * @param rows rows to copy.
+     * @return mutable list containing the same row maps.
+     */
     private List<Map<String, Object>> freezeRows(List<Map<String, Object>> rows) {
         return new LinkedList<>(rows);
     }
 
+    /**
+     * Retrieves a {@link LocalDate} from a SQL date column.
+     *
+     * @param rs result set.
+     * @param column column name to read.
+     * @return date value or null when the column is SQL NULL.
+     * @throws SQLException when JDBC access fails.
+     */
     private LocalDate getLocalDate(ResultSet rs, String column) throws SQLException {
         java.sql.Date value = rs.getDate(column);
         return value != null ? value.toLocalDate() : null;
     }
 
+    /**
+     * Formats the Date for presentation or export.
+     * @param date date.
+     * @return the computed result.
+     */
     private String formatDate(LocalDate date) {
         return DATE_FMT.format(date);
     }
 
+    /**
+     * Formats values for CSV output, with numeric formatting for numbers.
+     *
+     * @param value value to format.
+     * @return string representation suitable for export.
+     */
     private String valueToString(Object value) {
         if (value == null) {
             return "";
@@ -167,6 +198,11 @@ public class ReportService {
         return value.toString();
     }
 
+    /**
+     * Escapes the CSV for safe output.
+     * @param value value.
+     * @return the computed result.
+     */
     private String escapeCsv(String value) {
         if (value == null) {
             return "";

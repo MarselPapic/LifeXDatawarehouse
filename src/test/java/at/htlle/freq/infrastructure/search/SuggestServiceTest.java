@@ -47,7 +47,7 @@ class SuggestServiceTest {
     @Test
     void suggestReturnsTermsFromIndex() {
         lucene.indexAccount("acc-5", "Acme", "Austria", "contact@acme.test");
-        lucene.indexServer("srv-1", null, null, "Dell", null, null, null, null, null, false);
+        lucene.indexServer("srv-1", null, null, "Dell", null, null, null, null, null);
 
         List<String> suggestions = service.suggest("ac", 5);
         assertTrue(suggestions.stream().anyMatch(s -> s.equalsIgnoreCase("acme")));

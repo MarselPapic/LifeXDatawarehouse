@@ -24,6 +24,10 @@ public class LifeXDatawarehouseAppApplication {
          * (property {@code lifex.lucene.camel.enabled=false}) reindex calls must be triggered manually.
          * </p>
          */
+        /**
+         * Executes the main operation.
+         * @param args args.
+         */
         public static void main(String[] args) {
                 SpringApplication.run(LifeXDatawarehouseAppApplication.class, args);
         }

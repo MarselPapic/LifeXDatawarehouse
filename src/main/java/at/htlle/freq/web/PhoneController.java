@@ -1,7 +1,6 @@
 package at.htlle.freq.web;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -11,7 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /**
- * Fully featured CRUD controller for client phone integrations.
+ * Fully featured CRUD controller for site phone integrations.
  *
  * <p>All access goes through {@link NamedParameterJdbcTemplate}.</p>
  */
@@ -20,44 +19,51 @@ import java.util.*;
 public class PhoneController {
 
     private final NamedParameterJdbcTemplate jdbc;
-    private static final Logger log = LoggerFactory.getLogger(PhoneController.class);
+    private final AuditLogger audit;
     private static final String TABLE = "PhoneIntegration";
     private static final Set<String> UPDATE_WHITELIST = Set.of(
-            "ClientID",
+            "SiteID",
             "PhoneType",
             "PhoneBrand",
-            "PhoneSerialNr",
+            "InterfaceName",
+            "Capacity",
             "PhoneFirmware"
     );
 
-    public PhoneController(NamedParameterJdbcTemplate jdbc) {
+    /**
+     * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for phone integration queries.
+     */
+    public PhoneController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
-    // READ operations: list all integrations or filter by client
+    // READ operations: list all integrations or filter by site
     /**
-     * Lists phone integrations and optionally filters by client.
+     * Lists phone integrations and optionally filters by site.
      *
      * <p>Path: {@code GET /phones}</p>
-     * <p>Optional {@code clientId} query parameter narrows the result to a client.</p>
+     * <p>Optional {@code siteId} query parameter narrows the result to a site.</p>
      *
-     * @param clientId optional client ID.
+     * @param siteId optional site ID.
      * @return 200 OK with a JSON list of phone integrations.
      */
     @GetMapping
-    public List<Map<String, Object>> findByClient(@RequestParam(required = false) String clientId) {
-        if (clientId != null) {
+    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId) {
+        if (siteId != null) {
             return jdbc.queryForList("""
-                SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, 
-                       PhoneSerialNr, PhoneFirmware
+                SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand,
+                       InterfaceName, Capacity, PhoneFirmware
                 FROM PhoneIntegration
-                WHERE ClientID = :cid
-                """, new MapSqlParameterSource("cid", clientId));
+                WHERE SiteID = :sid
+                """, new MapSqlParameterSource("sid", siteId));
         }
 
         return jdbc.queryForList("""
-            SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, 
-                   PhoneSerialNr, PhoneFirmware
+            SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand,
+                   InterfaceName, Capacity, PhoneFirmware
             FROM PhoneIntegration
             """, new HashMap<>());
     }
@@ -73,8 +79,8 @@ public class PhoneController {
     @GetMapping("/{id}")
     public Map<String, Object> findById(@PathVariable String id) {
         var rows = jdbc.queryForList("""
-            SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, 
-                   PhoneSerialNr, PhoneFirmware
+            SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand,
+                   InterfaceName, Capacity, PhoneFirmware
             FROM PhoneIntegration
             WHERE PhoneIntegrationID = :id
             """, new MapSqlParameterSource("id", id));
@@ -104,12 +110,12 @@ public class PhoneController {
 
         String sql = """
             INSERT INTO PhoneIntegration
-            (ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware)
-            VALUES (:clientID, :phoneType, :phoneBrand, :phoneSerialNr, :phoneFirmware)
+            (SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware)
+            VALUES (:siteID, :phoneType, :phoneBrand, :interfaceName, :capacity, :phoneFirmware)
             """;
 
         jdbc.update(sql, new MapSqlParameterSource(body));
-        log.info("[{}] create succeeded: identifiers={}, keys={}", TABLE, extractIdentifiers(body), body.keySet());
+        audit.created(TABLE, extractIdentifiers(body), body);
     }
 
     // UPDATE operations
@@ -133,7 +139,6 @@ public class PhoneController {
         for (Map.Entry<String, Object> entry : body.entrySet()) {
             String key = entry.getKey();
             if (!UPDATE_WHITELIST.contains(key)) {
-                log.warn("[{}] update rejected due to invalid column: {}", TABLE, key);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid column: " + key);
             }
             filteredBody.put(key, entry.getValue());
@@ -155,10 +160,9 @@ public class PhoneController {
         int updated = jdbc.update(sql, params);
 
         if (updated == 0) {
-            log.warn("[{}] update failed: identifiers={}, payloadKeys={}", TABLE, Map.of("PhoneIntegrationID", id), filteredBody.keySet());
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration updated");
         }
-        log.info("[{}] update succeeded: identifiers={}, keys={}", TABLE, Map.of("PhoneIntegrationID", id), filteredBody.keySet());
+        audit.updated(TABLE, Map.of("PhoneIntegrationID", id), filteredBody);
     }
 
     // DELETE operations
@@ -177,12 +181,17 @@ public class PhoneController {
                 new MapSqlParameterSource("id", id));
 
         if (count == 0) {
-            log.warn("[{}] delete failed: identifiers={}", TABLE, Map.of("PhoneIntegrationID", id));
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration deleted");
         }
-        log.info("[{}] delete succeeded: identifiers={}", TABLE, Map.of("PhoneIntegrationID", id));
+        audit.deleted(TABLE, Map.of("PhoneIntegrationID", id));
     }
 
+    /**
+     * Extracts identifier-like entries from the payload for logging.
+     *
+     * @param body request payload.
+     * @return key/value pairs whose names end with {@code id} (case-insensitive).
+     */
     private Map<String, Object> extractIdentifiers(Map<String, Object> body) {
         Map<String, Object> ids = new LinkedHashMap<>();
         body.forEach((key, value) -> {

@@ -21,6 +21,11 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a repository backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for installed software queries.
+     */
     public JdbcInstalledSoftwareRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<InstalledSoftware> mapper = (rs, n) -> {
@@ -52,6 +57,12 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             toIso(rs.getObject("OutdatedDate", LocalDate.class))
     );
 
+    /**
+     * Loads an installation record by its primary key.
+     *
+     * @param id identifier of the installed software row.
+     * @return optional installed software record when found.
+     */
     @Override
     public Optional<InstalledSoftware> findById(UUID id) {
         String sql = """
@@ -63,6 +74,12 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Lists installation records assigned to a site.
+     *
+     * @param siteId site identifier.
+     * @return installations found for the site.
+     */
     @Override
     public List<InstalledSoftware> findBySite(UUID siteId) {
         String sql = """
@@ -73,6 +90,12 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
 
+    /**
+     * Builds an overview projection for a site with joined software and site metadata.
+     *
+     * @param siteId site identifier.
+     * @return overview entries ordered by software name and version.
+     */
     @Override
     public List<SiteSoftwareOverview> findOverviewBySite(UUID siteId) {
         String sql = """
@@ -97,6 +120,12 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), overviewMapper);
     }
 
+    /**
+     * Lists installation records for a specific software release.
+     *
+     * @param softwareId software identifier.
+     * @return installations referencing the software.
+     */
     @Override
     public List<InstalledSoftware> findBySoftware(UUID softwareId) {
         String sql = """
@@ -107,6 +136,11 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         return jdbc.query(sql, new MapSqlParameterSource("sw", softwareId), mapper);
     }
 
+    /**
+     * Retrieves all installation records.
+     *
+     * @return all installed software rows.
+     */
     @Override
     public List<InstalledSoftware> findAll() {
         return jdbc.query("""
@@ -116,6 +150,11 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             """, mapper);
     }
 
+    /**
+     * Deletes an installation record by its primary key.
+     *
+     * @param id identifier of the installed software row.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM InstalledSoftware WHERE InstalledSoftwareID = :id";
@@ -180,14 +219,33 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         return isw;
     }
 
+    /**
+     * Formats a {@link LocalDate} as an ISO-8601 date string.
+     *
+     * @param value date value, may be null.
+     * @return ISO-8601 date string or null.
+     */
     private String toIso(LocalDate value) {
         return value != null ? value.toString() : null;
     }
 
+    /**
+     * Parses an ISO-8601 date string into a {@link LocalDate}.
+     *
+     * @param iso ISO-8601 date string or blank/null.
+     * @return parsed date or null when input is blank.
+     */
     private LocalDate parseDate(String iso) {
         return (iso == null || iso.isBlank()) ? null : LocalDate.parse(iso);
     }
 
+    /**
+     * Converts a generated key value into a {@link UUID}.
+     *
+     * @param value generated key value returned by JDBC.
+     * @return UUID representation of the value.
+     * @throws IllegalStateException when the value type is unsupported.
+     */
     private UUID toUuid(Object value) {
         if (value instanceof UUID uuid) {
             return uuid;

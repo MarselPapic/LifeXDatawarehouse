@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -51,10 +52,13 @@ class SiteControllerIntegrationTest {
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("projectID", projectId);
+        payload.put("projectIds", List.of(projectId));
         payload.put("addressID", addressId);
         payload.put("siteName", siteName);
         payload.put("fireZone", "Zulu");
         payload.put("tenantCount", 12);
+        payload.put("redundantServers", 3);
+        payload.put("highAvailability", true);
         payload.put("softwareAssignments", List.of(
                 Map.of(
                         "softwareId", softwareInstalled,
@@ -79,7 +83,8 @@ class SiteControllerIntegrationTest {
                        ProjectID AS project,
                        AddressID AS address,
                        FireZone  AS zone,
-                       TenantCount AS tenants
+                       TenantCount AS tenants,
+                       RedundantServers AS redundant
                 FROM Site
                 WHERE SiteName = :name
                 """, new MapSqlParameterSource("name", siteName));
@@ -90,6 +95,15 @@ class SiteControllerIntegrationTest {
         assertEquals(addressId, siteRow.get("address"));
         assertEquals("Zulu", siteRow.get("zone"));
         assertEquals(12, siteRow.get("tenants"));
+        assertEquals(3, siteRow.get("redundant"));
+
+        List<Map<String, Object>> links = jdbc.queryForList("""
+                SELECT ProjectID
+                FROM ProjectSite
+                WHERE SiteID = :sid
+                """, new MapSqlParameterSource("sid", generatedSiteId));
+        assertEquals(1, links.size());
+        assertEquals(projectId, links.get(0).get("ProjectID"));
 
         List<Map<String, Object>> assignments = jdbc.queryForList("""
                 SELECT InstalledSoftwareID AS id,
@@ -132,8 +146,91 @@ class SiteControllerIntegrationTest {
         mockMvc.perform(get("/sites/{id}/detail", siteId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.SiteID").value(siteId))
+                .andExpect(jsonPath("$.ProjectIDs").isArray())
                 .andExpect(jsonPath("$.softwareAssignments").isArray())
                 .andExpect(jsonPath("$.softwareAssignments[0].installedSoftwareId").exists());
+    }
+
+    @Test
+    void detailEndpointRejectsInvalidId() throws Exception {
+        mockMvc.perform(get("/sites/{id}/detail", "bad-id"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("SiteID must be a valid UUID"));
+    }
+
+    @Test
+    void softwareOverviewRejectsInvalidId() throws Exception {
+        mockMvc.perform(get("/sites/{id}/software", "bad-id"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("SiteID must be a valid UUID"));
+    }
+
+    @Test
+    void softwareSummaryRejectsUnknownStatus() throws Exception {
+        mockMvc.perform(get("/sites/software-summary").queryParam("status", "NotAStatus"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Unsupported installed software status: NotAStatus"));
+    }
+
+    @Test
+    @Transactional
+    void updateReplacesProjectAssignmentsWithoutDuplicates() throws Exception {
+        UUID siteId = UUID.fromString("9356ae01-fce4-4d24-84ca-080000000001");
+        UUID newProject = UUID.fromString("2b0d9a59-e2b6-4fbe-b257-070000000002");
+
+        Map<String, Object> payload = Map.of("projectIds", List.of(newProject, newProject));
+
+        mockMvc.perform(post("/sites/{id}", siteId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/sites/{id}", siteId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isOk());
+
+        List<Map<String, Object>> assignments = jdbc.queryForList("""
+                SELECT ProjectID
+                FROM ProjectSite
+                WHERE SiteID = :sid
+                """, new MapSqlParameterSource("sid", siteId));
+        assertEquals(1, assignments.size(), "duplicate assignments should be ignored");
+        assertEquals(newProject, assignments.get(0).get("ProjectID"));
+
+        UUID siteProjectColumn = jdbc.queryForObject("SELECT ProjectID FROM Site WHERE SiteID = :sid",
+                new MapSqlParameterSource("sid", siteId), UUID.class);
+        assertEquals(newProject, siteProjectColumn);
+    }
+
+    @Test
+    @Transactional
+    void deleteRemovesProjectSiteLinks() throws Exception {
+        UUID siteId = UUID.fromString("7e723334-3ac1-454c-8e6d-080000000002");
+        MapSqlParameterSource params = new MapSqlParameterSource("sid", siteId);
+        jdbc.update("DELETE FROM AudioDevice WHERE ClientID IN (SELECT ClientID FROM Clients WHERE SiteID = :sid)", params);
+        jdbc.update("DELETE FROM Radio WHERE SiteID = :sid OR AssignedClientID IN (SELECT ClientID FROM Clients WHERE SiteID = :sid)", params);
+        jdbc.update("DELETE FROM PhoneIntegration WHERE SiteID = :sid", params);
+        jdbc.update("DELETE FROM InstalledSoftware WHERE SiteID = :sid", params);
+        jdbc.update("DELETE FROM UpgradePlan WHERE SiteID = :sid", params);
+        jdbc.update("DELETE FROM ServiceContract WHERE SiteID = :sid", params);
+        jdbc.update("DELETE FROM Clients WHERE SiteID = :sid", params);
+        jdbc.update("DELETE FROM Server WHERE SiteID = :sid", params);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/sites/{id}", siteId))
+                .andExpect(status().isNoContent());
+
+        Integer remaining = jdbc.queryForObject("SELECT COUNT(*) FROM ProjectSite WHERE SiteID = :sid",
+                new MapSqlParameterSource("sid", siteId), Integer.class);
+        assertEquals(0, remaining);
+    }
+
+    @Test
+    void deleteRejectsInvalidId() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/sites/{id}", "bad-id"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("SiteID must be a valid UUID"));
     }
 
     private String toIso(Object value) {

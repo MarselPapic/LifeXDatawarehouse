@@ -17,6 +17,10 @@ public class JdbcClientsRepository implements ClientsRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcClientsRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcClientsRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Clients> mapper = (rs, n) -> new Clients(
@@ -27,13 +31,21 @@ public class JdbcClientsRepository implements ClientsRepository {
             rs.getString("ClientSerialNr"),
             rs.getString("ClientOS"),
             rs.getString("PatchLevel"),
-            rs.getString("InstallType")
+            rs.getString("InstallType"),
+            rs.getString("WorkingPositionType"),
+            rs.getString("OtherInstalledSoftware")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Clients> findById(UUID id) {
         String sql = """
-            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType
+            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType,
+                   WorkingPositionType, OtherInstalledSoftware
             FROM Clients WHERE ClientID = :id
             """;
         try {
@@ -45,19 +57,30 @@ public class JdbcClientsRepository implements ClientsRepository {
         }
     }
 
+    /**
+     * Finds By Site using the supplied criteria and returns the matching data.
+     * @param siteId site identifier.
+     * @return the matching By Site.
+     */
     @Override
     public List<Clients> findBySite(UUID siteId) {
         String sql = """
-            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType
+            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType,
+                   WorkingPositionType, OtherInstalledSoftware
             FROM Clients WHERE SiteID = :sid
             """;
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Clients> findAll() {
         return jdbc.query("""
-            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType
+            SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType,
+                   WorkingPositionType, OtherInstalledSoftware
             FROM Clients
             """, mapper);
     }
@@ -85,8 +108,9 @@ public class JdbcClientsRepository implements ClientsRepository {
 
             String sql = """
                 INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand,
-                                     ClientSerialNr, ClientOS, PatchLevel, InstallType)
-                VALUES (:id, :site, :name, :brand, :sn, :os, :pl, :it)
+                                     ClientSerialNr, ClientOS, PatchLevel, InstallType,
+                                     WorkingPositionType, OtherInstalledSoftware)
+                VALUES (:id, :site, :name, :brand, :sn, :os, :pl, :it, :wpt, :otherSw)
                 """;
 
             jdbc.update(sql, new MapSqlParameterSource()
@@ -97,7 +121,9 @@ public class JdbcClientsRepository implements ClientsRepository {
                     .addValue("sn", c.getClientSerialNr())
                     .addValue("os", c.getClientOS())
                     .addValue("pl", c.getPatchLevel())
-                    .addValue("it", c.getInstallType()));
+                    .addValue("it", c.getInstallType())
+                    .addValue("wpt", c.getWorkingPositionType())
+                    .addValue("otherSw", c.getOtherInstalledSoftware()));
         } else {
             String sql = """
                 UPDATE Clients SET
@@ -107,7 +133,9 @@ public class JdbcClientsRepository implements ClientsRepository {
                     ClientSerialNr = :sn,
                     ClientOS = :os,
                     PatchLevel = :pl,
-                    InstallType = :it
+                    InstallType = :it,
+                    WorkingPositionType = :wpt,
+                    OtherInstalledSoftware = :otherSw
                 WHERE ClientID = :id
                 """;
 
@@ -119,7 +147,9 @@ public class JdbcClientsRepository implements ClientsRepository {
                     .addValue("sn", c.getClientSerialNr())
                     .addValue("os", c.getClientOS())
                     .addValue("pl", c.getPatchLevel())
-                    .addValue("it", c.getInstallType()));
+                    .addValue("it", c.getInstallType())
+                    .addValue("wpt", c.getWorkingPositionType())
+                    .addValue("otherSw", c.getOtherInstalledSoftware()));
         }
 
         return c;

@@ -1,6 +1,7 @@
 // src/main/java/at/htlle/freq/infrastructure/camel/LuceneIndexingHubRoute.java
 package at.htlle.freq.infrastructure.camel;
 
+import at.htlle.freq.application.ProjectSiteAssignmentService;
 import at.htlle.freq.domain.*;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import org.apache.camel.Exchange;
@@ -9,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 /*
  * Camel routing hub for all Lucene write operations.
@@ -28,15 +31,25 @@ import org.springframework.stereotype.Component;
  *  - Serves as the bridge between Camel and LuceneIndexServiceImpl.
  *  - Consumes entities from the repositories (see UnifiedIndexingRoutes) and mirrors their structure one-to-one in the indexing methods.
  */
+/**
+ * Component that provides Lucene Indexing Hub Route behavior.
+ */
 @Component("LuceneIndexingHubRoute")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
 public class LuceneIndexingHubRoute extends RouteBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(LuceneIndexingHubRoute.class);
     private final LuceneIndexService lucene;
+    private final ProjectSiteAssignmentService projectSites;
 
-    public LuceneIndexingHubRoute(LuceneIndexService lucene) {
+    /**
+     * Creates a new LuceneIndexingHubRoute instance and initializes it with the provided values.
+     * @param lucene lucene.
+     * @param projectSites project sites.
+     */
+    public LuceneIndexingHubRoute(LuceneIndexService lucene, ProjectSiteAssignmentService projectSites) {
         this.lucene = lucene;
+        this.projectSites = projectSites;
     }
 
     @Override
@@ -90,7 +103,8 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 d.getAudioDeviceBrand(),
                                 d.getDeviceSerialNr(),
                                 d.getAudioDeviceFirmware(),
-                                d.getDeviceType()
+                                d.getDeviceType(),
+                                d.getDirection()
                         );
                         return;
                     }
@@ -107,7 +121,9 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 c.getClientName(),
                                 c.getClientBrand(),
                                 c.getClientOS(),
-                                c.getInstallType()
+                                c.getInstallType(),
+                                c.getWorkingPositionType(),
+                                c.getOtherInstalledSoftware()
                         );
                         return;
                     }
@@ -145,10 +161,11 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                     if (body instanceof PhoneIntegration p) {
                         lucene.indexPhoneIntegration(
                                 p.getPhoneIntegrationID() != null ? p.getPhoneIntegrationID().toString() : null,
-                                p.getClientID() != null ? p.getClientID().toString() : null,
+                                p.getSiteID() != null ? p.getSiteID().toString() : null,
                                 p.getPhoneType(),
                                 p.getPhoneBrand(),
-                                p.getPhoneSerialNr(),
+                                p.getInterfaceName(),
+                                p.getCapacity(),
                                 p.getPhoneFirmware()
                         );
                         return;
@@ -163,7 +180,8 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 p.getBundleType(),
                                 p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null,
                                 p.getAccountID() != null ? p.getAccountID().toString() : null,
-                                p.getAddressID() != null ? p.getAddressID().toString() : null
+                                p.getAddressID() != null ? p.getAddressID().toString() : null,
+                                p.getSpecialNotes()
                         );
                         return;
                     }
@@ -191,8 +209,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 s.getServerOS(),
                                 s.getPatchLevel(),
                                 s.getVirtualPlatform(),
-                                s.getVirtualVersion(),
-                                s.isHighAvailability()
+                                s.getVirtualVersion()
                         );
                         return;
                     }
@@ -214,11 +231,15 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                     if (body instanceof Site s) {
                         lucene.indexSite(
                                 s.getSiteID() != null ? s.getSiteID().toString() : null,
-                                s.getProjectID() != null ? s.getProjectID().toString() : null,
+                                projectSites.getProjectsForSite(s.getSiteID()).stream()
+                                        .map(UUID::toString)
+                                        .toList(),
                                 s.getAddressID() != null ? s.getAddressID().toString() : null,
                                 s.getSiteName(),
                                 s.getFireZone(),
-                                s.getTenantCount()
+                                s.getTenantCount(),
+                                s.getRedundantServers(),
+                                s.isHighAvailability()
                         );
                         return;
                     }

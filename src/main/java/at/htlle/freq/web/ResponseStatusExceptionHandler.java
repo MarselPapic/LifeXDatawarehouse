@@ -20,6 +20,13 @@ public class ResponseStatusExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ResponseStatusExceptionHandler.class);
 
+    /**
+     * Logs a {@link ResponseStatusException} with request metadata and returns the HTTP response.
+     *
+     * @param ex exception carrying the HTTP status and reason.
+     * @param request request context used to resolve the request path.
+     * @return response entity with the status code and optional reason text.
+     */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Object> handle(ResponseStatusException ex, WebRequest request) {
         String requestId = MDC.get("requestId");

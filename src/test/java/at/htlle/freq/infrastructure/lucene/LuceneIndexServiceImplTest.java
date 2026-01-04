@@ -60,7 +60,7 @@ class LuceneIndexServiceImplTest {
     void indexAndSearchRoundTrip() throws Exception {
         // Arrange: index both an account and a project so the search has relevant content
         service.indexAccount("acc-1", "Acme", "Austria", "contact@acme.test");
-        service.indexProject("proj-1", "SAP-1", "HQ", null, null, "ACTIVE", null, null);
+        service.indexProject("proj-1", "SAP-1", "HQ", null, null, "ACTIVE", null, null, null);
 
         // Act: execute a Lucene query that should match the stored account document
         List<SearchHit> hits = service.search(new QueryParser("content", new org.apache.lucene.analysis.standard.StandardAnalyzer())

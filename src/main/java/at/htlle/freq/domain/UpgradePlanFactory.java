@@ -5,6 +5,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Upgrade Plan instances.
+ */
 @Component
 public class UpgradePlanFactory {
     /**

@@ -4,6 +4,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Service Contract instances.
+ */
 @Component
 public class ServiceContractFactory {
     /**

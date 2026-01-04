@@ -3,10 +3,13 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.ClientsService;
 import at.htlle.freq.domain.Clients;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,9 +22,16 @@ import java.util.UUID;
 public class ClientController {
 
     private final ClientsService service;
+    private final AuditLogger audit;
 
-    public ClientController(ClientsService service) {
+    /**
+     * Creates a controller that delegates client operations to {@link ClientsService}.
+     *
+     * @param service service used for client CRUD operations.
+     */
+    public ClientController(ClientsService service, AuditLogger audit) {
         this.service = service;
+        this.audit = audit;
     }
 
     /**
@@ -54,6 +64,9 @@ public class ClientController {
     public ResponseEntity<?> create(@RequestBody Clients client) {
         try {
             Clients saved = service.create(client);
+            Map<String, Object> identifiers = new HashMap<>();
+            identifiers.put("ClientID", saved.getClientID());
+            audit.created("Client", identifiers, saved);
             return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());

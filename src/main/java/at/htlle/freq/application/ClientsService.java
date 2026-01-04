@@ -122,6 +122,8 @@ public class ClientsService {
         existing.setClientOS(nvl(patch.getClientOS(), existing.getClientOS()));
         existing.setPatchLevel(nvl(patch.getPatchLevel(), existing.getPatchLevel()));
         existing.setInstallType(nvl(patch.getInstallType(), existing.getInstallType()));
+        existing.setWorkingPositionType(nvl(patch.getWorkingPositionType(), existing.getWorkingPositionType()));
+        existing.setOtherInstalledSoftware(nvl(patch.getOtherInstalledSoftware(), existing.getOtherInstalledSoftware()));
 
         repo.save(existing);
         registerAfterCommitIndexing(existing);
@@ -135,33 +137,14 @@ public class ClientsService {
 // Deletion support would be useful, but the Lucene integration cannot remove entries yet,
 // therefore the controller does not expose a delete endpoint at this time.
 // ----------------------------
-/*
-    @Transactional
-    public boolean delete(UUID id) {
-        Objects.requireNonNull(id, "id must not be null");
-
-        var existing = repo.findById(id);
-        if (existing.isEmpty()) {
-            return false;
-        }
-
-        repo.deleteById(id);
-        log.info("Client deleted: id={}", id);
-
-        // Optionally remove the Lucene entry once the Lucene service offers delete support.
-        try {
-            lucene.deleteClient(id.toString());
-        } catch (Exception e) {
-            log.warn("Lucene deletion for client {} failed", id, e);
-        }
-
-        return true;
-    }
- */
     // ----------------------------
     // Lucene Indexing Helpers
     // ----------------------------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param c c.
+     */
     private void registerAfterCommitIndexing(Clients c) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(c);
@@ -172,6 +155,10 @@ public class ClientsService {
         });
     }
 
+    /**
+     * Indexes the To Lucene for search operations.
+     * @param c c.
+     */
     private void indexToLucene(Clients c) {
         try {
             lucene.indexClient(
@@ -180,7 +167,9 @@ public class ClientsService {
                     c.getClientName(),
                     c.getClientBrand(),
                     c.getClientOS(),
-                    c.getInstallType()
+                    c.getInstallType(),
+                    c.getWorkingPositionType(),
+                    c.getOtherInstalledSoftware()
             );
             log.debug("Client indexed in Lucene: id={}", c.getClientID());
         } catch (Exception e) {
@@ -193,7 +182,20 @@ public class ClientsService {
     // Utility
     // ----------------------------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static <T> T nvl(T in, T fallback) { return in != null ? in : fallback; }
 }

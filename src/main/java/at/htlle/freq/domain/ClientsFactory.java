@@ -3,6 +3,9 @@ package at.htlle.freq.domain;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Clients instances.
+ */
 @Component
 public class ClientsFactory {
     /**
@@ -21,6 +24,26 @@ public class ClientsFactory {
      */
     public Clients create(UUID siteID, String clientName, String clientBrand, String clientSerialNr,
                           String clientOS, String patchLevel, String installType) {
-        return new Clients(null, siteID, clientName, clientBrand, clientSerialNr, clientOS, patchLevel, installType);
+        return create(siteID, clientName, clientBrand, clientSerialNr, clientOS, patchLevel, installType, null, null);
+    }
+
+    /**
+     * Creates a new record and persists it.
+     * @param siteID site identifier.
+     * @param clientName client name.
+     * @param clientBrand client brand.
+     * @param clientSerialNr client serial nr.
+     * @param clientOS client os.
+     * @param patchLevel patch level.
+     * @param installType install type.
+     * @param workingPositionType working position type.
+     * @param otherInstalledSoftware other installed software.
+     * @return the computed result.
+     */
+    public Clients create(UUID siteID, String clientName, String clientBrand, String clientSerialNr,
+                          String clientOS, String patchLevel, String installType,
+                          String workingPositionType, String otherInstalledSoftware) {
+        return new Clients(null, siteID, clientName, clientBrand, clientSerialNr, clientOS, patchLevel, installType,
+                workingPositionType, otherInstalledSoftware);
     }
 }

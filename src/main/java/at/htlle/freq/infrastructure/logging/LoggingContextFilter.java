@@ -66,6 +66,11 @@ public class LoggingContextFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Resolves the Request ID from the supplied input.
+     * @param request request.
+     * @return resolved request identifier.
+     */
     private String resolveRequestId(HttpServletRequest request) {
         String headerValue = Optional.ofNullable(request.getHeader(HEADER_REQUEST_ID))
                 .map(String::trim)
@@ -82,6 +87,12 @@ public class LoggingContextFilter extends OncePerRequestFilter {
         return UUID.randomUUID().toString();
     }
 
+    /**
+     * Validates whether a request ID is safe to log and propagate.
+     *
+     * @param candidate candidate request ID value.
+     * @return true when the request ID matches the safety rules.
+     */
     private boolean isSafeRequestId(String candidate) {
         if (candidate.isEmpty() || candidate.length() > MAX_REQUEST_ID_LENGTH) {
             return false;
@@ -92,6 +103,12 @@ public class LoggingContextFilter extends OncePerRequestFilter {
         return PRINTABLE_REQUEST_ID_PATTERN.matcher(candidate).matches();
     }
 
+    /**
+     * Resolves the user label for logging and MDC.
+     *
+     * @param request incoming HTTP request.
+     * @return user label derived from security principal or headers.
+     */
     private String resolveUser(HttpServletRequest request) {
         Principal principal = request.getUserPrincipal();
         if (principal != null) {

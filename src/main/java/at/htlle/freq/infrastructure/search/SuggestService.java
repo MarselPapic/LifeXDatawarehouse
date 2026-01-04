@@ -29,6 +29,11 @@ public class SuggestService {
     private final LuceneIndexService lucene;
     private static final Logger log = LoggerFactory.getLogger(SuggestService.class);
 
+    /**
+     * Creates a suggestion service backed by {@link LuceneIndexService}.
+     *
+     * @param lucene Lucene index service used to locate the index directory.
+     */
     public SuggestService(LuceneIndexService lucene) {
         this.lucene = lucene;
     }
@@ -39,7 +44,13 @@ public class SuggestService {
             "content"
     );
 
-    /** Returns up to {@code max} suggestions whose terms begin with the provided {@code prefix}. */
+    /**
+     * Returns up to {@code max} suggestions whose terms begin with the provided prefix.
+     *
+     * @param prefix user-entered prefix.
+     * @param max maximum number of suggestions to return.
+     * @return list of suggestions ordered by discovery.
+     */
     public List<String> suggest(String prefix, int max) {
         if (prefix == null) return List.of();
         String pfx = prefix.toLowerCase(Locale.ROOT);

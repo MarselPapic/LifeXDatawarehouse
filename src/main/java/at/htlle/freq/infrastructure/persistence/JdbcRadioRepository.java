@@ -17,6 +17,10 @@ public class JdbcRadioRepository implements RadioRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcRadioRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcRadioRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Radio> mapper = (rs, n) -> new Radio(
@@ -29,6 +33,11 @@ public class JdbcRadioRepository implements RadioRepository {
             rs.getString("DigitalStandard")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Radio> findById(UUID id) {
         String sql = """
@@ -39,6 +48,11 @@ public class JdbcRadioRepository implements RadioRepository {
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Site using the supplied criteria and returns the matching data.
+     * @param siteId site identifier.
+     * @return the matching By Site.
+     */
     @Override
     public List<Radio> findBySite(UUID siteId) {
         String sql = """
@@ -48,6 +62,10 @@ public class JdbcRadioRepository implements RadioRepository {
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Radio> findAll() {
         return jdbc.query("""
@@ -56,6 +74,10 @@ public class JdbcRadioRepository implements RadioRepository {
             """, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Radio WHERE RadioID = :id";

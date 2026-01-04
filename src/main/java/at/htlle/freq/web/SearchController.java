@@ -28,6 +28,13 @@ public class SearchController {
     private final SmartQueryBuilder smart;
     private final SuggestService suggest;
 
+    /**
+     * Creates a controller that delegates search and suggestion operations to Lucene services.
+     *
+     * @param lucene index service used for query execution.
+     * @param smart query builder for user-friendly search input.
+     * @param suggest suggestion service for autocomplete results.
+     */
     public SearchController(LuceneIndexService lucene,
                             SmartQueryBuilder smart,
                             SuggestService suggest) {
@@ -75,6 +82,12 @@ public class SearchController {
         }
     }
 
+    /**
+     * Normalizes a type filter to lower-case or returns null when empty.
+     *
+     * @param type raw type filter value.
+     * @return normalized type or null when absent.
+     */
     private static String normalizeType(String type) {
         if (type == null) {
             return null;
@@ -86,6 +99,13 @@ public class SearchController {
         return trimmed.toLowerCase();
     }
 
+    /**
+     * Appends a type filter to the query string when provided.
+     *
+     * @param query original query string.
+     * @param normalizedType normalized type filter.
+     * @return query string with an appended type clause.
+     */
     private static String appendTypeFilter(String query, String normalizedType) {
         if (normalizedType == null) {
             return query;

@@ -10,51 +10,74 @@ import java.util.*;
 
 /**
  * JDBC repository for {@link PhoneIntegration} that operates on the {@code PhoneIntegration}
- * table and manages phone integrations for individual clients.
+ * table and manages phone integrations for sites.
  */
 @Repository
 public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcPhoneIntegrationRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcPhoneIntegrationRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<PhoneIntegration> mapper = (rs, n) -> new PhoneIntegration(
             rs.getObject("PhoneIntegrationID", UUID.class),
-            rs.getObject("ClientID", UUID.class),
+            rs.getObject("SiteID", UUID.class),
             rs.getString("PhoneType"),
             rs.getString("PhoneBrand"),
-            rs.getString("PhoneSerialNr"),
+            rs.getString("InterfaceName"),
+            rs.getObject("Capacity", Integer.class),
             rs.getString("PhoneFirmware")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<PhoneIntegration> findById(UUID id) {
         String sql = """
-            SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware
+            SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware
             FROM PhoneIntegration WHERE PhoneIntegrationID = :id
             """;
         try { return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)); }
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Site using the supplied criteria and returns the matching data.
+     * @param siteId site identifier.
+     * @return the matching By Site.
+     */
     @Override
-    public List<PhoneIntegration> findByClient(UUID clientId) {
+    public List<PhoneIntegration> findBySite(UUID siteId) {
         String sql = """
-            SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware
-            FROM PhoneIntegration WHERE ClientID = :cid
+            SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware
+            FROM PhoneIntegration WHERE SiteID = :sid
             """;
-        return jdbc.query(sql, new MapSqlParameterSource("cid", clientId), mapper);
+        return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<PhoneIntegration> findAll() {
         return jdbc.query("""
-            SELECT PhoneIntegrationID, ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware
+            SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware
             FROM PhoneIntegration
             """, mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM PhoneIntegration WHERE PhoneIntegrationID = :id";
@@ -78,30 +101,32 @@ public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepositor
         boolean isNew = p.getPhoneIntegrationID() == null;
         if (isNew) {
             String sql = """
-                INSERT INTO PhoneIntegration (ClientID, PhoneType, PhoneBrand, PhoneSerialNr, PhoneFirmware)
-                VALUES (:client, :type, :brand, :sn, :fw)
+                INSERT INTO PhoneIntegration (SiteID, PhoneType, PhoneBrand, InterfaceName, Capacity, PhoneFirmware)
+                VALUES (:site, :type, :brand, :iface, :cap, :fw)
                 RETURNING PhoneIntegrationID
                 """;
             UUID id = jdbc.queryForObject(sql, new MapSqlParameterSource()
-                    .addValue("client", p.getClientID())
+                    .addValue("site", p.getSiteID())
                     .addValue("type", p.getPhoneType())
                     .addValue("brand", p.getPhoneBrand())
-                    .addValue("sn", p.getPhoneSerialNr())
+                    .addValue("iface", p.getInterfaceName())
+                    .addValue("cap", p.getCapacity())
                     .addValue("fw", p.getPhoneFirmware()), UUID.class);
             p.setPhoneIntegrationID(id);
         } else {
             String sql = """
                 UPDATE PhoneIntegration SET
-                    ClientID = :client, PhoneType = :type, PhoneBrand = :brand,
-                    PhoneSerialNr = :sn, PhoneFirmware = :fw
+                    SiteID = :site, PhoneType = :type, PhoneBrand = :brand,
+                    InterfaceName = :iface, Capacity = :cap, PhoneFirmware = :fw
                 WHERE PhoneIntegrationID = :id
                 """;
             jdbc.update(sql, new MapSqlParameterSource()
                     .addValue("id", p.getPhoneIntegrationID())
-                    .addValue("client", p.getClientID())
+                    .addValue("site", p.getSiteID())
                     .addValue("type", p.getPhoneType())
                     .addValue("brand", p.getPhoneBrand())
-                    .addValue("sn", p.getPhoneSerialNr())
+                    .addValue("iface", p.getInterfaceName())
+                    .addValue("cap", p.getCapacity())
                     .addValue("fw", p.getPhoneFirmware()));
         }
         return p;

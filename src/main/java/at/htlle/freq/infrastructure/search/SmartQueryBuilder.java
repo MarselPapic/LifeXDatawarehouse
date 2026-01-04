@@ -71,6 +71,12 @@ public class SmartQueryBuilder {
         return build(userInput, null);
     }
 
+    /**
+     * Builds the value from the supplied inputs.
+     * @param userInput user input.
+     * @param typeFilter type filter.
+     * @return the built value.
+     */
     public Query build(String userInput, String typeFilter) {
         try {
             QueryParser p = new QueryParser(DEFAULT_FIELD, ANALYZER);
@@ -98,6 +104,11 @@ public class SmartQueryBuilder {
         }
     }
 
+    /**
+     * Normalizes the Type to a canonical form.
+     * @param typeFilter type filter.
+     * @return the computed result.
+     */
     private static String normalizeType(String typeFilter) {
         if (typeFilter == null) {
             return null;

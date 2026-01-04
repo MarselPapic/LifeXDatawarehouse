@@ -280,10 +280,10 @@ public final class SeedDataGenerator {
         List<String> bundleTypes = List.of("Premium", "Standard", "Hybrid", "Edge");
         List<Project> projects = new ArrayList<>();
         List<ProjectLifecycleStatus> lifecycleStatuses = List.of(
+                ProjectLifecycleStatus.OFFERED,
                 ProjectLifecycleStatus.ACTIVE,
                 ProjectLifecycleStatus.MAINTENANCE,
-                ProjectLifecycleStatus.PLANNED,
-                ProjectLifecycleStatus.RETIRED
+                ProjectLifecycleStatus.EOL
         );
         for (int i = 0; i < 38; i++) {
             String sapId = "PX-" + (2101 + i);
@@ -321,6 +321,7 @@ public final class SeedDataGenerator {
                 String name = project.projectName().replace("Project", "")
                         .trim() + " Hub " + (i + 1);
                 int tenants = 6 + RANDOM.nextInt(20);
+                int redundant = Math.max(1, tenants / 10);
                 String fireZone = zoneCodes.get((siteCounter + i) % zoneCodes.size());
                 sites.add(new Site(
                         generateId(EntityType.SITE),
@@ -328,7 +329,9 @@ public final class SeedDataGenerator {
                         project.id(),
                         address.id(),
                         fireZone,
-                        tenants
+                        tenants,
+                        redundant,
+                        redundant > 1
                 ));
             }
             siteCounter++;
@@ -351,7 +354,6 @@ public final class SeedDataGenerator {
             String patchLevel = "2025." + String.format(Locale.ROOT, "%02d", (i % 12) + 1);
             String platform = virtualPlatforms.get(i % virtualPlatforms.size());
             String platformVersion = platform.equals("BareMetal") ? null : (platform.equals("vSphere") ? "8.0" : "2022");
-            boolean highAvailability = i % 2 == 0;
             servers.add(new Server(
                     generateId(EntityType.SERVER),
                     site.id(),
@@ -361,8 +363,7 @@ public final class SeedDataGenerator {
                     os,
                     patchLevel,
                     platform,
-                    platformVersion,
-                    highAvailability
+                    platformVersion
             ));
         }
         return servers;
@@ -424,6 +425,7 @@ public final class SeedDataGenerator {
         List<String> brands = List.of("Jabra", "Bose", "Poly", "Sennheiser", "Logitech");
         List<String> firmwares = List.of("1.0.5", "2.1.3", "3.0.1", "4.2.0");
         List<String> types = List.of("HEADSET", "SPEAKER", "MIC");
+        List<String> directions = List.of("Input", "Output", "Input + Output");
         List<AudioDevice> devices = new ArrayList<>();
         for (int i = 0; i < 36; i++) {
             Client client = clients.get(i % clients.size());
@@ -431,13 +433,15 @@ public final class SeedDataGenerator {
             String serial = "AD-" + String.format(Locale.ROOT, "%04d", 400 + i);
             String firmware = firmwares.get(i % firmwares.size());
             String type = types.get(i % types.size());
+            String direction = directions.get(i % directions.size());
             devices.add(new AudioDevice(
                     generateId(EntityType.AUDIO_DEVICE),
                     client.id(),
                     brand,
                     serial,
                     firmware,
-                    type
+                    type,
+                    direction
             ));
         }
         return devices;
@@ -449,14 +453,16 @@ public final class SeedDataGenerator {
         List<PhoneIntegration> phones = new ArrayList<>();
         for (int i = 0; i < 32; i++) {
             Client client = clients.get(i % clients.size());
-            String serial = "PH-" + String.format(Locale.ROOT, "%04d", 500 + i);
             String firmware = "v" + (1 + i % 4) + "." + (i % 10);
+            String interfaceName = "IF-" + String.format(Locale.ROOT, "%04d", 501 + i);
+            int capacity = 2 + (i % 4) * 2;
             phones.add(new PhoneIntegration(
                     generateId(EntityType.PHONE_INTEGRATION),
-                    client.id(),
+                    client.siteId(),
                     types.get(i % types.size()),
                     brands.get(i % brands.size()),
-                    serial,
+                    interfaceName,
+                    capacity,
                     firmware
             ));
         }
@@ -611,18 +617,20 @@ public final class SeedDataGenerator {
                 ))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "Site", List.of("SiteID", "SiteName", "ProjectID", "AddressID", "FireZone", "TenantCount"), sites.stream()
+        appendInsert(sb, "Site", List.of("SiteID", "SiteName", "ProjectID", "AddressID", "FireZone", "TenantCount", "RedundantServers", "HighAvailability"), sites.stream()
                 .map(site -> row(
                         str(site.id()),
                         str(site.name()),
                         str(site.projectId()),
                         str(site.addressId()),
                         str(site.fireZone()),
-                        number(site.tenantCount())
+                        number(site.tenantCount()),
+                        number(site.redundantServers()),
+                        bool(site.highAvailability())
                 ))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "Server", List.of("ServerID", "SiteID", "ServerName", "ServerBrand", "ServerSerialNr", "ServerOS", "PatchLevel", "VirtualPlatform", "VirtualVersion", "HighAvailability"), servers.stream()
+        appendInsert(sb, "Server", List.of("ServerID", "SiteID", "ServerName", "ServerBrand", "ServerSerialNr", "ServerOS", "PatchLevel", "VirtualPlatform", "VirtualVersion"), servers.stream()
                 .map(server -> row(
                         str(server.id()),
                         str(server.siteId()),
@@ -632,8 +640,7 @@ public final class SeedDataGenerator {
                         str(server.os()),
                         str(server.patchLevel()),
                         str(server.virtualPlatform()),
-                        nullable(server.virtualVersion()),
-                        bool(server.highAvailability())
+                        nullable(server.virtualVersion())
                 ))
                 .collect(Collectors.toList()));
 
@@ -662,24 +669,26 @@ public final class SeedDataGenerator {
                 ))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "AudioDevice", List.of("AudioDeviceID", "ClientID", "AudioDeviceBrand", "DeviceSerialNr", "AudioDeviceFirmware", "DeviceType"), audioDevices.stream()
+        appendInsert(sb, "AudioDevice", List.of("AudioDeviceID", "ClientID", "AudioDeviceBrand", "DeviceSerialNr", "AudioDeviceFirmware", "DeviceType", "Direction"), audioDevices.stream()
                 .map(device -> row(
                         str(device.id()),
                         str(device.clientId()),
                         str(device.brand()),
                         str(device.serial()),
                         str(device.firmware()),
-                        str(device.type())
+                        str(device.type()),
+                        str(device.direction())
                 ))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "PhoneIntegration", List.of("PhoneIntegrationID", "ClientID", "PhoneType", "PhoneBrand", "PhoneSerialNr", "PhoneFirmware"), phones.stream()
+        appendInsert(sb, "PhoneIntegration", List.of("PhoneIntegrationID", "SiteID", "PhoneType", "PhoneBrand", "InterfaceName", "Capacity", "PhoneFirmware"), phones.stream()
                 .map(phone -> row(
                         str(phone.id()),
-                        str(phone.clientId()),
+                        str(phone.siteId()),
                         str(phone.type()),
                         str(phone.brand()),
-                        str(phone.serial()),
+                        str(phone.interfaceName()),
+                        number(phone.capacity()),
                         str(phone.firmware())
                 ))
                 .collect(Collectors.toList()));
@@ -808,10 +817,11 @@ public final class SeedDataGenerator {
     private record Project(String id, String sapId, String projectName, String deploymentVariantId, String bundleType, int createOffset, ProjectLifecycleStatus status, String accountId, String addressId) {
     }
 
-    private record Site(String id, String name, String projectId, String addressId, String fireZone, int tenantCount) {
+    private record Site(String id, String name, String projectId, String addressId, String fireZone, int tenantCount,
+                        int redundantServers, boolean highAvailability) {
     }
 
-    private record Server(String id, String siteId, String name, String brand, String serial, String os, String patchLevel, String virtualPlatform, String virtualVersion, boolean highAvailability) {
+    private record Server(String id, String siteId, String name, String brand, String serial, String os, String patchLevel, String virtualPlatform, String virtualVersion) {
     }
 
     private record Client(String id, String siteId, String name, String brand, String serial, String os, String patchLevel, String installType) {
@@ -820,10 +830,10 @@ public final class SeedDataGenerator {
     private record Radio(String id, String siteId, String assignedClientId, String brand, String serial, String mode, String standard) {
     }
 
-    private record AudioDevice(String id, String clientId, String brand, String serial, String firmware, String type) {
+    private record AudioDevice(String id, String clientId, String brand, String serial, String firmware, String type, String direction) {
     }
 
-    private record PhoneIntegration(String id, String clientId, String type, String brand, String serial, String firmware) {
+    private record PhoneIntegration(String id, String siteId, String type, String brand, String interfaceName, int capacity, String firmware) {
     }
 
     private record InstalledSoftware(String id, String siteId, String softwareId, String status) {

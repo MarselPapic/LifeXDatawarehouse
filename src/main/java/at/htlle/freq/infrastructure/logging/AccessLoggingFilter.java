@@ -24,6 +24,15 @@ public class AccessLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("at.htlle.freq.web");
 
+    /**
+     * Logs request/response metadata after processing the request.
+     *
+     * @param request incoming HTTP request.
+     * @param response HTTP response.
+     * @param filterChain servlet filter chain.
+     * @throws ServletException when the filter chain fails.
+     * @throws IOException when the response cannot be written.
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -62,30 +71,59 @@ public class AccessLoggingFilter extends OncePerRequestFilter {
             super(response);
         }
 
+        /**
+         * Captures the status code for logging.
+         *
+         * @param sc HTTP status code.
+         */
         @Override
         public void setStatus(int sc) {
             super.setStatus(sc);
             this.httpStatus = sc;
         }
 
+        /**
+         * Captures error responses for logging.
+         *
+         * @param sc HTTP status code.
+         * @throws IOException when the response cannot be written.
+         */
         @Override
         public void sendError(int sc) throws IOException {
             super.sendError(sc);
             this.httpStatus = sc;
         }
 
+        /**
+         * Captures error responses with a message for logging.
+         *
+         * @param sc HTTP status code.
+         * @param msg error message.
+         * @throws IOException when the response cannot be written.
+         */
         @Override
         public void sendError(int sc, String msg) throws IOException {
             super.sendError(sc, msg);
             this.httpStatus = sc;
         }
 
+        /**
+         * Captures redirect responses for logging.
+         *
+         * @param location redirect location.
+         * @throws IOException when the response cannot be written.
+         */
         @Override
         public void sendRedirect(String location) throws IOException {
             super.sendRedirect(location);
             this.httpStatus = HttpServletResponse.SC_FOUND;
         }
 
+        /**
+         * Returns the last status code set on the response.
+         *
+         * @return HTTP status code.
+         */
         @Override
         public int getStatus() {
             return this.httpStatus;

@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS AudioDevice;
 DROP TABLE IF EXISTS Radio;
 DROP TABLE IF EXISTS Clients;
 DROP TABLE IF EXISTS Server;
+DROP TABLE IF EXISTS ProjectSite;
 DROP TABLE IF EXISTS Site;
 DROP TABLE IF EXISTS Project;
 DROP TABLE IF EXISTS Software;
@@ -89,6 +90,7 @@ CREATE TABLE Project (
                          LifecycleStatus     VARCHAR(20) NOT NULL,
                          AccountID           UUID NOT NULL,
                          AddressID           UUID NOT NULL,
+                         SpecialNotes        VARCHAR(500),
                          CONSTRAINT uq_project_sap UNIQUE (ProjectSAPID),
                          CONSTRAINT fk_project_variant FOREIGN KEY (DeploymentVariantID)
                              REFERENCES DeploymentVariant(VariantID),
@@ -108,11 +110,27 @@ CREATE TABLE Site (
                       AddressID    UUID NOT NULL,
                       FireZone     VARCHAR(50),
                       TenantCount  INT,
+                      RedundantServers INT NOT NULL,
+                      HighAvailability BOOLEAN NOT NULL,
                       CONSTRAINT fk_site_project FOREIGN KEY (ProjectID)
                           REFERENCES Project(ProjectID),
                       CONSTRAINT fk_site_address FOREIGN KEY (AddressID)
                           REFERENCES Address(AddressID)
 );
+
+-- =========================================================
+-- 12.2 ProjectSite junction table (many-to-many between Project and Site)
+-- =========================================================
+CREATE TABLE ProjectSite (
+    ProjectSiteID UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+    ProjectID     UUID NOT NULL,
+    SiteID        UUID NOT NULL,
+    CONSTRAINT fk_projectsite_project FOREIGN KEY (ProjectID) REFERENCES Project(ProjectID),
+    CONSTRAINT fk_projectsite_site FOREIGN KEY (SiteID) REFERENCES Site(SiteID),
+    CONSTRAINT uq_projectsite UNIQUE (ProjectID, SiteID)
+);
+CREATE INDEX idx_projectsite_project ON ProjectSite(ProjectID);
+CREATE INDEX idx_projectsite_site ON ProjectSite(SiteID);
 
 -- =========================================================
 -- 18.1 Software table
@@ -145,7 +163,6 @@ CREATE TABLE Server (
                         PatchLevel       VARCHAR(50),
                         VirtualPlatform  VARCHAR(20),
                         VirtualVersion   VARCHAR(50),
-                        HighAvailability BOOLEAN NOT NULL,
                         CONSTRAINT fk_server_site FOREIGN KEY (SiteID)
                             REFERENCES Site(SiteID),
                         CONSTRAINT ck_server_virtualplatform
@@ -164,6 +181,8 @@ CREATE TABLE Clients (
                          ClientOS       VARCHAR(100),
                          PatchLevel     VARCHAR(50),
                          InstallType    VARCHAR(20) NOT NULL,
+                         WorkingPositionType   VARCHAR(100),
+                         OtherInstalledSoftware VARCHAR(500),
                          CONSTRAINT fk_clients_site FOREIGN KEY (SiteID)
                              REFERENCES Site(SiteID),
                          CONSTRAINT ck_clients_installtype
@@ -201,10 +220,13 @@ CREATE TABLE AudioDevice (
                              DeviceSerialNr      VARCHAR(100),
                              AudioDeviceFirmware VARCHAR(50),
                              DeviceType          VARCHAR(10) NOT NULL,
+                             Direction           VARCHAR(15) NOT NULL,
                              CONSTRAINT fk_audiodevice_client FOREIGN KEY (ClientID)
                                  REFERENCES Clients(ClientID),
                              CONSTRAINT ck_audiodevice_devicetype
-                                 CHECK (DeviceType IN ('HEADSET','SPEAKER','MIC'))
+                                 CHECK (DeviceType IN ('HEADSET','SPEAKER','MIC')),
+                             CONSTRAINT ck_audiodevice_direction
+                                 CHECK (Direction IN ('Input','Output','Input + Output'))
 );
 
 -- =========================================================
@@ -212,13 +234,14 @@ CREATE TABLE AudioDevice (
 -- =========================================================
 CREATE TABLE PhoneIntegration (
                                   PhoneIntegrationID  UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
-                                  ClientID            UUID NOT NULL,
+                                  SiteID              UUID NOT NULL,
                                   PhoneType           VARCHAR(20) NOT NULL,
                                   PhoneBrand          VARCHAR(50),
-                                  PhoneSerialNr       VARCHAR(100),
+                                  InterfaceName       VARCHAR(50),
+                                  Capacity            INT,
                                   PhoneFirmware       VARCHAR(50),
-                                  CONSTRAINT fk_phone_client FOREIGN KEY (ClientID)
-                                      REFERENCES Clients(ClientID),
+                                  CONSTRAINT fk_phone_site FOREIGN KEY (SiteID)
+                                      REFERENCES Site(SiteID),
                                   CONSTRAINT ck_phone_type
                                       CHECK (PhoneType IN ('Emergency','NonEmergency','Both'))
 );
@@ -293,7 +316,7 @@ CREATE INDEX ix_clients_site         ON Clients(SiteID);
 CREATE INDEX ix_server_site          ON Server(SiteID);
 CREATE INDEX ix_radio_site           ON Radio(SiteID);
 CREATE INDEX ix_audiodevice_client   ON AudioDevice(ClientID);
-CREATE INDEX ix_phone_client         ON PhoneIntegration(ClientID);
+CREATE INDEX ix_phone_site           ON PhoneIntegration(SiteID);
 CREATE INDEX ix_installed_site       ON InstalledSoftware(SiteID);
 CREATE INDEX ix_installed_software   ON InstalledSoftware(SoftwareID);
 CREATE INDEX ix_upgrade_site         ON UpgradePlan(SiteID);

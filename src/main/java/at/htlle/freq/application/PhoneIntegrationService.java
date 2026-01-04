@@ -63,16 +63,16 @@ public class PhoneIntegrationService {
      * @param clientId client identifier
      * @return list of integrations
      */
-    public List<PhoneIntegration> getPhoneIntegrationsByClient(UUID clientId) {
-        Objects.requireNonNull(clientId, "clientId must not be null");
-        return repo.findByClient(clientId);
+    public List<PhoneIntegration> getPhoneIntegrationsBySite(UUID siteId) {
+        Objects.requireNonNull(siteId, "siteId must not be null");
+        return repo.findBySite(siteId);
     }
 
     // ---------- Commands ----------
 
     /**
      * Saves a phone integration and indexes it in Lucene after the commit.
-     * Validates the client and type.
+     * Validates the site and type.
      *
      * @param incoming integration to persist
      * @return stored integration
@@ -81,16 +81,16 @@ public class PhoneIntegrationService {
     public PhoneIntegration createOrUpdatePhoneIntegration(PhoneIntegration incoming) {
         Objects.requireNonNull(incoming, "phoneIntegration payload must not be null");
 
-        if (incoming.getClientID() == null)
-            throw new IllegalArgumentException("ClientID is required");
+        if (incoming.getSiteID() == null)
+            throw new IllegalArgumentException("SiteID is required");
         if (isBlank(incoming.getPhoneType()))
             throw new IllegalArgumentException("PhoneType is required");
 
         PhoneIntegration saved = repo.save(incoming);
         registerAfterCommitIndexing(saved);
 
-        log.info("PhoneIntegration saved: id={} client={} type='{}'",
-                saved.getPhoneIntegrationID(), saved.getClientID(), saved.getPhoneType());
+        log.info("PhoneIntegration saved: id={} site={} type='{}'",
+                saved.getPhoneIntegrationID(), saved.getSiteID(), saved.getPhoneType());
         return saved;
     }
 
@@ -107,17 +107,18 @@ public class PhoneIntegrationService {
         Objects.requireNonNull(patch, "patch must not be null");
 
         return repo.findById(id).map(existing -> {
-            existing.setClientID(patch.getClientID() != null ? patch.getClientID() : existing.getClientID());
+            existing.setSiteID(patch.getSiteID() != null ? patch.getSiteID() : existing.getSiteID());
             existing.setPhoneType(nvl(patch.getPhoneType(), existing.getPhoneType()));
             existing.setPhoneBrand(nvl(patch.getPhoneBrand(), existing.getPhoneBrand()));
-            existing.setPhoneSerialNr(nvl(patch.getPhoneSerialNr(), existing.getPhoneSerialNr()));
+            existing.setInterfaceName(nvl(patch.getInterfaceName(), existing.getInterfaceName()));
+            existing.setCapacity(nvl(patch.getCapacity(), existing.getCapacity()));
             existing.setPhoneFirmware(nvl(patch.getPhoneFirmware(), existing.getPhoneFirmware()));
 
             PhoneIntegration saved = repo.save(existing);
             registerAfterCommitIndexing(saved);
 
-            log.info("PhoneIntegration updated: id={} client={} type='{}'",
-                    id, saved.getClientID(), saved.getPhoneType());
+            log.info("PhoneIntegration updated: id={} site={} type='{}'",
+                    id, saved.getSiteID(), saved.getPhoneType());
             return saved;
         });
     }
@@ -132,20 +133,27 @@ public class PhoneIntegrationService {
         Objects.requireNonNull(id, "id must not be null");
         repo.findById(id).ifPresent(p -> {
             repo.deleteById(id);
-            log.info("PhoneIntegration deleted: id={} client={} type='{}'",
-                    id, p.getClientID(), p.getPhoneType());
+            log.info("PhoneIntegration deleted: id={} site={} type='{}'",
+                    id, p.getSiteID(), p.getPhoneType());
             // Optionally remove the entry from Lucene once delete support exists.
         });
     }
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param p p.
+     */
     private void registerAfterCommitIndexing(PhoneIntegration p) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(p);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the phone integration after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(p);
@@ -153,14 +161,20 @@ public class PhoneIntegrationService {
         });
     }
 
+    /**
+     * Indexes a phone integration in Lucene for search operations.
+     *
+     * @param p phone integration entity to index.
+     */
     private void indexToLucene(PhoneIntegration p) {
         try {
             lucene.indexPhoneIntegration(
                     p.getPhoneIntegrationID() != null ? p.getPhoneIntegrationID().toString() : null,
-                    p.getClientID() != null ? p.getClientID().toString() : null,
+                    p.getSiteID() != null ? p.getSiteID().toString() : null,
                     p.getPhoneType(),
                     p.getPhoneBrand(),
-                    p.getPhoneSerialNr(),
+                    p.getInterfaceName(),
+                    p.getCapacity(),
                     p.getPhoneFirmware()
             );
             log.debug("PhoneIntegration indexed in Lucene: id={}", p.getPhoneIntegrationID());
@@ -171,11 +185,24 @@ public class PhoneIntegrationService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
-    private static String nvl(String in, String fallback) {
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
+    private static <T> T nvl(T in, T fallback) {
         return in != null ? in : fallback;
     }
 }

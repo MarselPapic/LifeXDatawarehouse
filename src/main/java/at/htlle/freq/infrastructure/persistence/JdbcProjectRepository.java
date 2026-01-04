@@ -18,6 +18,11 @@ public class JdbcProjectRepository implements ProjectRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a repository backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for all project queries.
+     */
     public JdbcProjectRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Project> mapper = (rs, n) -> new Project(
@@ -29,14 +34,21 @@ public class JdbcProjectRepository implements ProjectRepository {
             rs.getString("CreateDateTime"),
             ProjectLifecycleStatus.fromString(rs.getString("LifecycleStatus")),
             rs.getObject("AccountID", UUID.class),
-            rs.getObject("AddressID", UUID.class)
+            rs.getObject("AddressID", UUID.class),
+            rs.getString("SpecialNotes")
     );
 
+    /**
+     * Loads a project by its primary key.
+     *
+     * @param id identifier of the project row.
+     * @return optional project when found.
+     */
     @Override
     public Optional<Project> findById(UUID id) {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, LifecycleStatus, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes
             FROM Project WHERE ProjectID = :id
             """;
         try {
@@ -44,11 +56,17 @@ public class JdbcProjectRepository implements ProjectRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Loads a project by its SAP identifier.
+     *
+     * @param sapId SAP identifier stored in {@code ProjectSAPID}.
+     * @return optional project when found.
+     */
     @Override
     public Optional<Project> findBySapId(String sapId) {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, LifecycleStatus, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes
             FROM Project WHERE ProjectSAPID = :sap
             """;
         try {
@@ -56,16 +74,26 @@ public class JdbcProjectRepository implements ProjectRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Retrieves every project row.
+     *
+     * @return all projects from the {@code Project} table.
+     */
     @Override
     public List<Project> findAll() {
         String sql = """
             SELECT ProjectID, ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                   CreateDateTime, LifecycleStatus, AccountID, AddressID
+                   CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes
             FROM Project
             """;
         return jdbc.query(sql, mapper);
     }
 
+    /**
+     * Deletes a project row by its primary key.
+     *
+     * @param id identifier of the project to remove.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Project WHERE ProjectID = :id";
@@ -76,8 +104,8 @@ public class JdbcProjectRepository implements ProjectRepository {
      * Persists projects while setting every column explicitly.
      * <p>
      * The INSERT statement leverages {@code RETURNING ProjectID} to capture the database-generated
-     * primary key. UPDATE statements bind all attributes—including optional
-     * {@link ProjectLifecycleStatus} values—to keep the RowMapper mapping aligned and to
+     * primary key. UPDATE statements bind all attributes, including optional
+     * {@link ProjectLifecycleStatus} values, to keep the {@link RowMapper} mapping aligned and to
      * synchronize dependent foreign keys.
      * </p>
      *
@@ -91,8 +119,8 @@ public class JdbcProjectRepository implements ProjectRepository {
         if (isNew) {
             String sql = """
                 INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType,
-                                     CreateDateTime, LifecycleStatus, AccountID, AddressID)
-                VALUES (:sap, :name, :dv, :bundle, COALESCE(:created, CURRENT_DATE), :status, :account, :address)
+                                     CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes)
+                VALUES (:sap, :name, :dv, :bundle, COALESCE(:created, CURRENT_DATE), :status, :account, :address, :notes)
                 RETURNING ProjectID
                 """;
             var params = new MapSqlParameterSource()
@@ -103,7 +131,8 @@ public class JdbcProjectRepository implements ProjectRepository {
                     .addValue("created", p.getCreateDateTime())
                     .addValue("status",  p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null)
                     .addValue("account", p.getAccountID())
-                    .addValue("address", p.getAddressID());
+                    .addValue("address", p.getAddressID())
+                    .addValue("notes",   p.getSpecialNotes());
             UUID id = jdbc.queryForObject(sql, params, UUID.class);
             p.setProjectID(id);
         } else {
@@ -116,7 +145,8 @@ public class JdbcProjectRepository implements ProjectRepository {
                     CreateDateTime = COALESCE(:created, CURRENT_DATE),
                     LifecycleStatus = :status,
                     AccountID = :account,
-                    AddressID = :address
+                    AddressID = :address,
+                    SpecialNotes = :notes
                 WHERE ProjectID = :id
                 """;
             var params = new MapSqlParameterSource()
@@ -128,7 +158,8 @@ public class JdbcProjectRepository implements ProjectRepository {
                     .addValue("created", p.getCreateDateTime())
                     .addValue("status",  p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null)
                     .addValue("account", p.getAccountID())
-                    .addValue("address", p.getAddressID());
+                    .addValue("address", p.getAddressID())
+                    .addValue("notes",   p.getSpecialNotes());
             jdbc.update(sql, params);
         }
         return p;

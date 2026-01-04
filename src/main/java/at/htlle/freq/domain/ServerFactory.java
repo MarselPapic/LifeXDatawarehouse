@@ -3,6 +3,9 @@ package at.htlle.freq.domain;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
+/**
+ * Factory responsible for creating Server instances.
+ */
 @Component
 public class ServerFactory {
     /**
@@ -17,13 +20,12 @@ public class ServerFactory {
      * @param patchLevel applied patch level
      * @param virtualPlatform virtualization platform or bare metal marker
      * @param virtualVersion optional version of the virtualization platform
-     * @param highAvailability whether the server participates in HA
      * @return transient server entity
      */
     public Server create(UUID siteID, String serverName, String serverBrand, String serverSerialNr,
                          String serverOS, String patchLevel, String virtualPlatform,
-                         String virtualVersion, boolean highAvailability) {
+                         String virtualVersion) {
         return new Server(null, siteID, serverName, serverBrand, serverSerialNr,
-                serverOS, patchLevel, virtualPlatform, virtualVersion, highAvailability);
+                serverOS, patchLevel, virtualPlatform, virtualVersion);
     }
 }

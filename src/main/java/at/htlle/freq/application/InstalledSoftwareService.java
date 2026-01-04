@@ -265,12 +265,20 @@ public class InstalledSoftwareService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     *
+     * @param isw installation record to index after the transaction commits.
+     */
     private void registerAfterCommitIndexing(InstalledSoftware isw) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(isw);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the installation after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(isw);
@@ -278,6 +286,11 @@ public class InstalledSoftwareService {
         });
     }
 
+    /**
+     * Indexes an installation record in Lucene for search operations.
+     *
+     * @param isw installed software entity to index.
+     */
     private void indexToLucene(InstalledSoftware isw) {
         try {
             lucene.indexInstalledSoftware(
@@ -296,6 +309,12 @@ public class InstalledSoftwareService {
         }
     }
 
+    /**
+     * Normalizes status and date fields based on the chosen status.
+     *
+     * @param entity installation entity to normalize.
+     * @return normalized status enum.
+     */
     private InstalledSoftwareStatus normalizeStatusAndDates(InstalledSoftware entity) {
         InstalledSoftwareStatus status;
         try {
@@ -329,6 +348,11 @@ public class InstalledSoftwareService {
         return status;
     }
 
+    /**
+     * Normalizes the Date to a canonical form.
+     * @param value value.
+     * @return the computed result.
+     */
     private String normalizeDate(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -340,6 +364,11 @@ public class InstalledSoftwareService {
         }
     }
 
+    /**
+     * Maps the supplied input into a Overview Row representation.
+     * @param row row.
+     * @return the computed result.
+     */
     private SiteSoftwareOverviewEntry mapOverviewRow(SiteSoftwareOverview row) {
         String normalizedStatus = row.status();
         String statusLabel = row.status();

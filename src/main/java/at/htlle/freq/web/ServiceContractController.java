@@ -17,6 +17,11 @@ public class ServiceContractController {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used for service contract queries.
+     */
     public ServiceContractController(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }

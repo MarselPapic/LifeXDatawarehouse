@@ -142,12 +142,19 @@ public class UpgradePlanService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param up up.
+     */
     private void registerAfterCommitIndexing(UpgradePlan up) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(up);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the upgrade plan after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(up);
@@ -155,6 +162,11 @@ public class UpgradePlanService {
         });
     }
 
+    /**
+     * Indexes an upgrade plan in Lucene for search operations.
+     *
+     * @param up upgrade plan entity to index.
+     */
     private void indexToLucene(UpgradePlan up) {
         try {
             lucene.indexUpgradePlan(
@@ -175,9 +187,22 @@ public class UpgradePlanService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static <T> T nvl(T in, T fallback) { return in != null ? in : fallback; }
 }

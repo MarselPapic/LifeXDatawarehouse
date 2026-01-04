@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,9 +25,16 @@ public class GenericCrudController {
     private static final Logger log = LoggerFactory.getLogger(GenericCrudController.class);
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final AuditLogger audit;
 
-    public GenericCrudController(NamedParameterJdbcTemplate jdbc) {
+    /**
+     * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
+     *
+     * @param jdbc JDBC template used to query the whitelisted tables.
+     */
+    public GenericCrudController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     // -------- Whitelist of allowed tables and aliases --------
@@ -79,13 +87,13 @@ public class GenericCrudController {
 
         Map<String, Set<String>> c = new HashMap<>();
         c.put("Account", Set.of("AccountID", "AccountName", "ContactName", "ContactEmail", "ContactPhone", "VATNumber", "Country"));
-        c.put("Project", Set.of("ProjectID", "ProjectSAPID", "ProjectName", "DeploymentVariantID", "BundleType", "CreateDateTime", "LifecycleStatus", "AccountID", "AddressID"));
-        c.put("Site", Set.of("SiteID", "SiteName", "ProjectID", "AddressID", "FireZone", "TenantCount"));
-        c.put("Server", Set.of("ServerID", "SiteID", "ServerName", "ServerBrand", "ServerSerialNr", "ServerOS", "PatchLevel", "VirtualPlatform", "VirtualVersion", "HighAvailability"));
-        c.put("Clients", Set.of("ClientID", "SiteID", "ClientName", "ClientBrand", "ClientSerialNr", "ClientOS", "PatchLevel", "InstallType"));
+        c.put("Project", Set.of("ProjectID", "ProjectSAPID", "ProjectName", "DeploymentVariantID", "BundleType", "CreateDateTime", "LifecycleStatus", "AccountID", "AddressID", "SpecialNotes"));
+        c.put("Site", Set.of("SiteID", "SiteName", "ProjectID", "AddressID", "FireZone", "TenantCount", "RedundantServers", "HighAvailability"));
+        c.put("Server", Set.of("ServerID", "SiteID", "ServerName", "ServerBrand", "ServerSerialNr", "ServerOS", "PatchLevel", "VirtualPlatform", "VirtualVersion"));
+        c.put("Clients", Set.of("ClientID", "SiteID", "ClientName", "ClientBrand", "ClientSerialNr", "ClientOS", "PatchLevel", "InstallType", "WorkingPositionType", "OtherInstalledSoftware"));
         c.put("Radio", Set.of("RadioID", "SiteID", "AssignedClientID", "RadioBrand", "RadioSerialNr", "Mode", "DigitalStandard"));
         c.put("AudioDevice", Set.of("AudioDeviceID", "ClientID", "AudioDeviceBrand", "DeviceSerialNr", "AudioDeviceFirmware", "DeviceType"));
-        c.put("PhoneIntegration", Set.of("PhoneIntegrationID", "ClientID", "PhoneType", "PhoneBrand", "PhoneSerialNr", "PhoneFirmware"));
+        c.put("PhoneIntegration", Set.of("PhoneIntegrationID", "SiteID", "PhoneType", "PhoneBrand", "InterfaceName", "Capacity", "PhoneFirmware"));
         c.put("Country", Set.of("CountryCode", "CountryName"));
         c.put("City", Set.of("CityID", "CityName", "CountryCode"));
         c.put("Address", Set.of("AddressID", "Street", "CityID"));
@@ -104,10 +112,29 @@ public class GenericCrudController {
         DATE_COLUMNS = Collections.unmodifiableMap(d);
     }
 
+    /**
+     * Logs a warning and returns a {@link ResponseStatusException} with the given status.
+     *
+     * @param status HTTP status to return.
+     * @param table table name involved in the failed action.
+     * @param action action label used for logging.
+     * @param reason message returned to the client.
+     * @return configured {@link ResponseStatusException}.
+     */
     private ResponseStatusException logAndThrow(HttpStatus status, String table, String action, String reason) {
         return logAndThrow(status, table, action, reason, null);
     }
 
+    /**
+     * Logs a warning and returns a {@link ResponseStatusException} with the given status.
+     *
+     * @param status HTTP status to return.
+     * @param table table name involved in the failed action.
+     * @param action action label used for logging.
+     * @param reason message returned to the client.
+     * @param logReason optional log-only message, used when client-facing reason differs.
+     * @return configured {@link ResponseStatusException}.
+     */
     private ResponseStatusException logAndThrow(HttpStatus status, String table, String action, String reason, String logReason) {
         String actionLabel = action == null ? "(unknown action)" : action;
         String tableLabel = table == null ? "(unknown table)" : table;
@@ -116,6 +143,12 @@ public class GenericCrudController {
         return new ResponseStatusException(status, reason);
     }
 
+    /**
+     * Normalizes the Table to a canonical form.
+     *
+     * @param name table alias supplied by the caller.
+     * @return canonical table name from the whitelist.
+     */
     private String normalizeTable(String name) {
         if (name == null) throw logAndThrow(HttpStatus.BAD_REQUEST, null, "normalizeTable", "table missing");
         String key = name.trim().toLowerCase();
@@ -126,10 +159,23 @@ public class GenericCrudController {
         return table;
     }
 
+    /**
+     * Checks whether the primary key for a table is a string-based identifier.
+     *
+     * @param table canonical table name.
+     * @return true when the primary key is string-based.
+     */
     private static boolean pkIsString(String table) {
         return "Country".equals(table) || "City".equals(table);
     }
 
+    /**
+     * Filters incoming JSON body to only allowed column names for the table.
+     *
+     * @param table canonical table name.
+     * @param body raw JSON payload.
+     * @return sanitized column map with disallowed keys removed.
+     */
     private Map<String, Object> sanitizeColumns(String table, Map<String, Object> body) {
         Set<String> allowed = COLUMNS.get(table);
         if (allowed == null) {
@@ -160,7 +206,7 @@ public class GenericCrudController {
      * Reads multiple rows from an allowed table.
      *
      * <p>Path: {@code GET /table/{name}}</p>
-     * <p>Path variable: {@code name} – table alias from the whitelist.</p>
+     * <p>Path variable: {@code name} - table alias from the whitelist.</p>
      * <p>Query parameter: {@code limit} (optional, 1-500) limits the result size.</p>
      *
      * @param name  table alias.
@@ -231,7 +277,11 @@ public class GenericCrudController {
             recordId = sanitized.getOrDefault("id", sanitized.getOrDefault("ID", "(unknown)"));
         }
 
-        log.info("Inserted {} {} with fields {}", table, recordId, sanitized.keySet());
+        Map<String, Object> identifiers = new LinkedHashMap<>();
+        if (recordId != null) {
+            identifiers.put(pk == null ? "id" : pk, recordId);
+        }
+        audit.created(table, identifiers, sanitized);
     }
 
     // -------- UPDATE --------
@@ -279,7 +329,7 @@ public class GenericCrudController {
         if (count == 0)
             throw logAndThrow(HttpStatus.NOT_FOUND, table, "update", "no record updated");
 
-        log.info("Updated {} {} with fields {}", table, id, sanitized.keySet());
+        audit.updated(table, Map.of(pk, id), sanitized);
     }
 
     // -------- DELETE --------
@@ -302,13 +352,19 @@ public class GenericCrudController {
         String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
         int count = jdbc.update(sql, new MapSqlParameterSource("id", id));
         if (count == 0) {
-            log.warn("Attempted to delete {} {} but no record was found", table, id);
             throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
         }
 
-        log.info("Deleted {} {} with fields {}", table, id, Collections.singleton(pk));
+        audit.deleted(table, Map.of(pk, id));
     }
 
+    /**
+     * Converts configured date columns from strings into {@link LocalDate} values.
+     *
+     * @param table canonical table name.
+     * @param values values submitted by the client.
+     * @return converted values map with parsed dates.
+     */
     private Map<String, Object> convertTemporalValues(String table, Map<String, Object> values) {
         Set<String> dateColumns = DATE_COLUMNS.get(table);
         if (dateColumns == null || dateColumns.isEmpty()) {

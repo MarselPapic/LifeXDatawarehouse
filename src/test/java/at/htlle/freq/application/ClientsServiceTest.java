@@ -73,7 +73,16 @@ class ClientsServiceTest {
 
         Clients saved = service.create(value);
         assertNotNull(saved.getClientID());
-        verify(lucene).indexClient(anyString(), anyString(), eq("Client"), eq("Brand"), eq("OS"), eq("LOCAL"));
+        verify(lucene).indexClient(
+                anyString(),
+                anyString(),
+                eq("Client"),
+                eq("Brand"),
+                eq("OS"),
+                eq("LOCAL"),
+                eq("Dispatcher"),
+                eq("Office Suite")
+        );
     }
 
     @Test
@@ -86,7 +95,16 @@ class ClientsServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexClient(eq(UUID1.toString()), eq(UUID2.toString()), eq("Client"), eq("Brand"), eq("OS"), eq("LOCAL"));
+        verify(lucene).indexClient(
+                eq(UUID1.toString()),
+                eq(UUID2.toString()),
+                eq("Client"),
+                eq("Brand"),
+                eq("OS"),
+                eq("LOCAL"),
+                eq("Dispatcher"),
+                eq("Office Suite")
+        );
     }
 
     @Test
@@ -94,11 +112,22 @@ class ClientsServiceTest {
         Clients value = client();
         value.setClientID(UUID1);
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexClient(any(), any(), any(), any(), any(), any());
+        doThrow(new RuntimeException("Lucene error"))
+                .when(lucene)
+                .indexClient(any(), any(), any(), any(), any(), any(), any(), any());
 
         Clients saved = service.create(value);
         assertSame(value, saved);
-        verify(lucene).indexClient(eq(UUID1.toString()), eq(UUID2.toString()), eq("Client"), eq("Brand"), eq("OS"), eq("LOCAL"));
+        verify(lucene).indexClient(
+                eq(UUID1.toString()),
+                eq(UUID2.toString()),
+                eq("Client"),
+                eq("Brand"),
+                eq("OS"),
+                eq("LOCAL"),
+                eq("Dispatcher"),
+                eq("Office Suite")
+        );
     }
 
     @Test
@@ -121,7 +150,16 @@ class ClientsServiceTest {
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexClient(eq(UUID1.toString()), eq(UUID2.toString()), eq("Changed"), eq("NewBrand"), eq("OS"), eq("BROWSER"));
+        verify(lucene).indexClient(
+                eq(UUID1.toString()),
+                eq(UUID2.toString()),
+                eq("Changed"),
+                eq("NewBrand"),
+                eq("OS"),
+                eq("BROWSER"),
+                eq("Dispatcher"),
+                eq("Office Suite")
+        );
     }
 
     @Test

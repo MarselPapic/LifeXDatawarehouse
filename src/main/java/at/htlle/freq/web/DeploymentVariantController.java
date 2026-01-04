@@ -2,11 +2,14 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.DeploymentVariantService;
 import at.htlle.freq.domain.DeploymentVariant;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,9 +22,16 @@ import java.util.UUID;
 public class DeploymentVariantController {
 
     private final DeploymentVariantService service;
+    private final AuditLogger audit;
 
-    public DeploymentVariantController(DeploymentVariantService service) {
+    /**
+     * Creates a controller that delegates deployment variant operations to {@link DeploymentVariantService}.
+     *
+     * @param service service used for variant CRUD operations.
+     */
+    public DeploymentVariantController(DeploymentVariantService service, AuditLogger audit) {
         this.service = service;
+        this.audit = audit;
     }
 
     /**
@@ -63,7 +73,11 @@ public class DeploymentVariantController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentVariant create(@RequestBody DeploymentVariant payload) {
         try {
-            return service.createOrUpdateVariant(payload);
+            DeploymentVariant saved = service.createOrUpdateVariant(payload);
+            Map<String, Object> identifiers = new HashMap<>();
+            identifiers.put("VariantID", saved.getVariantID());
+            audit.upserted("DeploymentVariant", identifiers, saved);
+            return saved;
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         }

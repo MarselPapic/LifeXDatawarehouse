@@ -2,6 +2,9 @@ package at.htlle.freq.domain;
 
 import org.springframework.stereotype.Component;
 
+/**
+ * Factory responsible for creating Account instances.
+ */
 @Component
 public class AccountFactory {
     /**

@@ -70,7 +70,7 @@ class ProjectServiceTest {
 
         Project saved = service.createOrUpdateProject(value);
         assertSame(value, saved);
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()), eq("Requires on-site coordination"));
     }
 
     @Test
@@ -109,18 +109,18 @@ class ProjectServiceTest {
         assertEquals(1, synchronizations.size());
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()), eq("Requires on-site coordination"));
     }
 
     @Test
     void createProjectContinuesWhenLuceneFails() {
         Project value = project();
         when(repo.save(value)).thenReturn(value);
-        doThrow(new RuntimeException("Lucene error")).when(lucene).indexProject(any(), any(), any(), any(), any(), any(), any(), any());
+        doThrow(new RuntimeException("Lucene error")).when(lucene).indexProject(any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         Project saved = service.createOrUpdateProject(value);
         assertSame(value, saved);
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-1"), eq("Project"), eq(UUID2.toString()), eq("Bundle"), eq("ACTIVE"), eq(UUID4.toString()), eq(UUID5.toString()), eq("Requires on-site coordination"));
     }
 
     @Test
@@ -135,7 +135,7 @@ class ProjectServiceTest {
         patch.setDeploymentVariantID(UUID.randomUUID());
         patch.setBundleType("New Bundle");
         patch.setCreateDateTime("2024-02-01");
-        patch.setLifecycleStatus(ProjectLifecycleStatus.RETIRED);
+        patch.setLifecycleStatus(ProjectLifecycleStatus.EOL);
         patch.setAccountID(UUID.randomUUID());
         patch.setAddressID(UUID.randomUUID());
 
@@ -144,11 +144,11 @@ class ProjectServiceTest {
             assertTrue(updated.isPresent());
             assertEquals("SAP-NEW", existing.getProjectSAPID());
             assertEquals("New Project", existing.getProjectName());
-            assertEquals(ProjectLifecycleStatus.RETIRED, existing.getLifecycleStatus());
+            assertEquals(ProjectLifecycleStatus.EOL, existing.getLifecycleStatus());
         });
         synchronizations.forEach(TransactionSynchronization::afterCommit);
 
-        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-NEW"), eq("New Project"), eq(existing.getDeploymentVariantID().toString()), eq("New Bundle"), eq("RETIRED"), eq(existing.getAccountID().toString()), eq(existing.getAddressID().toString()));
+        verify(lucene).indexProject(eq(UUID3.toString()), eq("SAP-NEW"), eq("New Project"), eq(existing.getDeploymentVariantID().toString()), eq("New Bundle"), eq("EOL"), eq(existing.getAccountID().toString()), eq(existing.getAddressID().toString()), eq(existing.getSpecialNotes()));
     }
 
     @Test

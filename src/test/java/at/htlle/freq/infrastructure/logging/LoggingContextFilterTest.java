@@ -32,6 +32,9 @@ class LoggingContextFilterTest {
     private HttpServletRequest request;
     private HttpServletResponse response;
     private ListAppender<ILoggingEvent> listAppender;
+    private Logger logger;
+    private Level originalLevel;
+    private boolean originalAdditive;
     private static final Pattern UUID_PATTERN = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
@@ -41,7 +44,11 @@ class LoggingContextFilterTest {
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         listAppender = new ListAppender<>();
-        Logger logger = (Logger) LoggerFactory.getLogger(LoggingContextFilter.class);
+        logger = (Logger) LoggerFactory.getLogger(LoggingContextFilter.class);
+        originalLevel = logger.getLevel();
+        originalAdditive = logger.isAdditive();
+        logger.setLevel(Level.WARN);
+        logger.setAdditive(false);
         listAppender.start();
         logger.addAppender(listAppender);
         MDC.clear();
@@ -49,9 +56,12 @@ class LoggingContextFilterTest {
 
     @AfterEach
     void tearDown() {
-        Logger logger = (Logger) LoggerFactory.getLogger(LoggingContextFilter.class);
-        logger.detachAppender(listAppender);
-        listAppender.stop();
+        if (logger != null && listAppender != null) {
+            logger.detachAppender(listAppender);
+            logger.setLevel(originalLevel);
+            logger.setAdditive(originalAdditive);
+            listAppender.stop();
+        }
     }
 
     private AtomicReference<String> runFilterAndCaptureUser() throws ServletException, IOException {

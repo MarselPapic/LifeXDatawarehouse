@@ -124,6 +124,7 @@ public class ProjectService {
             existing.setLifecycleStatus(patch.getLifecycleStatus() != null ? patch.getLifecycleStatus() : existing.getLifecycleStatus());
             existing.setAccountID(patch.getAccountID() != null ? patch.getAccountID() : existing.getAccountID());
             existing.setAddressID(patch.getAddressID() != null ? patch.getAddressID() : existing.getAddressID());
+            existing.setSpecialNotes(nvl(trimToNull(patch.getSpecialNotes()), existing.getSpecialNotes()));
 
             trimIdentifiers(existing);
             validateRequiredIdentifiers(existing);
@@ -154,12 +155,19 @@ public class ProjectService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param p p.
+     */
     private void registerAfterCommitIndexing(Project p) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(p);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Executes the after Commit operation.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(p);
@@ -167,6 +175,10 @@ public class ProjectService {
         });
     }
 
+    /**
+     * Validates the Required Identifiers against the required constraints.
+     * @param project project.
+     */
     private void validateRequiredIdentifiers(Project project) {
         if (project.getDeploymentVariantID() == null) {
             throw new IllegalArgumentException("DeploymentVariantID is required");
@@ -179,6 +191,11 @@ public class ProjectService {
         }
     }
 
+    /**
+     * Ensures the SAP ID is unique across projects.
+     *
+     * @param project project to validate.
+     */
     private void ensureUniqueSapId(Project project) {
         repo.findBySapId(project.getProjectSAPID()).ifPresent(existing -> {
             if (project.getProjectID() == null || !project.getProjectID().equals(existing.getProjectID())) {
@@ -187,6 +204,11 @@ public class ProjectService {
         });
     }
 
+    /**
+     * Trims string identifiers and normalizes notes.
+     *
+     * @param project project to normalize.
+     */
     private void trimIdentifiers(Project project) {
         if (project.getProjectSAPID() != null) {
             project.setProjectSAPID(project.getProjectSAPID().trim());
@@ -200,8 +222,14 @@ public class ProjectService {
         if (project.getCreateDateTime() != null) {
             project.setCreateDateTime(project.getCreateDateTime().trim());
         }
+        project.setSpecialNotes(trimToNull(project.getSpecialNotes()));
     }
 
+    /**
+     * Indexes a project in Lucene for search operations.
+     *
+     * @param p project entity to index.
+     */
     private void indexToLucene(Project p) {
         try {
             lucene.indexProject(
@@ -212,7 +240,8 @@ public class ProjectService {
                     p.getBundleType(),
                     p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null,
                     p.getAccountID() != null ? p.getAccountID().toString() : null,
-                    p.getAddressID() != null ? p.getAddressID().toString() : null
+                    p.getAddressID() != null ? p.getAddressID().toString() : null,
+                    p.getSpecialNotes()
             );
             log.debug("Project indexed in Lucene: id={}", p.getProjectID());
         } catch (Exception e) {
@@ -222,11 +251,36 @@ public class ProjectService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static String nvl(String in, String fallback) {
         return in != null ? in : fallback;
+    }
+
+    /**
+     * Trims a string and converts blank values to null.
+     *
+     * @param value input string.
+     * @return trimmed string or null when blank.
+     */
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

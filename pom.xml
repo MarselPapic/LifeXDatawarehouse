@@ -21,7 +21,8 @@
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <lombok.version>1.18.32</lombok.version>
+        <mockito.version>5.2.0</mockito.version>
+        <bytebuddy.version>1.15.11</bytebuddy.version>
     </properties>
 
     <dependencies>
@@ -42,14 +43,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- DevTools (optional, no prod dependency) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -67,7 +60,13 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
-            <version>5.2.0</version>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy-agent</artifactId>
+            <version>${bytebuddy.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -119,19 +118,18 @@
 
     <build>
         <plugins>
-            <!-- Compiler plugin with Lombok as annotation processor -->
+            <!-- Compiler plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.12.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.3</version>
                 <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
+                    <argLine>-Dnet.bytebuddy.experimental=true -javaagent:${user.home}/.m2/repository/net/bytebuddy/byte-buddy-agent/${bytebuddy.version}/byte-buddy-agent-${bytebuddy.version}.jar</argLine>
                 </configuration>
             </plugin>
 

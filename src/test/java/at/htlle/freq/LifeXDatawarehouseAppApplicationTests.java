@@ -2,6 +2,7 @@ package at.htlle.freq;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Verifies that the Spring application context boots successfully with the
@@ -12,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * beans and external integrations.</p>
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class LifeXDatawarehouseAppApplicationTests {
 
     /**

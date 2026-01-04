@@ -18,6 +18,10 @@ public class JdbcCountryRepository implements CountryRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcCountryRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcCountryRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Country> mapper = (rs, n) -> new Country(
@@ -25,6 +29,11 @@ public class JdbcCountryRepository implements CountryRepository {
             rs.getString("CountryName")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param code code.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Country> findById(String code) {
         String sql = "SELECT CountryCode, CountryName FROM Country WHERE CountryCode = :code";
@@ -66,11 +75,19 @@ public class JdbcCountryRepository implements CountryRepository {
         return c;
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Country> findAll() {
         return jdbc.query("SELECT CountryCode, CountryName FROM Country", mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param code code.
+     */
     @Override
     public void deleteById(String code) {
         String sql = "DELETE FROM Country WHERE CountryCode = :code";

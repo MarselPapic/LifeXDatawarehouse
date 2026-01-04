@@ -39,6 +39,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class IndexProgress {
 
     private static final IndexProgress INSTANCE = new IndexProgress();
+    /**
+     * Executes the get operation.
+     * @return the  value.
+     */
     public static IndexProgress get() { return INSTANCE; }
 
     private volatile Map<String, Integer> totals = Map.of();              // preserve insertion order
@@ -46,6 +50,9 @@ public final class IndexProgress {
     private volatile long startedAtMs = 0L;
     private volatile boolean active = false;
 
+    /**
+     * Creates a new IndexProgress instance.
+     */
     private IndexProgress() { }
 
     /**
@@ -72,6 +79,10 @@ public final class IndexProgress {
     }
 
     /** Total number of completed records across all tables. */
+    /**
+     * Executes the total Done operation.
+     * @return the computed result.
+     */
     public int totalDone() {
         int sum = 0;
         for (AtomicInteger ai : done.values()) sum += ai.get();
@@ -79,6 +90,10 @@ public final class IndexProgress {
     }
 
     /** Overall target count across all tables. */
+    /**
+     * Executes the grand Total operation.
+     * @return the computed result.
+     */
     public int grandTotal() {
         int sum = 0;
         for (Integer v : totals.values()) sum += (v == null ? 0 : v);
@@ -100,6 +115,10 @@ public final class IndexProgress {
     }
 
     /** Indicates whether a run is currently active. */
+    /**
+     * Returns whether Active is enabled.
+     * @return true when Active is enabled; otherwise false.
+     */
     public boolean isActive() {
         return active;
     }

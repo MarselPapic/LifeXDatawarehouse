@@ -17,6 +17,10 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcAudioDeviceRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcAudioDeviceRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<AudioDevice> mapper = (rs, n) -> new AudioDevice(
@@ -25,32 +29,47 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
             rs.getString("AudioDeviceBrand"),
             rs.getString("DeviceSerialNr"),
             rs.getString("AudioDeviceFirmware"),
-            rs.getString("DeviceType")
+            rs.getString("DeviceType"),
+            rs.getString("Direction")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<AudioDevice> findById(UUID id) {
         String sql = """
-            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType
+            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType, Direction
             FROM AudioDevice WHERE AudioDeviceID = :id
             """;
         try { return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)); }
         catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Client using the supplied criteria and returns the matching data.
+     * @param clientId client identifier.
+     * @return the matching By Client.
+     */
     @Override
     public List<AudioDevice> findByClient(UUID clientId) {
         String sql = """
-            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType
+            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType, Direction
             FROM AudioDevice WHERE ClientID = :cid
             """;
         return jdbc.query(sql, new MapSqlParameterSource("cid", clientId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<AudioDevice> findAll() {
         return jdbc.query("""
-            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType
+            SELECT AudioDeviceID, ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType, Direction
             FROM AudioDevice
             """, mapper);
     }
@@ -72,8 +91,8 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
         boolean isNew = d.getAudioDeviceID() == null;
         if (isNew) {
             String sql = """
-                INSERT INTO AudioDevice (ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType)
-                VALUES (:client, :brand, :sn, :fw, :type)
+                INSERT INTO AudioDevice (ClientID, AudioDeviceBrand, DeviceSerialNr, AudioDeviceFirmware, DeviceType, Direction)
+                VALUES (:client, :brand, :sn, :fw, :type, :direction)
                 RETURNING AudioDeviceID
                 """;
             UUID id = jdbc.queryForObject(sql, new MapSqlParameterSource()
@@ -81,13 +100,14 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
                     .addValue("brand", d.getAudioDeviceBrand())
                     .addValue("sn", d.getDeviceSerialNr())
                     .addValue("fw", d.getAudioDeviceFirmware())
-                    .addValue("type", d.getDeviceType()), UUID.class);
+                    .addValue("type", d.getDeviceType())
+                    .addValue("direction", d.getDirection()), UUID.class);
             d.setAudioDeviceID(id);
         } else {
             String sql = """
                 UPDATE AudioDevice SET
                     ClientID = :client, AudioDeviceBrand = :brand, DeviceSerialNr = :sn,
-                    AudioDeviceFirmware = :fw, DeviceType = :type
+                    AudioDeviceFirmware = :fw, DeviceType = :type, Direction = :direction
                 WHERE AudioDeviceID = :id
                 """;
             jdbc.update(sql, new MapSqlParameterSource()
@@ -96,7 +116,8 @@ public class JdbcAudioDeviceRepository implements AudioDeviceRepository {
                     .addValue("brand", d.getAudioDeviceBrand())
                     .addValue("sn", d.getDeviceSerialNr())
                     .addValue("fw", d.getAudioDeviceFirmware())
-                    .addValue("type", d.getDeviceType()));
+                    .addValue("type", d.getDeviceType())
+                    .addValue("direction", d.getDirection()));
         }
         return d;
     }

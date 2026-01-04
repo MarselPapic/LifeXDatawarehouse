@@ -144,12 +144,19 @@ public class ServiceContractService {
 
     // ---------- Internals ----------
 
+    /**
+     * Registers the After Commit Indexing for deferred execution.
+     * @param sc sc.
+     */
     private void registerAfterCommitIndexing(ServiceContract sc) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             indexToLucene(sc);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**
+             * Indexes the service contract after the transaction commits.
+             */
             @Override
             public void afterCommit() {
                 indexToLucene(sc);
@@ -157,6 +164,11 @@ public class ServiceContractService {
         });
     }
 
+    /**
+     * Indexes a service contract in Lucene for search operations.
+     *
+     * @param sc service contract entity to index.
+     */
     private void indexToLucene(ServiceContract sc) {
         try {
             lucene.indexServiceContract(
@@ -177,10 +189,23 @@ public class ServiceContractService {
 
     // ---------- Utils ----------
 
+    /**
+     * Checks whether a string is null or blank.
+     *
+     * @param s input string.
+     * @return true when the string is null, empty, or whitespace.
+     */
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * Returns the fallback when the input is null.
+     *
+     * @param in input value.
+     * @param fallback fallback value.
+     * @return input when non-null, otherwise fallback.
+     */
     private static <T> T nvl(T in, T fallback) {
         return in != null ? in : fallback;
     }

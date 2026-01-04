@@ -2,6 +2,7 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.DeploymentVariantService;
 import at.htlle.freq.domain.DeploymentVariant;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -18,12 +19,14 @@ import static org.mockito.Mockito.*;
 class DeploymentVariantControllerTest {
 
     private DeploymentVariantService service;
+    private AuditLogger audit;
     private DeploymentVariantController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(DeploymentVariantService.class);
-        controller = new DeploymentVariantController(service);
+        audit = mock(AuditLogger.class);
+        controller = new DeploymentVariantController(service, audit);
     }
 
     @Test

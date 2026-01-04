@@ -23,6 +23,9 @@ import org.springframework.stereotype.Component;
  *  - Obtains all repositories via Spring, enabling the timers to run complete reindex jobs (see the log output in reindexAll()).
  *  - Delivers messages to LuceneIndexingHubRoute, which in turn drives the Lucene API.
  */
+/**
+ * Component that provides Unified Indexing Routes behavior.
+ */
 @Component("UnifiedIndexingRoutes")
 @ConditionalOnProperty(value = "lifex.lucene.camel.enabled", havingValue = "true", matchIfMissing = true)
 public class UnifiedIndexingRoutes extends RouteBuilder {
@@ -45,6 +48,25 @@ public class UnifiedIndexingRoutes extends RouteBuilder {
     private final SoftwareRepository softwareRepo;
     private final UpgradePlanRepository upgradePlanRepo;
 
+    /**
+     * Creates a new UnifiedIndexingRoutes instance and initializes it with the provided values.
+     * @param accountRepo account repo.
+     * @param addressRepo address repo.
+     * @param audioDeviceRepo audio device repo.
+     * @param cityRepo city repo.
+     * @param clientsRepo clients repo.
+     * @param countryRepo country repo.
+     * @param deploymentVariantRepo deployment variant repo.
+     * @param installedSoftwareRepo installed software repo.
+     * @param phoneIntegrationRepo phone integration repo.
+     * @param projectRepo project repo.
+     * @param radioRepo radio repo.
+     * @param serverRepo server repo.
+     * @param serviceContractRepo service contract repo.
+     * @param siteRepo site repo.
+     * @param softwareRepo software repo.
+     * @param upgradePlanRepo upgrade plan repo.
+     */
     public UnifiedIndexingRoutes(AccountRepository accountRepo,
                                  AddressRepository addressRepo,
                                  AudioDeviceRepository audioDeviceRepo,

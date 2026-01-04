@@ -19,6 +19,10 @@ public class JdbcSiteRepository implements SiteRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcSiteRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcSiteRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<Site> mapper = (rs, n) -> new Site(
@@ -27,13 +31,20 @@ public class JdbcSiteRepository implements SiteRepository {
             rs.getObject("ProjectID", UUID.class),
             rs.getObject("AddressID", UUID.class),
             rs.getString("FireZone"),
-            (Integer) rs.getObject("TenantCount") // nullable column
+            (Integer) rs.getObject("TenantCount"), // nullable column
+            rs.getInt("RedundantServers"),
+            rs.getObject("HighAvailability", Boolean.class)
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Site> findById(UUID id) {
         String sql = """
-            SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount
+            SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount, RedundantServers, HighAvailability
             FROM Site WHERE SiteID = :id
             """;
         try {
@@ -41,20 +52,35 @@ public class JdbcSiteRepository implements SiteRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Project using the supplied criteria and returns the matching data.
+     * @param projectId project identifier.
+     * @return the matching By Project.
+     */
     @Override
     public List<Site> findByProject(UUID projectId) {
         String sql = """
-            SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount
-            FROM Site WHERE ProjectID = :pid
+            SELECT s.SiteID, s.SiteName, s.ProjectID, s.AddressID, s.FireZone, s.TenantCount, s.RedundantServers, s.HighAvailability
+            FROM Site s
+            JOIN ProjectSite ps ON ps.SiteID = s.SiteID
+            WHERE ps.ProjectID = :pid
             """;
         return jdbc.query(sql, new MapSqlParameterSource("pid", projectId), mapper);
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Site> findAll() {
-        return jdbc.query("SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount FROM Site", mapper);
+        return jdbc.query("SELECT SiteID, SiteName, ProjectID, AddressID, FireZone, TenantCount, RedundantServers, HighAvailability FROM Site", mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Site WHERE SiteID = :id";
@@ -78,8 +104,8 @@ public class JdbcSiteRepository implements SiteRepository {
         boolean isNew = s.getSiteID() == null;
         if (isNew) {
             String sql = """
-                INSERT INTO Site (SiteName, ProjectID, AddressID, FireZone, TenantCount)
-                VALUES (:name, :project, :address, :fz, :tenants)
+                INSERT INTO Site (SiteName, ProjectID, AddressID, FireZone, TenantCount, RedundantServers, HighAvailability)
+                VALUES (:name, :project, :address, :fz, :tenants, :redundant, :ha)
                 """;
             KeyHolder keyHolder = new GeneratedKeyHolder();
             jdbc.update(sql, new MapSqlParameterSource()
@@ -87,7 +113,9 @@ public class JdbcSiteRepository implements SiteRepository {
                             .addValue("project", s.getProjectID())
                             .addValue("address", s.getAddressID())
                             .addValue("fz", s.getFireZone())
-                            .addValue("tenants", s.getTenantCount()),
+                            .addValue("tenants", s.getTenantCount())
+                            .addValue("redundant", s.getRedundantServers())
+                            .addValue("ha", Boolean.TRUE.equals(s.getHighAvailability())),
                     keyHolder, new String[]{"SiteID"});
 
             UUID id = extractGeneratedSiteId(keyHolder);
@@ -98,7 +126,7 @@ public class JdbcSiteRepository implements SiteRepository {
         } else {
             String sql = """
                 UPDATE Site SET SiteName = :name, ProjectID = :project, AddressID = :address,
-                                FireZone = :fz, TenantCount = :tenants
+                                FireZone = :fz, TenantCount = :tenants, RedundantServers = :redundant, HighAvailability = :ha
                 WHERE SiteID = :id
                 """;
             jdbc.update(sql, new MapSqlParameterSource()
@@ -107,11 +135,18 @@ public class JdbcSiteRepository implements SiteRepository {
                     .addValue("project", s.getProjectID())
                     .addValue("address", s.getAddressID())
                     .addValue("fz", s.getFireZone())
-                    .addValue("tenants", s.getTenantCount()));
+                    .addValue("tenants", s.getTenantCount())
+                    .addValue("redundant", s.getRedundantServers())
+                    .addValue("ha", Boolean.TRUE.equals(s.getHighAvailability())));
         }
         return s;
     }
 
+    /**
+     * Extracts the Generated Site ID from the supplied input.
+     * @param keyHolder key holder.
+     * @return the computed result.
+     */
     private UUID extractGeneratedSiteId(KeyHolder keyHolder) {
         if (keyHolder == null) {
             return null;
@@ -145,6 +180,11 @@ public class JdbcSiteRepository implements SiteRepository {
         return coerceToUuid(key);
     }
 
+    /**
+     * Extracts the From Map from the supplied input.
+     * @param map map.
+     * @return the computed result.
+     */
     private UUID extractFromMap(Map<String, Object> map) {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             if ("siteid".equalsIgnoreCase(entry.getKey())) {
@@ -157,6 +197,11 @@ public class JdbcSiteRepository implements SiteRepository {
         return null;
     }
 
+    /**
+     * Coerces the To UUID into the expected type.
+     * @param value value.
+     * @return the computed result.
+     */
     private UUID coerceToUuid(Object value) {
         if (value == null) {
             return null;
@@ -173,6 +218,11 @@ public class JdbcSiteRepository implements SiteRepository {
         return null;
     }
 
+    /**
+     * Parses the UUID from the supplied input.
+     * @param raw raw.
+     * @return the computed result.
+     */
     private UUID parseUuid(String raw) {
         try {
             return raw == null ? null : UUID.fromString(raw);

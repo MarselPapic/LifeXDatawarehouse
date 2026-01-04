@@ -30,6 +30,11 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    /**
+     * Creates a controller that delegates report generation to {@link ReportService}.
+     *
+     * @param reportService service that builds report data and exports.
+     */
     public ReportController(ReportService reportService) {
         this.reportService = reportService;
     }
@@ -77,12 +82,28 @@ public class ReportController {
                 .body(resource);
     }
 
+    /**
+     * Builds a {@link ReportFilter} from preset and custom date ranges.
+     *
+     * @param preset preset label (for example {@code last30}).
+     * @param from custom range start date string.
+     * @param to custom range end date string.
+     * @return filter for report generation.
+     */
     private ReportFilter buildFilter(String preset, String from, String to) {
         String normalizedPreset = preset == null ? null : preset.trim().toLowerCase(Locale.ROOT);
         DateRange range = resolveRange(normalizedPreset, from, to);
         return new ReportFilter(range.from, range.to, normalizedPreset);
     }
 
+    /**
+     * Resolves the date range from a preset or explicit date parameters.
+     *
+     * @param preset preset label or {@code custom}.
+     * @param fromStr custom start date string.
+     * @param toStr custom end date string.
+     * @return resolved date range.
+     */
     private DateRange resolveRange(String preset, String fromStr, String toStr) {
         if (preset == null || preset.isBlank()) {
             return parseCustomRange(fromStr, toStr);
@@ -106,6 +127,13 @@ public class ReportController {
         };
     }
 
+    /**
+     * Parses a custom date range from string inputs.
+     *
+     * @param fromStr start date string.
+     * @param toStr end date string.
+     * @return date range with normalized ordering.
+     */
     private DateRange parseCustomRange(String fromStr, String toStr) {
         if (fromStr == null && toStr == null) {
             return new DateRange(null, null);
@@ -124,10 +152,19 @@ public class ReportController {
         }
     }
 
+    /**
+     * Builds the export file name for the report.
+     *
+     * @param extension file extension such as {@code csv}.
+     * @return formatted file name including timestamp.
+     */
     private String buildFileName(String extension) {
         String ts = DateTimeFormatter.ofPattern("yyyyMMdd-HHmm").format(LocalDateTime.now());
         return "lifex-support-end-" + ts + "." + extension;
     }
 
+    /**
+     * Component that provides Date Range behavior.
+     */
     private record DateRange(LocalDate from, LocalDate to) {}
 }

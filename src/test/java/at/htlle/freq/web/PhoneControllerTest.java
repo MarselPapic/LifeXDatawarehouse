@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,12 +20,14 @@ import static org.mockito.Mockito.*;
 class PhoneControllerTest {
 
     private NamedParameterJdbcTemplate jdbc;
+    private AuditLogger audit;
     private PhoneController controller;
 
     @BeforeEach
     void setUp() {
         jdbc = mock(NamedParameterJdbcTemplate.class);
-        controller = new PhoneController(jdbc);
+        audit = mock(AuditLogger.class);
+        controller = new PhoneController(jdbc, audit);
     }
 
     @Test

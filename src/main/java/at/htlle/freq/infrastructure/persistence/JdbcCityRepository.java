@@ -17,6 +17,10 @@ public class JdbcCityRepository implements CityRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcCityRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcCityRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     private final RowMapper<City> mapper = (rs, n) -> new City(
@@ -25,6 +29,11 @@ public class JdbcCityRepository implements CityRepository {
             rs.getString("CountryCode")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<City> findById(String id) {
         String sql = "SELECT CityID, CityName, CountryCode FROM City WHERE CityID = :id";
@@ -33,12 +42,21 @@ public class JdbcCityRepository implements CityRepository {
         } catch (Exception e) { return Optional.empty(); }
     }
 
+    /**
+     * Finds By Country using the supplied criteria and returns the matching data.
+     * @param countryCode country code.
+     * @return the matching By Country.
+     */
     @Override
     public List<City> findByCountry(String countryCode) {
         String sql = "SELECT CityID, CityName, CountryCode FROM City WHERE CountryCode = :cc";
         return jdbc.query(sql, new MapSqlParameterSource("cc", countryCode), mapper);
     }
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(String id) {
         String sql = "DELETE FROM City WHERE CityID = :id";
@@ -86,6 +104,10 @@ public class JdbcCityRepository implements CityRepository {
         return c;
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<City> findAll() {
         return jdbc.query("SELECT CityID, CityName, CountryCode FROM City", mapper);

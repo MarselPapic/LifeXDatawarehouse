@@ -21,6 +21,10 @@ public class JdbcAccountRepository implements AccountRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * Creates a new JdbcAccountRepository instance and initializes it with the provided values.
+     * @param jdbc jdbc.
+     */
     public JdbcAccountRepository(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -35,6 +39,11 @@ public class JdbcAccountRepository implements AccountRepository {
             rs.getString("Country")
     );
 
+    /**
+     * Finds By ID using the supplied criteria and returns the matching data.
+     * @param id identifier.
+     * @return the matching By ID.
+     */
     @Override
     public Optional<Account> findById(UUID id) {
         String sql = """
@@ -51,6 +60,11 @@ public class JdbcAccountRepository implements AccountRepository {
         }
     }
 
+    /**
+     * Finds By Name using the supplied criteria and returns the matching data.
+     * @param name name.
+     * @return the matching By Name.
+     */
     @Override
     public Optional<Account> findByName(String name) {
         String sql = """
@@ -67,6 +81,10 @@ public class JdbcAccountRepository implements AccountRepository {
         }
     }
 
+    /**
+     * Finds All using the supplied criteria and returns the matching data.
+     * @return the matching All.
+     */
     @Override
     public List<Account> findAll() {
         String sql = """
@@ -139,6 +157,10 @@ public class JdbcAccountRepository implements AccountRepository {
     }
 
 
+    /**
+     * Deletes the By ID from the underlying store.
+     * @param id identifier.
+     */
     @Override
     public void deleteById(UUID id) {
         String sql = "DELETE FROM Account WHERE AccountID = :id";

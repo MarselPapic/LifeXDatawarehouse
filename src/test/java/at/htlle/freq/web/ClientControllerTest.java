@@ -2,6 +2,7 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.ClientsService;
 import at.htlle.freq.domain.Clients;
+import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,12 +16,14 @@ import static org.mockito.Mockito.*;
 class ClientControllerTest {
 
     private ClientsService service;
+    private AuditLogger audit;
     private ClientController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(ClientsService.class);
-        controller = new ClientController(service);
+        audit = mock(AuditLogger.class);
+        controller = new ClientController(service, audit);
     }
 
     @Test
