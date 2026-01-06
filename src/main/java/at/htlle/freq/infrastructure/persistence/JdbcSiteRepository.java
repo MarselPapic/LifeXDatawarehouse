@@ -49,7 +49,7 @@ public class JdbcSiteRepository implements SiteRepository {
             """;
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper));
-        } catch (Exception e) { return Optional.empty(); }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**

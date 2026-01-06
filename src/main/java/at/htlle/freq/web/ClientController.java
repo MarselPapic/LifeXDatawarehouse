@@ -4,8 +4,12 @@ package at.htlle.freq.web;
 import at.htlle.freq.application.ClientsService;
 import at.htlle.freq.domain.Clients;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +24,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clients")
 public class ClientController {
+
+    private static final Logger log = LoggerFactory.getLogger(ClientController.class);
 
     private final ClientsService service;
     private final AuditLogger audit;
@@ -61,7 +67,7 @@ public class ClientController {
      * @return HTTP 200 containing the saved entity; HTTP 400/500 with an explanatory error message otherwise.
      */
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody Clients client) {
+    public ResponseEntity<Clients> create(@RequestBody Clients client) {
         try {
             Clients saved = service.create(client);
             Map<String, Object> identifiers = new HashMap<>();
@@ -69,9 +75,10 @@ public class ClientController {
             audit.created("Client", identifiers, saved);
             return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         } catch (Exception ex) {
-            return ResponseEntity.internalServerError().body("Create client failed");
+            log.error("Create client failed", ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Create client failed", ex);
         }
     }
 }

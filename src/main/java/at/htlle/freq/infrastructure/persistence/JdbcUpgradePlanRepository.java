@@ -49,7 +49,7 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
             FROM UpgradePlan WHERE UpgradePlanID = :id
             """;
         try { return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)); }
-        catch (Exception e) { return Optional.empty(); }
+        catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**

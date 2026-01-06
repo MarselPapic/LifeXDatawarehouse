@@ -71,7 +71,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             FROM InstalledSoftware WHERE InstalledSoftwareID = :id
             """;
         try { return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)); }
-        catch (Exception e) { return Optional.empty(); }
+        catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**

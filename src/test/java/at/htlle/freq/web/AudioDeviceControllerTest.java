@@ -44,8 +44,8 @@ class AudioDeviceControllerTest {
 
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture());
-        assertEquals("SPEAKER", paramsCaptor.getValue().getValue("deviceType"));
-        assertEquals("Input + Output", paramsCaptor.getValue().getValue("direction"));
+        assertEquals("SPEAKER", paramsCaptor.getValue().getValue("DeviceType"));
+        assertEquals("Input + Output", paramsCaptor.getValue().getValue("Direction"));
     }
 
     @Test
@@ -78,7 +78,8 @@ class AudioDeviceControllerTest {
 
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
 
-        controller.update("AUDIO-1", body);
+        String deviceId = java.util.UUID.randomUUID().toString();
+        controller.update(deviceId, body);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
@@ -87,7 +88,7 @@ class AudioDeviceControllerTest {
         assertTrue(sqlCaptor.getValue().contains("DeviceType = :DeviceType"));
         MapSqlParameterSource params = paramsCaptor.getValue();
         assertEquals("MIC", params.getValue("DeviceType"));
-        assertEquals("AUDIO-1", params.getValue("id"));
+        assertEquals(java.util.UUID.fromString(deviceId), params.getValue("id"));
     }
 
     @Test
@@ -95,7 +96,8 @@ class AudioDeviceControllerTest {
         Map<String, Object> body = new HashMap<>();
         body.put("DeviceType", "boom");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.update("AUDIO-2", body));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.update(java.util.UUID.randomUUID().toString(), body));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
     }

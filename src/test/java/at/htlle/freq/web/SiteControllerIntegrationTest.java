@@ -173,6 +173,23 @@ class SiteControllerIntegrationTest {
     }
 
     @Test
+    void createRejectsMissingProjectIds() throws Exception {
+        UUID addressId = UUID.fromString("eec1d383-0eaf-4730-8d3c-030000000001");
+        Map<String, Object> payload = Map.of(
+                "siteName", "Site without project",
+                "addressID", addressId,
+                "redundantServers", 1,
+                "highAvailability", true
+        );
+
+        mockMvc.perform(post("/sites")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("At least one ProjectID is required"));
+    }
+
+    @Test
     @Transactional
     void updateReplacesProjectAssignmentsWithoutDuplicates() throws Exception {
         UUID siteId = UUID.fromString("9356ae01-fce4-4d24-84ca-080000000001");

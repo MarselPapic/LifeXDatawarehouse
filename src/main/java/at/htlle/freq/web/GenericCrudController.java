@@ -237,7 +237,7 @@ public class GenericCrudController {
         if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "row", "no PK known for table " + table);
 
         String sql = "SELECT * FROM " + table + " WHERE " + pk + " = :id";
-        var params = new MapSqlParameterSource("id", id);
+        var params = new MapSqlParameterSource("id", parsePrimaryKey(table, id));
         List<Map<String, Object>> rows = jdbc.queryForList(sql, params);
         if (rows.isEmpty()) throw logAndThrow(HttpStatus.NOT_FOUND, table, "row", "not found");
         return rows.get(0);
@@ -258,7 +258,7 @@ public class GenericCrudController {
     @ResponseStatus(HttpStatus.CREATED)
     public void insert(@PathVariable String name, @RequestBody Map<String, Object> body) {
         String table = normalizeTable(name);
-        if (body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "insert", "empty body");
+        if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "insert", "empty body");
 
         Map<String, Object> sanitized = convertTemporalValues(table, sanitizeColumns(table, body));
 
@@ -302,7 +302,7 @@ public class GenericCrudController {
         String pk = PKS.get(table);
         if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no PK known for table " + table);
 
-        if (body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "empty body");
+        if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "empty body");
 
         Map<String, Object> sanitized = new LinkedHashMap<>(convertTemporalValues(table, sanitizeColumns(table, body)));
 
@@ -323,7 +323,7 @@ public class GenericCrudController {
             setClauses.add(col + " = :" + col);
         }
         String sql = "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + pk + " = :id";
-        var params = new MapSqlParameterSource(sanitized).addValue("id", id);
+        var params = new MapSqlParameterSource(sanitized).addValue("id", parsePrimaryKey(table, id));
 
         int count = jdbc.update(sql, params);
         if (count == 0)
@@ -350,7 +350,7 @@ public class GenericCrudController {
         if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "delete", "no PK known for table " + table);
 
         String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
-        int count = jdbc.update(sql, new MapSqlParameterSource("id", id));
+        int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)));
         if (count == 0) {
             throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
         }
@@ -392,5 +392,19 @@ public class GenericCrudController {
             }
         }
         return converted;
+    }
+
+    private Object parsePrimaryKey(String table, String id) {
+        if (id == null || id.isBlank()) {
+            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "parsePrimaryKey", "id must not be blank");
+        }
+        if (pkIsString(table)) {
+            return id;
+        }
+        try {
+            return UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "parsePrimaryKey", "invalid UUID: " + id);
+        }
     }
 }

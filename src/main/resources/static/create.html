@@ -62,7 +62,7 @@
             <option value="Address">Address</option>
             <option value="AudioDevice">AudioDevice</option>
             <option value="City">City</option>
-            <option value="WorkingPosition">Client (WorkingPosition)</option>
+            <option value="WorkingPosition">Client</option>
             <option value="Country">Country</option>
             <option value="DeploymentVariant">DeploymentVariant</option>
             <option value="PhoneIntegration">PhoneIntegration</option>
@@ -86,7 +86,7 @@
     <div id="result" role="status" aria-live="polite" aria-atomic="true"></div>
 </main>
 
-<script src="/js/form-config.js"></script>
+<script src="js/form-config.js"></script>
 <script>
     const defaultCreateHeading='Create data entry';
     const entityTitles={
@@ -2049,6 +2049,10 @@
                 break;
             case 'Site':
                 if(accountId) context.accountId=accountId;
+                if(projectId){
+                    await ensureAsyncValue('projectIds', projectId, {lock:true});
+                    context.projectId=projectId;
+                }
                 break;
             case 'Server':
             case 'WorkingPosition':
@@ -2168,12 +2172,14 @@
                 url='/projects';
                 selectedSites = normalizeIdList(mv('siteIds'));
                 p={
-                    projectSAPID: toNull(v('sap')),
+                    projectSAPID: v('sap'),
                     projectName: v('pname'),
                     deploymentVariantID: v('variantId'),
                     bundleType: toNull(v('bundle')),
+                    lifecycleStatus: v('lifecycle'),
                     accountID: v('accId'),
                     addressID: v('addrId'),
+                    specialNotes: toNull(v('specialNotes')),
                     siteIds: selectedSites
                 };
                 break;
@@ -2184,6 +2190,11 @@
                 const tenantCount=tenantRaw ? Number(tenantRaw) : null;
                 if(tenantRaw && Number.isNaN(tenantCount)){
                     fail('TenantCount must be a number.');
+                    return;
+                }
+                const projectIds=normalizeIdList(mv('projectIds'));
+                if(!projectIds.length){
+                    fail('Please select at least one project.');
                     return;
                 }
                 const redundantRaw=v('redundant');
@@ -2200,6 +2211,11 @@
                     fail('RedundantServers must not be negative.');
                     return;
                 }
+                const haRaw=v('ha');
+                if(haRaw !== 'true' && haRaw !== 'false'){
+                    fail('HighAvailability is required.');
+                    return;
+                }
                 const softwareCollection=collectSoftwareEntries(e.target);
                 if(softwareCollection.error){
                     fail(softwareCollection.error);
@@ -2208,10 +2224,13 @@
                 siteSoftwareEntries=softwareCollection.entries;
                 p={
                     siteName: v('name'),
+                    projectID: projectIds[0],
+                    projectIds,
                     addressID: v('addrId'),
                     fireZone: toNull(v('zone')),
                     tenantCount,
                     redundantServers,
+                    highAvailability: haRaw === 'true',
                     softwareAssignments: siteSoftwareEntries
                 };
                 break;
@@ -2226,8 +2245,7 @@
                     serverOS: toNull(v('os')),
                     patchLevel: toNull(v('patch')),
                     virtualPlatform: v('vplat'),
-                    virtualVersion: toNull(v('vver')),
-                    highAvailability: v('ha') === 'true'
+                    virtualVersion: toNull(v('vver'))
                 };
                 break;
 
@@ -2240,7 +2258,9 @@
                     clientSerialNr: toNull(v('serial')),
                     clientOS: toNull(v('os')),
                     patchLevel: toNull(v('patch')),
-                    installType: v('install')
+                    installType: v('install'),
+                    workingPositionType: toNull(v('workingPositionType')),
+                    otherInstalledSoftware: toNull(v('otherSoftware'))
                 };
                 break;
 
@@ -2263,7 +2283,8 @@
                     audioDeviceBrand: toNull(v('brand')),
                     deviceSerialNr: toNull(v('serial')),
                     audioDeviceFirmware: toNull(v('fw')),
-                    deviceType: v('dtype')
+                    deviceType: v('dtype'),
+                    direction: v('direction')
                 };
                 break;
 
@@ -2416,9 +2437,6 @@
                             successMessage+=` Site assignment failed (${assignmentResult.status??'n/a'}).${details}`;
                         }
                     }
-                }
-                if(trimmed){
-                    successMessage+=` (${trimmed})`;
                 }
                 result.innerHTML=`<p class="success">✔ ${escapeHtml(successMessage)}</p>`;
             }else{

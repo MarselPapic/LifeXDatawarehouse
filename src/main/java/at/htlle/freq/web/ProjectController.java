@@ -26,6 +26,27 @@ public class ProjectController {
     private final ProjectSiteAssignmentService projectSites;
     private final AuditLogger audit;
     private static final String TABLE = "Project";
+    private static final Set<String> CREATE_COLUMNS = Set.of(
+            "ProjectSAPID",
+            "ProjectName",
+            "DeploymentVariantID",
+            "BundleType",
+            "AccountID",
+            "AddressID",
+            "LifecycleStatus",
+            "SpecialNotes"
+    );
+    private static final Set<String> UPDATE_COLUMNS = Set.of(
+            "ProjectSAPID",
+            "ProjectName",
+            "DeploymentVariantID",
+            "BundleType",
+            "AccountID",
+            "AddressID",
+            "LifecycleStatus",
+            "SpecialNotes"
+    );
+    private static final Set<String> PASSTHROUGH_KEYS = Set.of("siteIds");
 
     /**
      * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
@@ -101,11 +122,8 @@ public class ProjectController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        if (body.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
-        }
-
-        String sapId = extractProjectSapId(body);
+        Map<String, Object> sanitized = normalizeColumns(body, CREATE_COLUMNS, PASSTHROUGH_KEYS);
+        String sapId = extractProjectSapId(sanitized);
         if (sapId == null || sapId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ProjectSAPID is required");
         }
@@ -121,12 +139,11 @@ public class ProjectController {
 
         String sql = """
             INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes)
-            VALUES (:projectSAPID, :projectName, :deploymentVariantID, :bundleType, CURRENT_DATE, :lifecycleStatus, :accountID, :addressID, :specialNotes)
+            VALUES (:ProjectSAPID, :ProjectName, :DeploymentVariantID, :BundleType, CURRENT_DATE, :LifecycleStatus, :AccountID, :AddressID, :SpecialNotes)
             """;
 
-        Object statusRaw = Optional.ofNullable(body.get("lifecycleStatus"))
-                .orElse(Optional.ofNullable(body.get("LifecycleStatus"))
-                        .orElse(body.get("lifecycle_status")));
+        boolean lifecycleProvided = sanitized.containsKey("LifecycleStatus");
+        Object statusRaw = lifecycleProvided ? sanitized.remove("LifecycleStatus") : null;
 
         ProjectLifecycleStatus status;
         if (statusRaw == null) {
@@ -143,15 +160,11 @@ public class ProjectController {
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        body.forEach((key, value) -> {
-            String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
-            if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized) && !"specialnotes".equals(normalized)) {
-                params.addValue(key, value);
-            }
-        });
-        params.addValue("projectSAPID", sapId);
-        params.addValue("lifecycleStatus", status.name());
-        params.addValue("specialNotes", extractSpecialNotes(body));
+        String specialNotes = normalizeNotes(sanitized.remove("SpecialNotes"));
+        sanitized.put("ProjectSAPID", sapId);
+        sanitized.put("LifecycleStatus", status.name());
+        sanitized.put("SpecialNotes", specialNotes);
+        sanitized.forEach(params::addValue);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(sql, params, keyHolder, new String[]{"ProjectID"});
@@ -184,19 +197,10 @@ public class ProjectController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        if (body.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
-        }
-
-        boolean lifecycleKeyPresent = false;
-        Object statusRaw = null;
-        for (String candidate : List.of("lifecycleStatus", "LifecycleStatus", "lifecycle_status")) {
-            if (body.containsKey(candidate)) {
-                lifecycleKeyPresent = true;
-                statusRaw = body.get(candidate);
-                break;
-            }
-        }
+        UUID projectId = parseUuid(id, "ProjectID");
+        Map<String, Object> sanitized = normalizeColumns(body, UPDATE_COLUMNS, PASSTHROUGH_KEYS);
+        boolean lifecycleKeyPresent = sanitized.containsKey("LifecycleStatus");
+        Object statusRaw = lifecycleKeyPresent ? sanitized.remove("LifecycleStatus") : null;
 
         ProjectLifecycleStatus status = null;
         if (lifecycleKeyPresent) {
@@ -213,25 +217,33 @@ public class ProjectController {
             }
         }
 
+        if (sanitized.containsKey("ProjectSAPID")) {
+            String newSapId = normalizeRequiredText(sanitized.remove("ProjectSAPID"), "ProjectSAPID");
+            int duplicates = Optional.ofNullable(jdbc.queryForObject(
+                            "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap AND ProjectID <> :id",
+                            new MapSqlParameterSource("sap", newSapId).addValue("id", projectId), Integer.class))
+                    .orElse(0);
+            if (duplicates > 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + newSapId);
+            }
+            sanitized.put("ProjectSAPID", newSapId);
+        }
+
+        if (sanitized.containsKey("SpecialNotes")) {
+            sanitized.put("SpecialNotes", normalizeNotes(sanitized.get("SpecialNotes")));
+        }
+
         StringBuilder sql = new StringBuilder("UPDATE Project SET ");
         List<String> sets = new ArrayList<>();
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
-        body.forEach((key, value) -> {
-            String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
-            if (!"lifecyclestatus".equals(normalized) && !"lifecycle_status".equals(normalized)) {
-                if ("specialnotes".equals(normalized)) {
-                    sets.add("SpecialNotes = :specialNotes");
-                    params.addValue("specialNotes", normalizeNotes(value));
-                } else {
-                    sets.add(key + " = :" + key);
-                    params.addValue(key, value);
-                }
-            }
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", projectId);
+        sanitized.forEach((key, value) -> {
+            sets.add(key + " = :" + key);
+            params.addValue(key, value);
         });
 
         if (status != null) {
-            sets.add("LifecycleStatus = :lifecycleStatus");
-            params.addValue("lifecycleStatus", status.name());
+            sets.add("LifecycleStatus = :LifecycleStatus");
+            params.addValue("LifecycleStatus", status.name());
         }
 
         if (sets.isEmpty()) {
@@ -246,9 +258,9 @@ public class ProjectController {
         }
         List<UUID> siteIds = extractUuidList(body, "siteIds");
         if (siteIds != null) {
-            projectSites.replaceSitesForProject(UUID.fromString(id), siteIds);
+            projectSites.replaceSitesForProject(projectId, siteIds);
         }
-        audit.updated(TABLE, Map.of("ProjectID", id), body);
+        audit.updated(TABLE, Map.of("ProjectID", projectId), body);
     }
 
     // DELETE operations
@@ -280,26 +292,8 @@ public class ProjectController {
      * @return SAP ID value or null when missing.
      */
     private String extractProjectSapId(Map<String, Object> body) {
-        return body.entrySet().stream()
-                .filter(e -> e.getKey() != null && e.getKey().equalsIgnoreCase("projectsapid"))
-                .map(e -> e.getValue() != null ? e.getValue().toString() : null)
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Extracts and normalizes the special notes field from the payload.
-     *
-     * @param body request payload.
-     * @return normalized notes or null when missing.
-     */
-    private String extractSpecialNotes(Map<String, Object> body) {
-        return body.entrySet().stream()
-                .filter(e -> e.getKey() != null && e.getKey().equalsIgnoreCase("specialnotes"))
-                .map(Map.Entry::getValue)
-                .map(this::normalizeNotes)
-                .findFirst()
-                .orElse(null);
+        Object raw = body.get("ProjectSAPID");
+        return raw == null ? null : raw.toString();
     }
 
     /**
@@ -312,6 +306,62 @@ public class ProjectController {
         if (value == null) return null;
         String trimmed = value.toString().trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Map<String, Object> normalizeColumns(Map<String, Object> body, Set<String> allowed, Set<String> passthroughKeys) {
+        if (body == null || body.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+        }
+        Map<String, String> allowedLookup = new HashMap<>();
+        for (String column : allowed) {
+            allowedLookup.put(column.toLowerCase(Locale.ROOT), column);
+        }
+        allowedLookup.put("lifecycle_status", "LifecycleStatus");
+        Set<String> passthroughLookup = new HashSet<>();
+        for (String key : passthroughKeys) {
+            passthroughLookup.add(key.toLowerCase(Locale.ROOT));
+        }
+
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : body.entrySet()) {
+            String key = entry.getKey();
+            if (key == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid column: null");
+            }
+            String normalized = key.toLowerCase(Locale.ROOT);
+            if (passthroughLookup.contains(normalized)) {
+                continue;
+            }
+            String canonical = allowedLookup.get(normalized);
+            if (canonical == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid column: " + key);
+            }
+            sanitized.put(canonical, entry.getValue());
+        }
+        if (sanitized.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+        }
+        return sanitized;
+    }
+
+    private String normalizeRequiredText(Object value, String fieldLabel) {
+        if (value == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldLabel + " is required");
+        }
+        String trimmed = value.toString().trim();
+        if (trimmed.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldLabel + " is required");
+        }
+        return trimmed;
+    }
+
+    private UUID parseUuid(String raw, String fieldName) {
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    fieldName + " must be a valid UUID", ex);
+        }
     }
 
     /**

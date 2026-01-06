@@ -39,7 +39,7 @@ public class JdbcCountryRepository implements CountryRepository {
         String sql = "SELECT CountryCode, CountryName FROM Country WHERE CountryCode = :code";
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("code", code), mapper));
-        } catch (Exception e) { return Optional.empty(); }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**

@@ -51,16 +51,17 @@ class GenericCrudControllerTest {
     @Test
     void rowFetchesByPrimaryKeyAndHandlesNotFound() {
         // Arrange: configure the JDBC template to return a single row for the first lookup
-        when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(Map.of("AccountID", "1")));
+        String id = java.util.UUID.randomUUID().toString();
+        when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(Map.of("AccountID", id)));
         // Act: load the record through the controller
-        Map<String, Object> row = controller.row("account", "1");
+        Map<String, Object> row = controller.row("account", id);
         // Assert: confirm the fetched row matches the stubbed response
-        assertEquals("1", row.get("AccountID"));
+        assertEquals(id, row.get("AccountID"));
 
         // Arrange: simulate a missing row on the next lookup so the controller must fail
         when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of());
         // Act & Assert: expect the controller to convert the miss into a 404 status
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.row("account", "1"));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.row("account", id));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
@@ -93,19 +94,21 @@ class GenericCrudControllerTest {
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("AccountName", "Acme");
-        controller.update("account", "1", body);
+        String id = java.util.UUID.randomUUID().toString();
+        controller.update("account", id, body);
         // Assert: verify the controller forwards a proper UPDATE statement to JDBC
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(sqlCaptor.capture(), paramsCaptor.capture());
         assertEquals("UPDATE Account SET AccountName = :AccountName WHERE AccountID = :id", sqlCaptor.getValue());
         assertEquals("Acme", paramsCaptor.getValue().getValue("AccountName"));
+        assertEquals(java.util.UUID.fromString(id), paramsCaptor.getValue().getValue("id"));
 
         // Arrange: now force the update to report zero affected rows
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
         // Act & Assert: ensure a 404 is propagated when nothing was updated
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.update("account", "1", Map.of("AccountName", "Acme")));
+                () -> controller.update("account", id, Map.of("AccountName", "Acme")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
@@ -114,7 +117,8 @@ class GenericCrudControllerTest {
         // Arrange: allow the delete to acknowledge one removed row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
         // Act: trigger the delete endpoint
-        controller.delete("account", "1");
+        String id = java.util.UUID.randomUUID().toString();
+        controller.delete("account", id);
         // Assert: confirm the delete statement was issued once
         verify(jdbc).update(startsWith("DELETE FROM Account"), any(MapSqlParameterSource.class));
 
@@ -122,7 +126,7 @@ class GenericCrudControllerTest {
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
         // Act & Assert: verify the controller responds with a 404 when nothing was deleted
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.delete("account", "1"));
+                () -> controller.delete("account", id));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
@@ -144,8 +148,9 @@ class GenericCrudControllerTest {
 
     @Test
     void updateRejectsDisallowedColumnNamesBeforeIssuingSql() {
+        String id = java.util.UUID.randomUUID().toString();
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.update("account", "1", Map.of("DROP_TABLE", "value")));
+                () -> controller.update("account", id, Map.of("DROP_TABLE", "value")));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(jdbc, never()).update(startsWith("UPDATE Account"), any(MapSqlParameterSource.class));
     }

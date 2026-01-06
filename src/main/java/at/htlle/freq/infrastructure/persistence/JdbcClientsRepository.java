@@ -52,7 +52,7 @@ public class JdbcClientsRepository implements ClientsRepository {
             return Optional.ofNullable(
                     jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper)
             );
-        } catch (Exception e) {
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return Optional.empty();
         }
     }

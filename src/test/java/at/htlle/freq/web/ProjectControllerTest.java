@@ -52,7 +52,7 @@ class ProjectControllerTest {
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture(), any(), any(String[].class));
 
-        assertEquals("ACTIVE", paramsCaptor.getValue().getValue("lifecycleStatus"));
+        assertEquals("ACTIVE", paramsCaptor.getValue().getValue("LifecycleStatus"));
     }
 
     @Test
@@ -85,7 +85,7 @@ class ProjectControllerTest {
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture(), any(), any(String[].class));
 
-        assertEquals("On-site radio cabling", paramsCaptor.getValue().getValue("specialNotes"));
+        assertEquals("On-site radio cabling", paramsCaptor.getValue().getValue("SpecialNotes"));
     }
 
     @Test
@@ -98,7 +98,7 @@ class ProjectControllerTest {
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture(), any(), any(String[].class));
 
-        assertEquals("EOL", paramsCaptor.getValue().getValue("lifecycleStatus"));
+        assertEquals("EOL", paramsCaptor.getValue().getValue("LifecycleStatus"));
     }
 
     @Test
@@ -111,7 +111,7 @@ class ProjectControllerTest {
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(anyString(), paramsCaptor.capture(), any(), any(String[].class));
 
-        assertEquals("ACTIVE", paramsCaptor.getValue().getValue("lifecycleStatus"));
+        assertEquals("ACTIVE", paramsCaptor.getValue().getValue("LifecycleStatus"));
     }
 
     @Test
@@ -121,17 +121,18 @@ class ProjectControllerTest {
 
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
 
-        controller.update("P-100", body);
+        String projectId = java.util.UUID.randomUUID().toString();
+        controller.update(projectId, body);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbc).update(sqlCaptor.capture(), paramsCaptor.capture());
 
-        assertTrue(sqlCaptor.getValue().contains("LifecycleStatus = :lifecycleStatus"));
+        assertTrue(sqlCaptor.getValue().contains("LifecycleStatus = :LifecycleStatus"));
         MapSqlParameterSource params = paramsCaptor.getValue();
-        assertEquals("MAINTENANCE", params.getValue("lifecycleStatus"));
+        assertEquals("MAINTENANCE", params.getValue("LifecycleStatus"));
         assertFalse(params.hasValue("lifecycle_status"));
-        assertEquals("P-100", params.getValue("id"));
+        assertEquals(java.util.UUID.fromString(projectId), params.getValue("id"));
     }
 
     @Test
@@ -139,7 +140,8 @@ class ProjectControllerTest {
         Map<String, Object> body = new HashMap<>();
         body.put("LifecycleStatus", "invalid");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.update("P-101", body));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.update(java.util.UUID.randomUUID().toString(), body));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
     }

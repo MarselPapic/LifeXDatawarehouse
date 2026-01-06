@@ -82,7 +82,7 @@ class RadioControllerIntegrationTest {
     void updateUnknownRadioReturns404() throws Exception {
         mockMvc.perform(put("/radios/{id}", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mode\":\"Analog\"}"))
+                        .content("{\"Mode\":\"Analog\"}"))
                 .andExpect(status().isNotFound());
     }
 }

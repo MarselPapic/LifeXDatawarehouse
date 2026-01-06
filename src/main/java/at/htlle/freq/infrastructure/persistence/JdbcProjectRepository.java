@@ -53,7 +53,7 @@ public class JdbcProjectRepository implements ProjectRepository {
             """;
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper));
-        } catch (Exception e) { return Optional.empty(); }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**
@@ -71,7 +71,7 @@ public class JdbcProjectRepository implements ProjectRepository {
             """;
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("sap", sapId), mapper));
-        } catch (Exception e) { return Optional.empty(); }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**

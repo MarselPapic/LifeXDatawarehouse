@@ -42,7 +42,7 @@ public class JdbcAddressRepository implements AddressRepository {
         String sql = "SELECT AddressID, Street, CityID FROM Address WHERE AddressID = :id";
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("id", id), mapper));
-        } catch (Exception e) { return Optional.empty(); }
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) { return Optional.empty(); }
     }
 
     /**
@@ -69,9 +69,9 @@ public class JdbcAddressRepository implements AddressRepository {
     /**
      * Persists addresses in the {@code Address} table.
      * <p>
-     * New records are inserted with {@code RETURNING AddressID}, allowing the database-generated
-     * identifier to be written back into the domain object immediately. Existing entries are
-     * updated in full, with parameters mapped to columns based on the field names.
+     * New records generate their UUID in the application so inserts work across databases that
+     * do not support {@code RETURNING}. Existing entries are updated in full, with parameters
+     * mapped to columns based on the field names.
      * </p>
      *
      * @param a address whose attributes are bound via {@link MapSqlParameterSource}.
@@ -81,17 +81,16 @@ public class JdbcAddressRepository implements AddressRepository {
     public Address save(Address a) {
         boolean isNew = a.getAddressID() == null;
         if (isNew) {
-            String sql = """
-            INSERT INTO Address (Street, CityID)
-            VALUES (:street, :city)
-            RETURNING AddressID
-            """;
-            UUID id = jdbc.queryForObject(sql,
-                    new MapSqlParameterSource()
-                            .addValue("street", a.getStreet())
-                            .addValue("city", a.getCityID()),
-                    UUID.class);
+            UUID id = UUID.randomUUID();
             a.setAddressID(id);
+            String sql = """
+            INSERT INTO Address (AddressID, Street, CityID)
+            VALUES (:id, :street, :city)
+            """;
+            jdbc.update(sql, new MapSqlParameterSource()
+                    .addValue("id", id)
+                    .addValue("street", a.getStreet())
+                    .addValue("city", a.getCityID()));
         } else {
             String sql = """
             UPDATE Address SET Street = :street, CityID = :city

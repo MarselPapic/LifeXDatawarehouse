@@ -1952,15 +1952,19 @@
         updateEditButton();
         const { captionText } = updateHeading();
         const entries = Object.entries(row || {});
-        const kvRows = entries
-            .filter(([k]) => (k ?? '').toString().toLowerCase() !== 'softwareassignments')
-            .map(([k,v]) => {
-            const keyLabel = escapeHtml(k);
-            const normalizedKey = (k ?? '').toString().trim().toLowerCase();
-            let cellHtml;
-            if(normalizedKey === 'lifecyclestatus'){
-                cellHtml = renderLifecycleStatusBadge(v);
-            }else{
+          const kvRows = entries
+              .filter(([k]) => (k ?? '').toString().toLowerCase() !== 'softwareassignments')
+              .map(([k,v]) => {
+              const normalizedKey = (k ?? '').toString().trim().toLowerCase();
+              let keyLabel = k;
+              if(normalizedKey === 'servername' || normalizedKey === 'clientname'){
+                  keyLabel = 'Hostname';
+              }
+              keyLabel = escapeHtml(keyLabel);
+              let cellHtml;
+              if(normalizedKey === 'lifecyclestatus'){
+                  cellHtml = renderLifecycleStatusBadge(v);
+              }else{
                 cellHtml = v === null || v === undefined ? '' : escapeHtml(String(v));
             }
             return `<tr><th scope="row" class="key">${keyLabel}</th><td>${cellHtml}</td></tr>`;
@@ -2376,6 +2380,10 @@
                     payload.DeviceType = normalized;
                 }
             }
+            delete payload.AudioDeviceID;
+            delete payload.audioDeviceID;
+            delete payload.audioDeviceId;
+            requestUrl = `/audio/${encodeURIComponent(currentId)}`;
         }
 
         setStatus('Saving changes …', 'info');

@@ -51,8 +51,7 @@ class ServerControllerIntegrationTest {
                 "serverOS", "Linux",
                 "patchLevel", "1.0",
                 "virtualPlatform", "vSphere",
-                "virtualVersion", "7",
-                "highAvailability", true
+                "virtualVersion", "7"
         );
 
         mockMvc.perform(post("/servers")

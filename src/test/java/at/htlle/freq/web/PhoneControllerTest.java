@@ -34,7 +34,8 @@ class PhoneControllerTest {
     void updateRejectsInvalidColumnName() {
         Map<String, Object> body = Map.of("foo; DROP TABLE", "boom");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller.update("PHONE-1", body));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.update(java.util.UUID.randomUUID().toString(), body));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("invalid column"));
@@ -48,7 +49,8 @@ class PhoneControllerTest {
 
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
 
-        controller.update("PHONE-2", body);
+        String phoneId = java.util.UUID.randomUUID().toString();
+        controller.update(phoneId, body);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
@@ -59,6 +61,6 @@ class PhoneControllerTest {
 
         MapSqlParameterSource params = paramsCaptor.getValue();
         assertEquals("2.0.1", params.getValue("PhoneFirmware"));
-        assertEquals("PHONE-2", params.getValue("id"));
+        assertEquals(java.util.UUID.fromString(phoneId), params.getValue("id"));
     }
 }
