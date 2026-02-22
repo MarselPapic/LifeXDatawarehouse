@@ -61,8 +61,9 @@ Software model note:
 ## REST API Quick Reference
 Backend authentication:
 - Protected backend endpoints require HTTP Basic authentication.
+- Web UI calls include the backend credential automatically, so browser users do not need to log in manually.
 - Preset username: `lifex`
-- Preset password: `lifex2026`
+- Preset password: `12345`
 - Configuration keys: `lifex.security.backend.enabled`, `lifex.security.backend.username`, `lifex.security.backend.password`
 
 Backup / Disaster Recovery decision:

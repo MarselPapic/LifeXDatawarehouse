@@ -5,6 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>LifeX - Reporting</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        :root{
+            --summary-bg-start:#eef6ff;
+            --summary-bg-end:#f8fbff;
+            --summary-title:#102a43;
+            --summary-muted:#486581;
+            --summary-total:#0b69a3;
+            --summary-danger:#b42318;
+            --summary-warning:#c2410c;
+            --summary-watch:#0f766e;
+            --summary-neutral:#475467;
+        }
+        .summary-panel{
+            background:linear-gradient(145deg,var(--summary-bg-start) 0%,var(--summary-bg-end) 62%,#ffffff 100%);
+            border:1px solid #d6e4f5;
+            border-radius:16px;
+            padding:1rem 1rem 1.1rem;
+            box-shadow:0 12px 24px rgba(15,23,42,.07);
+            margin-bottom:1.25rem;
+        }
+        .summary-panel + .report-panel{
+            margin-top:2.1rem;
+        }
+        .summary-panel .toolbar{
+            margin-bottom:.6rem;
+            align-items:flex-end;
+            justify-content:space-between;
+        }
+        .summary-panel h2{
+            margin:0;
+            color:var(--summary-title);
+            letter-spacing:.01em;
+            font-family:"Bahnschrift","Segoe UI Semibold","Trebuchet MS",sans-serif;
+        }
+        .summary-panel__subtitle{
+            margin:0;
+            font-size:.9rem;
+            color:var(--summary-muted);
+        }
+        .summary-grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:.75rem;
+        }
+        .summary-card{
+            position:relative;
+            overflow:hidden;
+            border-radius:14px;
+            border:1px solid #d8e4f1;
+            padding:.8rem .9rem .9rem;
+            background:#fff;
+            box-shadow:0 4px 10px rgba(15,23,42,.05);
+            display:flex;
+            flex-direction:column;
+            gap:.4rem;
+            min-height:142px;
+        }
+        .summary-card::before{
+            content:"";
+            position:absolute;
+            top:0;left:0;right:0;
+            height:4px;
+            background:var(--card-accent,#0b69a3);
+        }
+        .summary-card__top{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:.5rem;
+        }
+        .summary-card__label{
+            margin:0;
+            color:#24405f;
+            font-size:.86rem;
+            font-weight:700;
+            letter-spacing:.02em;
+            text-transform:uppercase;
+        }
+        .summary-card__icon{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:1.75rem;
+            height:1.75rem;
+            border-radius:999px;
+            font-size:.95rem;
+            background:var(--card-soft,#e9f3fb);
+            color:var(--card-accent,#0b69a3);
+        }
+        .summary-card__value{
+            margin:.15rem 0 0;
+            font-family:"Bahnschrift","Segoe UI Variable","Trebuchet MS",sans-serif;
+            font-size:1.95rem;
+            line-height:1.05;
+            font-weight:700;
+            color:var(--card-accent,#0b69a3);
+            letter-spacing:.01em;
+        }
+        .summary-card__meta{
+            margin:0;
+            font-size:.82rem;
+            color:#52637a;
+            min-height:1.2rem;
+        }
+        .summary-card__meter{
+            margin-top:auto;
+            width:100%;
+            height:8px;
+            border-radius:999px;
+            background:#e8edf3;
+            overflow:hidden;
+        }
+        .summary-card__meter span{
+            display:block;
+            height:100%;
+            width:0%;
+            background:var(--card-accent,#0b69a3);
+            border-radius:999px;
+            transition:width .35s ease;
+        }
+        .summary-card--total{--card-accent:var(--summary-total);--card-soft:#e6f3fb}
+        .summary-card--overdue{--card-accent:var(--summary-danger);--card-soft:#fdebec}
+        .summary-card--due30{--card-accent:var(--summary-warning);--card-soft:#fff1e8}
+        .summary-card--due90{--card-accent:var(--summary-watch);--card-soft:#e8fbf8}
+        .summary-card--accounts{--card-accent:#1d4ed8;--card-soft:#e8edff}
+        .summary-card--sites{--card-accent:var(--summary-neutral);--card-soft:#eceff3}
+        .report-view-help-toggle{
+            margin-top:.7rem;
+        }
+        .report-view-help{
+            margin-top:.55rem;
+        }
+        @media (max-width:720px){
+            .summary-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+            .summary-card{min-height:130px;padding:.72rem .78rem .82rem}
+            .summary-card__value{font-size:1.66rem}
+            .summary-card__label{font-size:.79rem}
+        }
+    </style>
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to main content</a>
@@ -58,19 +197,84 @@
             </div>
         </form>
         <div id="selection-info" class="filter-info" role="status" aria-live="polite"></div>
+        <button id="report-view-help-toggle"
+                class="info-badge report-view-help-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="report-view-help">
+            ℹ View explanation
+        </button>
+        <div id="report-view-help-status" class="visually-hidden" aria-live="polite"></div>
+        <div id="report-view-help" class="advanced-help report-view-help" hidden>
+            <h3>What each report view shows</h3>
+            <ul>
+                <li><strong>Support end details:</strong> each installed software deployment as a single row, including support end date and remaining days.</li>
+                <li><strong>Lifecycle status distribution:</strong> grouped totals by support phase and install status to show overall lifecycle mix.</li>
+                <li><strong>Account risk overview:</strong> risk KPIs grouped per account (overdue, due in 30 days, due in 90 days, next support end).</li>
+            </ul>
+        </div>
     </section>
 
-    <section class="report-panel" aria-labelledby="summary-title">
+    <section class="report-panel summary-panel" aria-labelledby="summary-title">
         <div class="toolbar">
             <h2 id="summary-title">Risk summary</h2>
+            <p class="summary-panel__subtitle">Real-time risk footprint for the selected reporting window</p>
         </div>
-        <div id="report-summary" class="filter-grid">
-            <div class="field"><strong>Total deployments</strong><div id="summary-total">-</div></div>
-            <div class="field"><strong>Overdue</strong><div id="summary-overdue">-</div></div>
-            <div class="field"><strong>Due in 30 days</strong><div id="summary-due30">-</div></div>
-            <div class="field"><strong>Due in 90 days</strong><div id="summary-due90">-</div></div>
-            <div class="field"><strong>Accounts</strong><div id="summary-accounts">-</div></div>
-            <div class="field"><strong>Sites</strong><div id="summary-sites">-</div></div>
+        <div id="report-summary" class="summary-grid">
+            <article class="summary-card summary-card--total">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Total deployments</p>
+                    <span class="summary-card__icon" aria-hidden="true">#</span>
+                </div>
+                <p id="summary-total" class="summary-card__value">-</p>
+                <p id="summary-total-meta" class="summary-card__meta">Filtered deployments</p>
+                <div class="summary-card__meter"><span id="summary-total-meter"></span></div>
+            </article>
+            <article class="summary-card summary-card--overdue">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Overdue</p>
+                    <span class="summary-card__icon" aria-hidden="true">!</span>
+                </div>
+                <p id="summary-overdue" class="summary-card__value">-</p>
+                <p id="summary-overdue-meta" class="summary-card__meta">No data</p>
+                <div class="summary-card__meter"><span id="summary-overdue-meter"></span></div>
+            </article>
+            <article class="summary-card summary-card--due30">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Due in 30 days</p>
+                    <span class="summary-card__icon" aria-hidden="true">30</span>
+                </div>
+                <p id="summary-due30" class="summary-card__value">-</p>
+                <p id="summary-due30-meta" class="summary-card__meta">No data</p>
+                <div class="summary-card__meter"><span id="summary-due30-meter"></span></div>
+            </article>
+            <article class="summary-card summary-card--due90">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Due in 90 days</p>
+                    <span class="summary-card__icon" aria-hidden="true">90</span>
+                </div>
+                <p id="summary-due90" class="summary-card__value">-</p>
+                <p id="summary-due90-meta" class="summary-card__meta">No data</p>
+                <div class="summary-card__meter"><span id="summary-due90-meter"></span></div>
+            </article>
+            <article class="summary-card summary-card--accounts">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Accounts</p>
+                    <span class="summary-card__icon" aria-hidden="true">A</span>
+                </div>
+                <p id="summary-accounts" class="summary-card__value">-</p>
+                <p id="summary-accounts-meta" class="summary-card__meta">No data</p>
+                <div class="summary-card__meter"><span id="summary-accounts-meter"></span></div>
+            </article>
+            <article class="summary-card summary-card--sites">
+                <div class="summary-card__top">
+                    <p class="summary-card__label">Sites</p>
+                    <span class="summary-card__icon" aria-hidden="true">S</span>
+                </div>
+                <p id="summary-sites" class="summary-card__value">-</p>
+                <p id="summary-sites-meta" class="summary-card__meta">No data</p>
+                <div class="summary-card__meter"><span id="summary-sites-meter"></span></div>
+            </article>
         </div>
     </section>
 
@@ -89,6 +293,7 @@
     </section>
 </main>
 
+<script src="/js/backend-auth.js"></script>
 <script src="/js/reports.js"></script>
 </body>
 </html>

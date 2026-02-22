@@ -36,12 +36,27 @@
         exportXlsx: document.getElementById('export-xlsx'),
         panel: document.getElementById('report-panel'),
         selectionInfo: document.getElementById('selection-info'),
+        reportViewHelpToggle: document.getElementById('report-view-help-toggle'),
+        reportViewHelpPanel: document.getElementById('report-view-help'),
+        reportViewHelpStatus: document.getElementById('report-view-help-status'),
         summaryTotal: document.getElementById('summary-total'),
         summaryOverdue: document.getElementById('summary-overdue'),
         summaryDue30: document.getElementById('summary-due30'),
         summaryDue90: document.getElementById('summary-due90'),
         summaryAccounts: document.getElementById('summary-accounts'),
-        summarySites: document.getElementById('summary-sites')
+        summarySites: document.getElementById('summary-sites'),
+        summaryTotalMeta: document.getElementById('summary-total-meta'),
+        summaryOverdueMeta: document.getElementById('summary-overdue-meta'),
+        summaryDue30Meta: document.getElementById('summary-due30-meta'),
+        summaryDue90Meta: document.getElementById('summary-due90-meta'),
+        summaryAccountsMeta: document.getElementById('summary-accounts-meta'),
+        summarySitesMeta: document.getElementById('summary-sites-meta'),
+        summaryTotalMeter: document.getElementById('summary-total-meter'),
+        summaryOverdueMeter: document.getElementById('summary-overdue-meter'),
+        summaryDue30Meter: document.getElementById('summary-due30-meter'),
+        summaryDue90Meter: document.getElementById('summary-due90-meter'),
+        summaryAccountsMeter: document.getElementById('summary-accounts-meter'),
+        summarySitesMeter: document.getElementById('summary-sites-meter')
     };
 
     document.addEventListener('DOMContentLoaded', init);
@@ -49,6 +64,7 @@
     async function init() {
         document.title = 'LifeX - Reporting';
         wireForm();
+        setReportViewHelpExpanded(false);
         applyStateToForm();
         await loadReport();
     }
@@ -80,6 +96,9 @@
                 applyStateToForm();
                 loadReport();
             });
+        }
+        if (elements.reportViewHelpToggle) {
+            elements.reportViewHelpToggle.addEventListener('click', toggleReportViewHelp);
         }
     }
 
@@ -130,13 +149,13 @@
 
     async function loadReport() {
         const params = buildParams();
-        const summaryParams = buildSummaryParams();
+        const summaryUrl = API.summary;
         setBusy(true);
         setStatus('Loading...');
         try {
             const [reportRes, summaryRes] = await Promise.all([
                 fetch(`${API.data}?${params}`),
-                fetch(`${API.summary}?${summaryParams}`)
+                fetch(summaryUrl)
             ]);
 
             if (!reportRes.ok) {
@@ -224,19 +243,88 @@
             setSummaryValue(elements.summaryDue90, '-');
             setSummaryValue(elements.summaryAccounts, '-');
             setSummaryValue(elements.summarySites, '-');
+            setSummaryMeta(elements.summaryTotalMeta, 'All deployments');
+            setSummaryMeta(elements.summaryOverdueMeta, 'No data');
+            setSummaryMeta(elements.summaryDue30Meta, 'No data');
+            setSummaryMeta(elements.summaryDue90Meta, 'No data');
+            setSummaryMeta(elements.summaryAccountsMeta, 'No data');
+            setSummaryMeta(elements.summarySitesMeta, 'No data');
+            setMeterWidth(elements.summaryTotalMeter, 0);
+            setMeterWidth(elements.summaryOverdueMeter, 0);
+            setMeterWidth(elements.summaryDue30Meter, 0);
+            setMeterWidth(elements.summaryDue90Meter, 0);
+            setMeterWidth(elements.summaryAccountsMeter, 0);
+            setMeterWidth(elements.summarySitesMeter, 0);
             return;
         }
-        setSummaryValue(elements.summaryTotal, summary.totalDeployments);
-        setSummaryValue(elements.summaryOverdue, summary.overdue);
-        setSummaryValue(elements.summaryDue30, summary.dueIn30Days);
-        setSummaryValue(elements.summaryDue90, summary.dueIn90Days);
-        setSummaryValue(elements.summaryAccounts, summary.distinctAccounts);
-        setSummaryValue(elements.summarySites, summary.distinctSites);
+        const total = asNumber(summary.totalDeployments);
+        const overdue = asNumber(summary.overdue);
+        const due30 = asNumber(summary.dueIn30Days);
+        const due90 = asNumber(summary.dueIn90Days);
+        const accounts = asNumber(summary.distinctAccounts);
+        const sites = asNumber(summary.distinctSites);
+
+        setSummaryValue(elements.summaryTotal, total);
+        setSummaryValue(elements.summaryOverdue, overdue);
+        setSummaryValue(elements.summaryDue30, due30);
+        setSummaryValue(elements.summaryDue90, due90);
+        setSummaryValue(elements.summaryAccounts, accounts);
+        setSummaryValue(elements.summarySites, sites);
+
+        const overduePct = toPercent(overdue, total);
+        const due30Pct = toPercent(due30, total);
+        const due90Pct = toPercent(due90, total);
+        const accountSpread = toPercent(accounts, total);
+        const siteSpread = toPercent(sites, total);
+
+        setSummaryMeta(elements.summaryTotalMeta, 'All deployments');
+        setSummaryMeta(elements.summaryOverdueMeta, `${overduePct}% of deployments`);
+        setSummaryMeta(elements.summaryDue30Meta, `${due30Pct}% in immediate horizon`);
+        setSummaryMeta(elements.summaryDue90Meta, `${due90Pct}% in planned horizon`);
+        setSummaryMeta(elements.summaryAccountsMeta, accounts > 0 ? `${formatNumber(total / accounts)} deployments per account` : 'No account coverage');
+        setSummaryMeta(elements.summarySitesMeta, sites > 0 ? `${formatNumber(total / sites)} deployments per site` : 'No site coverage');
+
+        setMeterWidth(elements.summaryTotalMeter, total > 0 ? 100 : 0);
+        setMeterWidth(elements.summaryOverdueMeter, overduePct);
+        setMeterWidth(elements.summaryDue30Meter, due30Pct);
+        setMeterWidth(elements.summaryDue90Meter, due90Pct);
+        setMeterWidth(elements.summaryAccountsMeter, accountSpread);
+        setMeterWidth(elements.summarySitesMeter, siteSpread);
     }
 
     function setSummaryValue(el, value) {
         if (!el) return;
+        if (typeof value === 'number') {
+            el.textContent = formatNumber(value);
+            return;
+        }
         el.textContent = value != null ? String(value) : '-';
+    }
+
+    function setSummaryMeta(el, text) {
+        if (!el) return;
+        el.textContent = text || '';
+    }
+
+    function setMeterWidth(el, percent) {
+        if (!el) return;
+        const safe = Math.max(0, Math.min(100, Number(percent) || 0));
+        const width = safe > 0 && safe < 4 ? 4 : safe;
+        el.style.width = `${width}%`;
+    }
+
+    function asNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function toPercent(part, total) {
+        if (!total || total <= 0) return 0;
+        return Math.round((part / total) * 100);
+    }
+
+    function formatNumber(value) {
+        return new Intl.NumberFormat('en-US', { maximumFractionDigits: value % 1 === 0 ? 0 : 1 }).format(value);
     }
 
     function updateGeneratedAt(timestamp) {
@@ -255,17 +343,6 @@
         const view = normalizeView(state.view);
         const preset = normalizeRange(state.range);
         params.set('view', view);
-        params.set('preset', preset);
-        if (preset === 'custom') {
-            if (state.startDate) params.set('from', state.startDate);
-            if (state.endDate) params.set('to', state.endDate);
-        }
-        return params.toString();
-    }
-
-    function buildSummaryParams() {
-        const params = new URLSearchParams();
-        const preset = normalizeRange(state.range);
         params.set('preset', preset);
         if (preset === 'custom') {
             if (state.startDate) params.set('from', state.startDate);
@@ -297,6 +374,23 @@
             return;
         }
         elements.selectionInfo.textContent = `${viewLabels[view]} | ${rangeLabels[preset] || ''}`;
+    }
+
+    function setReportViewHelpExpanded(expanded) {
+        if (!elements.reportViewHelpPanel || !elements.reportViewHelpToggle) return;
+        const isOpen = !!expanded;
+        elements.reportViewHelpPanel.hidden = !isOpen;
+        elements.reportViewHelpToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (elements.reportViewHelpStatus) {
+            elements.reportViewHelpStatus.textContent = isOpen
+                ? 'Report view explanation expanded'
+                : 'Report view explanation collapsed';
+        }
+    }
+
+    function toggleReportViewHelp() {
+        if (!elements.reportViewHelpPanel) return;
+        setReportViewHelpExpanded(elements.reportViewHelpPanel.hidden);
     }
 
     function setStatus(message) {

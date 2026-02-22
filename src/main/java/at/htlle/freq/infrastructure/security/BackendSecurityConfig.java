@@ -26,7 +26,7 @@ public class BackendSecurityConfig {
     @Value("${lifex.security.backend.username:lifex}")
     private String username;
 
-    @Value("${lifex.security.backend.password:lifex2026}")
+    @Value("${lifex.security.backend.password:12345}")
     private String password;
 
     @Bean
@@ -83,4 +83,3 @@ public class BackendSecurityConfig {
         return new InMemoryUserDetailsManager(backendUser);
     }
 }
-

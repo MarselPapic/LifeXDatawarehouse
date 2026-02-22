@@ -20,8 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
         "lifex.security.backend.enabled=true",
-        "lifex.security.backend.username=test-backend",
-        "lifex.security.backend.password=test-backend-pass"
+        "lifex.security.backend.username=lifex",
+        "lifex.security.backend.password=12345"
 })
 class BackendSecurityIntegrationTest {
 
@@ -40,7 +40,7 @@ class BackendSecurityIntegrationTest {
     @Test
     void backendEndpointsAllowConfiguredBasicAuthentication() throws Exception {
         mockMvc.perform(get("/accounts")
-                        .header(HttpHeaders.AUTHORIZATION, basicAuth("test-backend", "test-backend-pass")))
+                        .header(HttpHeaders.AUTHORIZATION, basicAuth("lifex", "12345")))
                 .andExpect(status().isOk());
     }
 
@@ -56,4 +56,3 @@ class BackendSecurityIntegrationTest {
         return "Basic " + encoded;
     }
 }
-

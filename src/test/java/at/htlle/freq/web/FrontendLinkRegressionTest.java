@@ -60,6 +60,10 @@ class FrontendLinkRegressionTest {
                 "Reports page must expose a PDF export action.");
         assertTrue(reportsPage.contains("id=\"export-xlsx\""),
                 "Reports page must expose an XLSX export action.");
+        assertTrue(reportsPage.contains("id=\"report-view-help-toggle\""),
+                "Reports page must expose a report view explanation toggle.");
+        assertTrue(reportsPage.contains("id=\"report-view-help\""),
+                "Reports page must include a collapsible report view explanation panel.");
         assertTrue(reportsJs.contains("view: DEFAULT_VIEW"),
                 "Reports script must manage selected report view in state.");
         assertTrue(reportsJs.contains("params.set('view', view);"),
@@ -68,5 +72,24 @@ class FrontendLinkRegressionTest {
                 "Reports script must wire PDF export endpoint.");
         assertTrue(reportsJs.contains("API.xlsx"),
                 "Reports script must wire XLSX export endpoint.");
+        assertTrue(reportsJs.contains("setReportViewHelpExpanded"),
+                "Reports script must support toggling the report view explanation panel.");
+    }
+
+    @Test
+    void allMainFrontendPagesLoadAutomaticBackendAuthScript() throws IOException {
+        String indexPage = Files.readString(Path.of("src/main/resources/static/index.html"), StandardCharsets.UTF_8);
+        String createPage = Files.readString(Path.of("src/main/resources/static/create.html"), StandardCharsets.UTF_8);
+        String detailsPage = Files.readString(Path.of("src/main/resources/static/details.html"), StandardCharsets.UTF_8);
+        String reportsPage = Files.readString(Path.of("src/main/resources/static/reports.html"), StandardCharsets.UTF_8);
+
+        assertTrue(indexPage.contains("/js/backend-auth.js"),
+                "Dashboard must load backend-auth script for automatic API authentication.");
+        assertTrue(createPage.contains("/js/backend-auth.js"),
+                "Create page must load backend-auth script for automatic API authentication.");
+        assertTrue(detailsPage.contains("/js/backend-auth.js"),
+                "Details page must load backend-auth script for automatic API authentication.");
+        assertTrue(reportsPage.contains("/js/backend-auth.js"),
+                "Reports page must load backend-auth script for automatic API authentication.");
     }
 }

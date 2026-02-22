@@ -65,19 +65,21 @@ public class ReportController {
     }
 
     /**
-     * Returns KPI summary values for support risk reporting.
+     * Returns global KPI summary values for support risk reporting.
      *
-     * @param from start date (ISO-8601)
-     * @param to end date (ISO-8601)
-     * @param preset date range shortcut
+     * <p>The summary is intentionally independent from report filters so the risk panel
+     * on the UI is always populated on page load and after filter changes.</p>
+     *
+     * @param from optional start date (accepted but ignored)
+     * @param to optional end date (accepted but ignored)
+     * @param preset optional preset (accepted but ignored)
      * @return summary KPI payload.
      */
     @GetMapping("/summary")
     public ReportSummary getSummary(@RequestParam(name = "from", required = false) String from,
                                     @RequestParam(name = "to", required = false) String to,
                                     @RequestParam(name = "preset", required = false) String preset) {
-        ReportFilter filter = buildFilter(preset, from, to);
-        return reportService.getSummary(filter);
+        return reportService.getSummary(null);
     }
 
     /**
