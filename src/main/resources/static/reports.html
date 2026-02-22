@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LifeX – Support end reports</title>
+    <title>LifeX - Reporting</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -19,18 +19,28 @@
 </header>
 
 <main id="main" class="content content--narrow" aria-live="polite">
-    <h1>Support end overview</h1>
-    <p>Select a date window to find customer deployments (account → project → site) where the installed software's <strong>SupportEndDate</strong> is due within that period. Use quick presets or enter a custom start and end date.</p>
+    <h1>Reporting center</h1>
+    <p>Analyze installed software risks and status distribution by selecting a report view and date range.</p>
 
     <section class="filters" aria-labelledby="filters-title">
-        <h2 id="filters-title">Date range</h2>
+        <h2 id="filters-title">Filters</h2>
         <form id="range-form" class="filter-grid">
+            <div class="field">
+                <label for="view">Report view</label>
+                <select id="view" name="view">
+                    <option value="support-end">Support end details</option>
+                    <option value="lifecycle-status">Lifecycle status distribution</option>
+                    <option value="account-risk">Account risk overview</option>
+                </select>
+            </div>
             <div class="field">
                 <label for="range">Preset</label>
                 <select id="range" name="range">
+                    <option value="last30">Last 30 days</option>
                     <option value="next30">Next 30 days</option>
                     <option value="next90">Next 90 days</option>
                     <option value="next180">Next 180 days</option>
+                    <option value="quarter">Current quarter</option>
                     <option value="custom">Custom</option>
                 </select>
             </div>
@@ -50,6 +60,20 @@
         <div id="selection-info" class="filter-info" role="status" aria-live="polite"></div>
     </section>
 
+    <section class="report-panel" aria-labelledby="summary-title">
+        <div class="toolbar">
+            <h2 id="summary-title">Risk summary</h2>
+        </div>
+        <div id="report-summary" class="filter-grid">
+            <div class="field"><strong>Total deployments</strong><div id="summary-total">-</div></div>
+            <div class="field"><strong>Overdue</strong><div id="summary-overdue">-</div></div>
+            <div class="field"><strong>Due in 30 days</strong><div id="summary-due30">-</div></div>
+            <div class="field"><strong>Due in 90 days</strong><div id="summary-due90">-</div></div>
+            <div class="field"><strong>Accounts</strong><div id="summary-accounts">-</div></div>
+            <div class="field"><strong>Sites</strong><div id="summary-sites">-</div></div>
+        </div>
+    </section>
+
     <section class="report-panel" id="report-panel" aria-busy="false">
         <div class="toolbar">
             <div class="report-meta">
@@ -57,6 +81,8 @@
             </div>
             <span class="spacer"></span>
             <a id="export-csv" class="btn" href="#">Download CSV</a>
+            <a id="export-pdf" class="btn" href="#">Download PDF</a>
+            <a id="export-xlsx" class="btn" href="#">Download XLSX</a>
         </div>
         <div id="table-wrapper" class="table-scroll"></div>
         <div id="report-status" role="status" aria-live="polite"></div>

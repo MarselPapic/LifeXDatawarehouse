@@ -13,17 +13,18 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ReportServiceTest {
 
     @Test
-    void supportReportMapsDateInformation() throws SQLException {
+    void supportReportMapsDateInformationAndSummary() throws SQLException {
         NamedParameterJdbcTemplate jdbc = mock(NamedParameterJdbcTemplate.class);
         ReportService service = new ReportService(jdbc);
 
@@ -53,6 +54,14 @@ class ReportServiceTest {
             }
             return mappedRows;
         });
+        when(jdbc.queryForMap(anyString(), anyMap())).thenReturn(Map.of(
+                "totalDeployments", 1L,
+                "overdue", 0L,
+                "dueIn30Days", 1L,
+                "dueIn90Days", 1L,
+                "distinctAccounts", 1L,
+                "distinctSites", 1L
+        ));
 
         ReportFilter filter = new ReportFilter(LocalDate.now(), LocalDate.now().plusDays(30), "next30");
         ReportResponse response = service.getReport(filter);
@@ -67,7 +76,8 @@ class ReportServiceTest {
         assertEquals("2024", firstRow.get("release"));
         assertEquals("2", firstRow.get("revision"));
         assertEquals("10.01.2023", firstRow.get("supportStart"));
-        assertNotEquals("—", firstRow.get("daysRemaining"));
+        assertNotNull(response.summary());
+        assertEquals(1L, response.summary().totalDeployments());
     }
 
     @Test
@@ -91,7 +101,7 @@ class ReportServiceTest {
                 "version", "2024.1.5",
                 "supportEnd", "01.01.2025"
         );
-        ReportTable table = new ReportTable(columns, List.of(row), "", "");
+        ReportTable table = new ReportTable(columns, List.of(row), "Support end dates", "");
         ReportResponse response = new ReportResponse(table, "2024-01-01 10:00");
 
         String csv = service.renderCsv(response);
@@ -100,5 +110,24 @@ class ReportServiceTest {
         assertEquals("Report;Support end dates", lines[0]);
         assertEquals("Account;Project;Site;Install status;Software;Version;Support end", lines[3]);
         assertEquals("EuroCom;Expansion;Vienna Campus;Installed;Core;2024.1.5;01.01.2025", lines[4]);
+    }
+
+    @Test
+    void pdfAndExcelExportsProduceBinaryContent() {
+        ReportService service = new ReportService(null);
+        List<ReportColumn> columns = List.of(
+                new ReportColumn("account", "Account", "left"),
+                new ReportColumn("deployments", "Deployments", "right")
+        );
+        ReportTable table = new ReportTable(columns, List.of(Map.of("account", "EuroCom", "deployments", "4")),
+                "Account risk overview", "");
+        ReportSummary summary = new ReportSummary(4, 1, 2, 3, 1, 2);
+        ReportResponse response = new ReportResponse(table, summary, "2026-02-22 14:00");
+
+        byte[] pdf = service.renderPdf(response);
+        byte[] xlsx = service.renderExcel(response);
+
+        assertTrue(pdf.length > 0);
+        assertTrue(xlsx.length > 0);
     }
 }

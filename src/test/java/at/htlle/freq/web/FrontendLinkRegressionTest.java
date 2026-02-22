@@ -48,4 +48,25 @@ class FrontendLinkRegressionTest {
         assertTrue(detailsPage.contains("if(entry.version) versionParts.push(`Version ${entry.version}`);"),
                 "Details view must render software version explicitly in overview badges.");
     }
+
+    @Test
+    void reportsFrontendSupportsViewFilterAndAllExportFormats() throws IOException {
+        String reportsPage = Files.readString(Path.of("src/main/resources/static/reports.html"), StandardCharsets.UTF_8);
+        String reportsJs = Files.readString(Path.of("src/main/resources/static/js/reports.js"), StandardCharsets.UTF_8);
+
+        assertTrue(reportsPage.contains("id=\"view\""),
+                "Reports page must expose a report view selector.");
+        assertTrue(reportsPage.contains("id=\"export-pdf\""),
+                "Reports page must expose a PDF export action.");
+        assertTrue(reportsPage.contains("id=\"export-xlsx\""),
+                "Reports page must expose an XLSX export action.");
+        assertTrue(reportsJs.contains("view: DEFAULT_VIEW"),
+                "Reports script must manage selected report view in state.");
+        assertTrue(reportsJs.contains("params.set('view', view);"),
+                "Reports script must submit selected report view to backend.");
+        assertTrue(reportsJs.contains("API.pdf"),
+                "Reports script must wire PDF export endpoint.");
+        assertTrue(reportsJs.contains("API.xlsx"),
+                "Reports script must wire XLSX export endpoint.");
+    }
 }

@@ -78,8 +78,11 @@ Indexing:
 - `GET /api/index-progress` current reindex progress
 
 Reporting:
-- `GET /api/reports/data?from=&to=&preset=` support end report data
-- `GET /api/reports/export/csv?from=&to=&preset=` CSV export
+- `GET /api/reports/data?from=&to=&preset=&view=` report data (`support-end`, `lifecycle-status`, `account-risk`)
+- `GET /api/reports/summary?from=&to=&preset=` KPI summary (deployments, overdue, due windows, accounts, sites)
+- `GET /api/reports/export/csv?from=&to=&preset=&view=` CSV export
+- `GET /api/reports/export/pdf?from=&to=&preset=&view=` PDF export
+- `GET /api/reports/export/xlsx?from=&to=&preset=&view=` Excel export
 
 Generic table API:
 - `GET /table/{name}` 100-row preview of a table
@@ -101,7 +104,7 @@ Site-specific helpers:
 - `index.html` Dashboard (global search, shortcuts, table preview, index progress)
 - `create.html` Record creation wizard with validation and dependent dropdowns
 - `details.html` Generic detail view with linked entities
-- `reports.html` Support end report with CSV export
+- `reports.html` Reporting center with multi-view analysis, KPI summary, and CSV/PDF/XLSX export
 
 All assets live under `src/main/resources/static/`.
 
@@ -131,9 +134,9 @@ country:germany             # Field search
 - [x] Create wizard
 - [x] Autocomplete suggestions
 - [x] CSV export via REST (`/api/reports/export/csv`)
+- [x] PDF export via REST (`/api/reports/export/pdf`)
+- [x] Excel export via REST (`/api/reports/export/xlsx`)
 - [x] Backend API authentication (HTTP Basic with preset credentials)
-- [ ] PDF export via REST
-- [ ] Excel export via REST
 - [ ] User authentication (Spring Security + JWT)
 - [ ] Docker Compose (PostgreSQL + OpenSearch)
 

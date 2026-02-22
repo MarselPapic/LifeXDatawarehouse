@@ -5,5 +5,10 @@ package at.htlle.freq.application.report;
  */
 public record ReportResponse(
         ReportTable table,
+        ReportSummary summary,
         String generatedAt
-) {}
+) {
+    public ReportResponse(ReportTable table, String generatedAt) {
+        this(table, null, generatedAt);
+    }
+}

@@ -2,9 +2,12 @@ package at.htlle.freq.web;
 
 import at.htlle.freq.application.report.ReportFilter;
 import at.htlle.freq.application.report.ReportResponse;
+import at.htlle.freq.application.report.ReportSummary;
 import at.htlle.freq.application.report.ReportService;
+import at.htlle.freq.application.report.ReportView;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,41 +46,114 @@ public class ReportController {
      * Returns support end report data as JSON.
      *
      * <p>Path: {@code GET /api/reports/data}</p>
-     * <p>Query parameters: {@code from}, {@code to}, {@code preset} (all optional).</p>
+ * <p>Query parameters: {@code from}, {@code to}, {@code preset}, {@code view} (all optional).</p>
      *
      * @param from   start date (ISO-8601)
      * @param to     end date (ISO-8601)
      * @param preset date range shortcut (e.g. {@code last30})
+     * @param view report view key ({@code support-end}, {@code lifecycle-status}, {@code account-risk})
      * @return 200 OK with {@link ReportResponse} as JSON.
      */
     @GetMapping("/data")
     public ReportResponse getReportData(@RequestParam(name = "from", required = false) String from,
                                         @RequestParam(name = "to", required = false) String to,
-                                        @RequestParam(name = "preset", required = false) String preset) {
+                                        @RequestParam(name = "preset", required = false) String preset,
+                                        @RequestParam(name = "view", required = false) String view) {
         ReportFilter filter = buildFilter(preset, from, to);
-        return reportService.getReport(filter);
+        ReportView reportView = resolveView(view);
+        return reportService.getReport(reportView, filter);
+    }
+
+    /**
+     * Returns KPI summary values for support risk reporting.
+     *
+     * @param from start date (ISO-8601)
+     * @param to end date (ISO-8601)
+     * @param preset date range shortcut
+     * @return summary KPI payload.
+     */
+    @GetMapping("/summary")
+    public ReportSummary getSummary(@RequestParam(name = "from", required = false) String from,
+                                    @RequestParam(name = "to", required = false) String to,
+                                    @RequestParam(name = "preset", required = false) String preset) {
+        ReportFilter filter = buildFilter(preset, from, to);
+        return reportService.getSummary(filter);
     }
 
     /**
      * Exports the report as a CSV file.
      *
      * <p>Path: {@code GET /api/reports/export/csv}</p>
-     * <p>Query parameters match {@link #getReportData(String, String, String)}.</p>
+     * <p>Query parameters match {@link #getReportData(String, String, String, String)}.</p>
      *
      * @return 200 OK with a CSV file ({@code text/csv}).
      */
     @GetMapping("/export/csv")
     public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
-                                                       @RequestParam(name = "preset", required = false) String preset) {
+                                                       @RequestParam(name = "preset", required = false) String preset,
+                                                       @RequestParam(name = "view", required = false) String view) {
         ReportFilter filter = buildFilter(preset, from, to);
-        ReportResponse response = reportService.getReport(filter);
+        ReportView reportView = resolveView(view);
+        ReportResponse response = reportService.getReport(reportView, filter);
         String csv = reportService.renderCsv(response);
         byte[] data = csv.getBytes(StandardCharsets.UTF_8);
         ByteArrayResource resource = new ByteArrayResource(data);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName("csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(reportView, "csv"))
                 .contentType(MediaType.parseMediaType("text/csv"))
+                .contentLength(data.length)
+                .body(resource);
+    }
+
+    /**
+     * Exports the report as a PDF file.
+     *
+     * @param from start date (ISO-8601)
+     * @param to end date (ISO-8601)
+     * @param preset date range shortcut
+     * @param view report view key
+     * @return 200 OK with a PDF attachment.
+     */
+    @GetMapping("/export/pdf")
+    public ResponseEntity<ByteArrayResource> exportPdf(@RequestParam(name = "from", required = false) String from,
+                                                       @RequestParam(name = "to", required = false) String to,
+                                                       @RequestParam(name = "preset", required = false) String preset,
+                                                       @RequestParam(name = "view", required = false) String view) {
+        ReportFilter filter = buildFilter(preset, from, to);
+        ReportView reportView = resolveView(view);
+        ReportResponse response = reportService.getReport(reportView, filter);
+        byte[] data = reportService.renderPdf(response);
+        ByteArrayResource resource = new ByteArrayResource(data);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(reportView, "pdf"))
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(data.length)
+                .body(resource);
+    }
+
+    /**
+     * Exports the report as an XLSX file.
+     *
+     * @param from start date (ISO-8601)
+     * @param to end date (ISO-8601)
+     * @param preset date range shortcut
+     * @param view report view key
+     * @return 200 OK with an XLSX attachment.
+     */
+    @GetMapping("/export/xlsx")
+    public ResponseEntity<ByteArrayResource> exportXlsx(@RequestParam(name = "from", required = false) String from,
+                                                         @RequestParam(name = "to", required = false) String to,
+                                                         @RequestParam(name = "preset", required = false) String preset,
+                                                         @RequestParam(name = "view", required = false) String view) {
+        ReportFilter filter = buildFilter(preset, from, to);
+        ReportView reportView = resolveView(view);
+        ReportResponse response = reportService.getReport(reportView, filter);
+        byte[] data = reportService.renderExcel(response);
+        ByteArrayResource resource = new ByteArrayResource(data);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(reportView, "xlsx"))
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .contentLength(data.length)
                 .body(resource);
     }
@@ -158,9 +234,17 @@ public class ReportController {
      * @param extension file extension such as {@code csv}.
      * @return formatted file name including timestamp.
      */
-    private String buildFileName(String extension) {
+    private String buildFileName(ReportView view, String extension) {
         String ts = DateTimeFormatter.ofPattern("yyyyMMdd-HHmm").format(LocalDateTime.now());
-        return "lifex-support-end-" + ts + "." + extension;
+        return "lifex-" + view.queryValue() + "-" + ts + "." + extension;
+    }
+
+    private ReportView resolveView(String rawView) {
+        try {
+            return ReportView.fromQuery(rawView);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     /**
