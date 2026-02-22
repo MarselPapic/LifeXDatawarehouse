@@ -2,3 +2,4 @@
 lucene-index/
 target/
 logs/
+.perf-run-root

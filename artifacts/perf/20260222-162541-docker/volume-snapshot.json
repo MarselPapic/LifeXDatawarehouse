@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-02-22 16:27:17",
+  "metrics": {
+    "customers_accounts": 30,
+    "projects_total": 38,
+    "sites_total": 55,
+    "servers_total": 28,
+    "clients_working_positions_total": 40,
+    "installed_software_total": 55,
+    "service_contracts_total": 28,
+    "sites_per_project_max": 2,
+    "service_contracts_per_project_max": 1,
+    "components_per_project_max": 12
+  }
+}

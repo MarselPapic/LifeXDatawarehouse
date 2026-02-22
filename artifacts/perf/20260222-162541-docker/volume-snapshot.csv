@@ -1,0 +1,11 @@
+metric,value
+customers (accounts),30
+projects (total),38
+sites (total),55
+servers (total),28
+clients / working positions (total),40
+installed software (total),55
+service contracts (total),28
+sites per project (max),2
+service contracts per project (max),1
+components per project (max),12
