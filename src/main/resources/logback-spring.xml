@@ -1,5 +1,5 @@
 <configuration>
-    <property name="LOG_PATH" value="logs"/>
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
 
     <appender name="FILE_APP" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/LiveXDataWarehouse-app.log</file>
