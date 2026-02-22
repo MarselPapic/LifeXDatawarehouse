@@ -95,8 +95,9 @@ class DomainFactoryTest {
         assertTrue(site.isHighAvailability());
 
         SoftwareFactory softwareFactory = new SoftwareFactory();
-        Software software = softwareFactory.create("Name", "1.0", "1", "Phase", "License", true, "2024-01-01", "2024-01-02", "2024-12-31");
+        Software software = softwareFactory.create("Name", "1.0", "1.0.1", "1", "Phase", "License", true, "2024-01-01", "2024-01-02", "2024-12-31");
         assertEquals("Name", software.getName());
+        assertEquals("1.0.1", software.getVersion());
         assertEquals("License", software.getLicenseModel());
         assertTrue(software.isThirdParty());
 

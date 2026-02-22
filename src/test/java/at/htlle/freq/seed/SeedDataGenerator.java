@@ -253,6 +253,7 @@ public final class SeedDataGenerator {
             releaseCounter++;
             String release = releaseMajor + "." + releaseMinor;
             String revision = Integer.toString(5 + i);
+            String version = release + "." + revision;
             String phase = phases[i % phases.length];
             String license = licenseModels[i % licenseModels.length];
             int endOfSalesOffset = 180 + RANDOM.nextInt(540);
@@ -263,6 +264,7 @@ public final class SeedDataGenerator {
                     generateId(EntityType.SOFTWARE),
                     product,
                     release,
+                    version,
                     revision,
                     phase,
                     license,
@@ -588,11 +590,12 @@ public final class SeedDataGenerator {
                 .map(variant -> row(str(variant.id()), str(variant.code()), str(variant.name()), str(variant.description()), bool(variant.active())))
                 .collect(Collectors.toList()));
 
-        appendInsert(sb, "Software", List.of("SoftwareID", "Name", "Release", "Revision", "SupportPhase", "LicenseModel", "ThirdParty", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"), software.stream()
+        appendInsert(sb, "Software", List.of("SoftwareID", "Name", "Release", "Version", "Revision", "SupportPhase", "LicenseModel", "ThirdParty", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"), software.stream()
                 .map(soft -> row(
                         str(soft.id()),
                         str(soft.name()),
                         str(soft.release()),
+                        str(soft.version()),
                         str(soft.revision()),
                         str(soft.supportPhase()),
                         str(soft.licenseModel()),
@@ -811,7 +814,7 @@ public final class SeedDataGenerator {
     private record DeploymentVariant(String id, String code, String name, String description, boolean active) {
     }
 
-    private record Software(String id, String name, String release, String revision, String supportPhase, String licenseModel, boolean thirdParty, int endOfSalesOffset, int supportStartOffset, int supportEndOffset) {
+    private record Software(String id, String name, String release, String version, String revision, String supportPhase, String licenseModel, boolean thirdParty, int endOfSalesOffset, int supportStartOffset, int supportEndOffset) {
     }
 
     private record Project(String id, String sapId, String projectName, String deploymentVariantId, String bundleType, int createOffset, ProjectLifecycleStatus status, String accountId, String addressId) {

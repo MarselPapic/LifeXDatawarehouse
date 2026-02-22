@@ -249,6 +249,7 @@ public class LuceneIndexingHubRoute extends RouteBuilder {
                                 sw.getSoftwareID() != null ? sw.getSoftwareID().toString() : null,
                                 sw.getName(),
                                 sw.getRelease(),
+                                sw.getVersion(),
                                 sw.getRevision(),
                                 sw.getSupportPhase(),
                                 sw.getLicenseModel(),

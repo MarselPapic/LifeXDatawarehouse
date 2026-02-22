@@ -60,6 +60,7 @@ class InstalledSoftwareServiceTest {
                 "Site",
                 UUID5,
                 "CRM",
+                "2024.1.5",
                 "1.0",
                 "rev1",
                 "installed",
@@ -75,6 +76,7 @@ class InstalledSoftwareServiceTest {
         SiteSoftwareOverviewEntry entry = result.get(0);
         assertEquals("Installed", entry.status());
         assertEquals("Installed", entry.statusLabel());
+        assertEquals("2024.1.5", entry.version());
         assertEquals("2024-02-02", entry.installedAt());
         verify(repo).findOverviewBySite(UUID4);
     }

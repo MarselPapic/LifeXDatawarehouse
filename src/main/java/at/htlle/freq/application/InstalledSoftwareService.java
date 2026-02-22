@@ -386,6 +386,7 @@ public class InstalledSoftwareService {
                 row.siteName(),
                 row.softwareId(),
                 row.softwareName(),
+                row.version(),
                 row.release(),
                 row.revision(),
                 normalizedStatus,

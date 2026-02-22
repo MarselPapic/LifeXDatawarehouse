@@ -84,6 +84,8 @@ public class SoftwareService {
             throw new IllegalArgumentException("Name is required");
         if (isBlank(incoming.getRelease()))
             throw new IllegalArgumentException("Release is required");
+        if (isBlank(incoming.getVersion()))
+            throw new IllegalArgumentException("Version is required");
 
         if (incoming.getThirdParty() == null) {
             incoming.setThirdParty(false);
@@ -112,6 +114,7 @@ public class SoftwareService {
         return repo.findById(id).map(existing -> {
             existing.setName(nvl(patch.getName(), existing.getName()));
             existing.setRelease(nvl(patch.getRelease(), existing.getRelease()));
+            existing.setVersion(nvl(patch.getVersion(), existing.getVersion()));
             existing.setRevision(nvl(patch.getRevision(), existing.getRevision()));
             existing.setSupportPhase(nvl(patch.getSupportPhase(), existing.getSupportPhase()));
             existing.setLicenseModel(nvl(patch.getLicenseModel(), existing.getLicenseModel()));
@@ -180,6 +183,7 @@ public class SoftwareService {
                     sw.getSoftwareID() != null ? sw.getSoftwareID().toString() : null,
                     sw.getName(),
                     sw.getRelease(),
+                    sw.getVersion(),
                     sw.getRevision(),
                     sw.getSupportPhase(),
                     sw.getLicenseModel(),

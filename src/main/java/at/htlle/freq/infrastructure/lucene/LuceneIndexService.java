@@ -125,7 +125,7 @@ public interface LuceneIndexService {
     /**
      * Indexes software catalogue entries, capturing release lifecycle and licensing attributes.
      */
-    void indexSoftware(String softwareId, String name, String release, String revision, String supportPhase,
+    void indexSoftware(String softwareId, String name, String release, String version, String revision, String supportPhase,
                        String licenseModel, boolean thirdParty, String endOfSalesDate, String supportStartDate, String supportEndDate);
 
     /**

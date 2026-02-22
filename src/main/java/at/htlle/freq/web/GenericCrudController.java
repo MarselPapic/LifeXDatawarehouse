@@ -98,7 +98,7 @@ public class GenericCrudController {
         c.put("City", Set.of("CityID", "CityName", "CountryCode"));
         c.put("Address", Set.of("AddressID", "Street", "CityID"));
         c.put("DeploymentVariant", Set.of("VariantID", "VariantCode", "VariantName", "Description", "IsActive"));
-        c.put("Software", Set.of("SoftwareID", "Name", "Release", "Revision", "SupportPhase", "LicenseModel", "ThirdParty", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"));
+        c.put("Software", Set.of("SoftwareID", "Name", "Release", "Version", "Revision", "SupportPhase", "LicenseModel", "ThirdParty", "EndOfSalesDate", "SupportStartDate", "SupportEndDate"));
         c.put("InstalledSoftware", Set.of("InstalledSoftwareID", "SiteID", "SoftwareID", "Status",
                 "OfferedDate", "InstalledDate", "RejectedDate", "OutdatedDate"));
         c.put("UpgradePlan", Set.of("UpgradePlanID", "SiteID", "SoftwareID", "PlannedWindowStart", "PlannedWindowEnd", "Status", "CreatedAt", "CreatedBy"));

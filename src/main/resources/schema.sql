@@ -139,6 +139,7 @@ CREATE TABLE Software (
                           SoftwareID       UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
                           Name             VARCHAR(100) NOT NULL,
                           Release          VARCHAR(20)  NOT NULL,
+                          Version          VARCHAR(40)  NOT NULL,
                           Revision         VARCHAR(20)  NOT NULL,
                           SupportPhase     VARCHAR(10)  NOT NULL,
                           LicenseModel     VARCHAR(50),

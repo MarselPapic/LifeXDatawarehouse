@@ -48,6 +48,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             rs.getString("SiteName"),
             rs.getObject("SoftwareID", UUID.class),
             rs.getString("SoftwareName"),
+            rs.getString("Version"),
             rs.getString("Release"),
             rs.getString("Revision"),
             rs.getString("Status"),
@@ -104,6 +105,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
                    site.SiteName,
                    isw.SoftwareID,
                    sw.Name AS SoftwareName,
+                   sw.Version,
                    sw.Release,
                    sw.Revision,
                    isw.Status,
@@ -115,7 +117,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
             LEFT JOIN Software sw ON sw.SoftwareID = isw.SoftwareID
             LEFT JOIN Site site ON site.SiteID = isw.SiteID
             WHERE isw.SiteID = :sid
-            ORDER BY sw.Name, sw.Release, sw.Revision
+            ORDER BY sw.Name, sw.Version, sw.Release, sw.Revision
             """;
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), overviewMapper);
     }

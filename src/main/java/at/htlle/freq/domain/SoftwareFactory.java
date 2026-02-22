@@ -13,6 +13,7 @@ public class SoftwareFactory {
      *
      * @param name software product name
      * @param release major release identifier
+     * @param version version identifier
      * @param revision revision or patch level
      * @param supportPhase lifecycle phase (preview, production, etc.)
      * @param licenseModel licensing model information
@@ -21,8 +22,8 @@ public class SoftwareFactory {
      * @param supportEnd support availability end
      * @return transient software entity
      */
-    public Software create(String name, String release, String revision, String supportPhase,
+    public Software create(String name, String release, String version, String revision, String supportPhase,
                            String licenseModel, boolean thirdParty, String eos, String supportStart, String supportEnd) {
-        return new Software(null, name, release, revision, supportPhase, licenseModel, thirdParty, eos, supportStart, supportEnd);
+        return new Software(null, name, release, version, revision, supportPhase, licenseModel, thirdParty, eos, supportStart, supportEnd);
     }
 }

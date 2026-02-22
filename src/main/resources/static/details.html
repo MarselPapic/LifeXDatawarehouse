@@ -1042,7 +1042,8 @@
             siteDisplayName,
             rawSoftwareName,
             rawSiteName,
-            release: val(item,'Release','release','Version','version'),
+            version: val(item,'Version','version'),
+            release: val(item,'Release','release'),
             revision: val(item,'Revision','revision'),
             status: primaryStatus,
             fallbackStatus,
@@ -1219,6 +1220,7 @@
 
         if(!isSoftwareContext){
             const versionParts = [];
+            if(entry.version) versionParts.push(`Version ${entry.version}`);
             if(entry.release) versionParts.push(`Release ${entry.release}`);
             if(entry.revision) versionParts.push(`Rev ${entry.revision}`);
             if(versionParts.length){
@@ -1281,8 +1283,9 @@
         appendMeta(meta, 'Created', formatDateLabel(entry.createdAt));
 
         if(isSoftwareContext){
-            if(entry.release || entry.revision){
+            if(entry.version || entry.release || entry.revision){
                 const versionBits = [];
+                if(entry.version) versionBits.push(`Version ${entry.version}`);
                 if(entry.release) versionBits.push(`Release ${entry.release}`);
                 if(entry.revision) versionBits.push(`Rev ${entry.revision}`);
                 appendMeta(meta, 'Version', versionBits.join(' · '));
@@ -1361,11 +1364,12 @@
         const installedDate = val(entry,'installedDate','installedAt','InstalledDate','InstalledAt');
         const outdatedDate = val(entry,'outdatedDate','outdatedAt','OutdatedDate','OutdatedAt');
         const rejectedDate = val(entry,'rejectedDate','rejectedAt','RejectedDate','RejectedAt');
+        const version = val(entry,'version','Version');
         const release = val(entry,'release','Release');
         const revision = val(entry,'revision','Revision');
         const softwareName = (val(entry,'softwareName','SoftwareName','name','Name') ?? '').toString().trim();
         if(!softwareId && !installedSoftwareId) return null;
-        return { installedSoftwareId, softwareId, status, offeredDate, installedDate, outdatedDate, rejectedDate, release, revision, softwareName };
+        return { installedSoftwareId, softwareId, status, offeredDate, installedDate, outdatedDate, rejectedDate, version, release, revision, softwareName };
     }
 
     function setSiteSoftwareAssignments(assignments){
@@ -2576,7 +2580,7 @@
                 }
                 if (pills.length) sections.push({ title: 'Belongs to', pills });
             }
-        } else if (type === 'PhoneIntegration') {
+        } else if (type === 'PhoneIntegration' || type === 'Phone') {
             const pills = [];
             const siteId = val(row,'SiteID');
             if (siteId != null) {
@@ -2656,36 +2660,7 @@
                 if (client) pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
             }
             if (pills.length) sections.push({ title: 'Belongs to', pills });
-        } else if (type === 'Audio') {
-            const clientId = val(row,'ClientID');
-            if (clientId != null) {
-                const client = await rowClient(clientId);
-                const pills = [];
-                if (client) {
-                    pills.push(pillLink(`/details.html?type=client&id=${clientId}`, 'Client', clientId, labelFor('client', client)));
-                    const siteId = val(client,'SiteID');
-                    if (siteId != null) {
-                        const site = await rowSite(siteId);
-                        if (site) {
-                            pills.push(pillLink(`/details.html?type=site&id=${siteId}`, 'Site', siteId, labelFor('site', site)));
-                            const projId = val(site,'ProjectID');
-                            if (projId != null) {
-                                const proj = await rowProject(projId);
-                                if (proj) {
-                                    pills.push(pillLink(`/details.html?type=project&id=${projId}`, 'Project', projId, labelFor('project', proj)));
-                                    const accId = val(proj,'AccountID');
-                                    if (accId != null) {
-                                        const acc = await rowAccount(accId);
-                                        if (acc) pills.push(pillLink(`/details.html?type=account&id=${accId}`, 'Account', accId, labelFor('account', acc)));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if (pills.length) sections.push({ title: 'Belongs to', pills });
-            }
-        } else if (type === 'Phone') {
+        } else if (type === 'AudioDevice' || type === 'Audio') {
             const clientId = val(row,'ClientID');
             if (clientId != null) {
                 const client = await rowClient(clientId);
@@ -2976,9 +2951,10 @@
         else if(type==='Software'){
             const softwareContextLabel = (() => {
                 const name = val(row,'Name');
+                const version = val(row,'Version');
                 const release = val(row,'Release');
                 const revision = val(row,'Revision');
-                const parts = [name, release, revision].map(part => (part ?? '').toString().trim()).filter(Boolean);
+                const parts = [name, version, release, revision].map(part => (part ?? '').toString().trim()).filter(Boolean);
                 return parts.length ? parts.join(' ') : '';
             })();
 

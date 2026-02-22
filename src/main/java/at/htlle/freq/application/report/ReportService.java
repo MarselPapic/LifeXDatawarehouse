@@ -51,6 +51,7 @@ public class ReportService {
                 p.ProjectName,
                 s.SiteName,
                 sw.Name,
+                sw.Version,
                 sw.Release,
                 sw.Revision,
                 sw.SupportStartDate,
@@ -75,7 +76,7 @@ public class ReportService {
 
         sql.append(" AND LOWER(isw.Status) = 'installed'");
 
-        sql.append(" ORDER BY sw.SupportEndDate, sw.Name, sw.Release, sw.Revision");
+        sql.append(" ORDER BY sw.SupportEndDate, sw.Name, sw.Version, sw.Release, sw.Revision");
 
         List<Map<String, Object>> rows = jdbc.query(sql.toString(), params, (rs, rowNum) -> mapSupportRow(rs));
 
@@ -85,6 +86,7 @@ public class ReportService {
                 new ReportColumn("site", "Site", "left"),
                 new ReportColumn("installStatus", "Install status", "left"),
                 new ReportColumn("name", "Software", "left"),
+                new ReportColumn("version", "Version", "left"),
                 new ReportColumn("release", "Release", "left"),
                 new ReportColumn("revision", "Revision", "left"),
                 new ReportColumn("supportStart", "Support start", "left"),
@@ -142,6 +144,7 @@ public class ReportService {
         row.put("site", rs.getString("SiteName"));
         row.put("installStatus", rs.getString("Status"));
         row.put("name", rs.getString("Name"));
+        row.put("version", rs.getString("Version"));
         row.put("release", rs.getString("Release"));
         row.put("revision", rs.getString("Revision"));
         row.put("supportStart", supportStart != null ? formatDate(supportStart) : "n/a");

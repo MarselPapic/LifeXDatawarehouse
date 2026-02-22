@@ -55,7 +55,20 @@ The Lucene index is stored under `target/lifex-index` by default.
 ## Data Model (Main Entities)
 Account, Address, AudioDevice, City, Client, Country, DeploymentVariant, InstalledSoftware, PhoneIntegration, Project, Radio, Server, ServiceContract, Site, Software, UpgradePlan, plus join tables such as ProjectSite.
 
+Software model note:
+- `Software` stores `Name`, `Version`, `Release`, and `Revision` as separate fields.
+
 ## REST API Quick Reference
+Backend authentication:
+- Protected backend endpoints require HTTP Basic authentication.
+- Preset username: `lifex`
+- Preset password: `lifex2026`
+- Configuration keys: `lifex.security.backend.enabled`, `lifex.security.backend.username`, `lifex.security.backend.password`
+
+Backup / Disaster Recovery decision:
+- No separate disaster-recovery module is implemented.
+- Operational backup strategy is container-level backup of the full Docker deployment (including persisted volumes/data).
+
 Search:
 - `GET /search?q=` free-text or Lucene query; optional `type` filter and `raw=true` to force Lucene parsing
 - `GET /search/suggest?q=&max=` autocomplete suggestions
@@ -118,6 +131,7 @@ country:germany             # Field search
 - [x] Create wizard
 - [x] Autocomplete suggestions
 - [x] CSV export via REST (`/api/reports/export/csv`)
+- [x] Backend API authentication (HTTP Basic with preset credentials)
 - [ ] PDF export via REST
 - [ ] Excel export via REST
 - [ ] User authentication (Spring Security + JWT)

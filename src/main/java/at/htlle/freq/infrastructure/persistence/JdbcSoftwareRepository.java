@@ -27,6 +27,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
             rs.getObject("SoftwareID", UUID.class),
             rs.getString("Name"),
             rs.getString("Release"),
+            rs.getString("Version"),
             rs.getString("Revision"),
             rs.getString("SupportPhase"),
             rs.getString("LicenseModel"),
@@ -44,7 +45,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public Optional<Software> findById(UUID id) {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
+            SELECT SoftwareID, Name, Release, Version, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software WHERE SoftwareID = :id
             """;
@@ -60,7 +61,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public List<Software> findByName(String name) {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
+            SELECT SoftwareID, Name, Release, Version, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software WHERE Name = :name
             """;
@@ -74,7 +75,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
     @Override
     public List<Software> findAll() {
         String sql = """
-            SELECT SoftwareID, Name, Release, Revision, SupportPhase, LicenseModel, ThirdParty,
+            SELECT SoftwareID, Name, Release, Version, Revision, SupportPhase, LicenseModel, ThirdParty,
                    EndOfSalesDate, SupportStartDate, SupportEndDate
             FROM Software
             """;
@@ -107,14 +108,15 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         boolean isNew = s.getSoftwareID() == null;
         if (isNew) {
             String sql = """
-                INSERT INTO Software (Name, Release, Revision, SupportPhase, LicenseModel,
+                INSERT INTO Software (Name, Release, Version, Revision, SupportPhase, LicenseModel,
                                       ThirdParty, EndOfSalesDate, SupportStartDate, SupportEndDate)
-                VALUES (:name, :rel, :rev, :phase, :lic, :third, :eos, :ss, :se)
+                VALUES (:name, :rel, :version, :rev, :phase, :lic, :third, :eos, :ss, :se)
                 RETURNING SoftwareID
                 """;
             UUID id = jdbc.queryForObject(sql, new MapSqlParameterSource()
                             .addValue("name", s.getName())
                             .addValue("rel",  s.getRelease())
+                            .addValue("version", s.getVersion())
                             .addValue("rev",  s.getRevision())
                             .addValue("phase",s.getSupportPhase())
                             .addValue("lic",  s.getLicenseModel())
@@ -127,7 +129,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         } else {
             String sql = """
                 UPDATE Software SET
-                    Name = :name, Release = :rel, Revision = :rev, SupportPhase = :phase,
+                    Name = :name, Release = :rel, Version = :version, Revision = :rev, SupportPhase = :phase,
                     LicenseModel = :lic, ThirdParty = :third, EndOfSalesDate = :eos,
                     SupportStartDate = :ss, SupportEndDate = :se
                 WHERE SoftwareID = :id
@@ -136,6 +138,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
                     .addValue("id", s.getSoftwareID())
                     .addValue("name", s.getName())
                     .addValue("rel",  s.getRelease())
+                    .addValue("version", s.getVersion())
                     .addValue("rev",  s.getRevision())
                     .addValue("phase",s.getSupportPhase())
                     .addValue("lic",  s.getLicenseModel())

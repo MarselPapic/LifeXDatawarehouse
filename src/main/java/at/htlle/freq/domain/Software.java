@@ -11,6 +11,7 @@ public class Software {
     private UUID softwareID;
     private String name;
     private String release;
+    private String version;
     private String revision;
     private String supportPhase;   // Preview / Production / EoL
     private String licenseModel;
@@ -29,6 +30,7 @@ public class Software {
      * @param softwareID software identifier.
      * @param name name.
      * @param release release.
+     * @param version version.
      * @param revision revision.
      * @param supportPhase support phase.
      * @param licenseModel license model.
@@ -37,11 +39,12 @@ public class Software {
      * @param supportStartDate support start date.
      * @param supportEndDate support end date.
      */
-    public Software(UUID softwareID, String name, String release, String revision, String supportPhase,
+    public Software(UUID softwareID, String name, String release, String version, String revision, String supportPhase,
                     String licenseModel, Boolean thirdParty, String endOfSalesDate, String supportStartDate, String supportEndDate) {
         this.softwareID = softwareID;
         this.name = name;
         this.release = release;
+        this.version = version;
         this.revision = revision;
         this.supportPhase = supportPhase;
         this.licenseModel = licenseModel;
@@ -83,6 +86,17 @@ public class Software {
      * @param release release.
      */
     public void setRelease(String release) { this.release = release; }
+
+    /**
+     * Returns the Version value held by this instance.
+     * @return the Version value.
+     */
+    public String getVersion() { return version; }
+    /**
+     * Sets the Version value and updates the current state.
+     * @param version version.
+     */
+    public void setVersion(String version) { this.version = version; }
 
     /**
      * Returns the Revision value held by this instance.

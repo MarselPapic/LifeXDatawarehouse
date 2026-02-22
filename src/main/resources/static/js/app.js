@@ -852,6 +852,7 @@ function formatPreview(type, row){
     } else if (t==='software'){
         const name = val(row,'Name'); if (name) parts.push(name);
         const release = val(row,'Release'); if (release) parts.push(`Release ${release}`);
+        const version = val(row,'Version'); if (version) parts.push(`Version ${version}`);
         const revision = val(row,'Revision'); if (revision) parts.push(`Rev ${revision}`);
         const phase = val(row,'SupportPhase'); if (phase) parts.push(phase);
         const vendor = val(row,'ThirdParty');
@@ -1587,7 +1588,7 @@ async function showTable(name) {
 
 /* Details navigation (details.html) */
 function toDetails(type, id) {
-    location.href = `/details.html?type=${encodeURIComponent(type)}&id=${id}`;
+    location.href = `/details.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
 }
 window.toDetails = toDetails;
 

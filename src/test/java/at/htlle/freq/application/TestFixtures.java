@@ -58,7 +58,7 @@ final class TestFixtures {
     }
 
     static Software software() {
-        return new Software(UUID5, "Software", "1.0", "rev1", "Production", "Subscription",
+        return new Software(UUID5, "Software", "1.0", "1.0.1", "rev1", "Production", "Subscription",
                 false, "2024-12-31", "2024-01-01", "2025-12-31");
     }
 

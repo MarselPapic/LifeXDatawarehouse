@@ -70,6 +70,7 @@ class CreateFlowIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "Name", softwareName,
                                 "Release", "1.0",
+                                "Version", "1.0.1",
                                 "Revision", "1",
                                 "SupportPhase", "Production",
                                 "ThirdParty", false
@@ -79,8 +80,8 @@ class CreateFlowIntegrationTest {
         UUID softwareId = queryUuid("""
                 SELECT SoftwareID
                 FROM Software
-                WHERE Name = :name AND Release = :release AND Revision = :revision
-                """, Map.of("name", softwareName, "release", "1.0", "revision", "1"));
+                WHERE Name = :name AND Release = :release AND Version = :version AND Revision = :revision
+                """, Map.of("name", softwareName, "release", "1.0", "version", "1.0.1", "revision", "1"));
 
         mockMvc.perform(post("/addresses")
                         .contentType(MediaType.APPLICATION_JSON)

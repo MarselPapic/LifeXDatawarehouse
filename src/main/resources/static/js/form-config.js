@@ -112,7 +112,8 @@
                 if(!value) return null;
                 const name = pick(item,'name','Name');
                 const release = pick(item,'release','Release');
-                const label = [name, release].filter(Boolean).join(' - ');
+                const version = pick(item,'version','Version');
+                const label = [name, version || release].filter(Boolean).join(' - ');
                 return {value, label, displayLabel: label || String(value)};
             }
         },
@@ -323,6 +324,7 @@
         Software: [
             { id: 'swName', label: 'Name', component: 'input', name: 'Name' },
             { id: 'swRelease', label: 'Release', component: 'input', name: 'Release' },
+            { id: 'swVersion', label: 'Version', component: 'input', name: 'Version' },
             { id: 'swRevision', label: 'Revision', component: 'input', name: 'Revision' },
             { id: 'swPhase', label: 'SupportPhase', component: 'select', options: ['Preview','Production','EoL'], name: 'SupportPhase' },
             { id: 'swLicense', label: 'License Model', component: 'input', name: 'LicenseModel', required: false },

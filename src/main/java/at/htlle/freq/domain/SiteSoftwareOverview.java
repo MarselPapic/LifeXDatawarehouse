@@ -11,6 +11,7 @@ public record SiteSoftwareOverview(
         String siteName,
         UUID softwareId,
         String softwareName,
+        String version,
         String release,
         String revision,
         String status,
