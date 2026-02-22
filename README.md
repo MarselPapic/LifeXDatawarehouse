@@ -123,6 +123,7 @@ country:germany             # Field search
 ## Quality and CI
 - Tests live under `src/test/java` and are executed via `./mvnw test` or `./mvnw clean verify`.
 - Manual UI checks typically cover search, autocomplete, and report export.
+- Performance/load evidence tooling is available under `perf/` (`k6` scripts + runner + SQL snapshot) with the report template `docs/performance-evidence.md`.
 
 ## Logs and Troubleshooting
 - Log directory: `logs/` by default. Override with environment variable `LOG_PATH`.
