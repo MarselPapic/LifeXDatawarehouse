@@ -14,7 +14,7 @@ Created: 2026-02-22
 |---|---|---|---|---|---|
 | 2.1.01 | Project phases | ERFUELLT | Projekt-Lifecycle wird gespeichert und validiert (offer/active/maintenance/eol). | `src/main/resources/schema.sql`, `src/main/java/at/htlle/freq/domain/ProjectLifecycleStatus.java`, `src/main/java/at/htlle/freq/web/ProjectController.java` | Kein Gap sichtbar. |
 | 2.1.02 | Data model consistency | ERFUELLT | Relationen/FKs/Unique-Constraints vorhanden; keine eventual consistency Architektur. | `src/main/resources/schema.sql`, `src/test/java/at/htlle/freq/web/RelationshipLinkingIntegrationTest.java` | Kein Gap sichtbar. |
-| 2.1.03 | Database load expectations | OFFEN | Datenmodell und Seed-Daten vorhanden, aber kein Last-/Kapazitaetsnachweis gegen Grenzwerte. | `docs/data-volume-plan.md`, `src/main/resources/data.sql` | Lasttest-Suite (200 Kunden/200 Projekte/1000 Komponenten) mit Messprotokoll erstellen. |
+| 2.1.03 | Database load expectations | TEILWEISE | Last-/Kapazitaetsnachweis fuer den aktuellen Demo-Seed ist dokumentiert (Docker + k6 + Volumensnapshot). | `docs/data-volume-plan.md`, `docs/performance-evidence.md`, `artifacts/perf/20260222-162541-docker/volume-snapshot.json` | Falls fuer Abnahme harte Zielmengen (z. B. 200/200/1000) gefordert sind: zusaetzlichen Skalierungslauf mit erweitertem Seed durchfuehren. |
 | 2.1.04 | Compare offered vs installed SW/HW | TEILWEISE | InstalledSoftware hat Status und Datumsfelder; Report-Views vorhanden, aber kein expliziter Diff-Report Offered vs Installed inkl. HW. | `src/main/resources/schema.sql`, `src/main/java/at/htlle/freq/application/report/ReportService.java` | Dedizierten Delta-Report (offered minus installed) fuer SW+HW ergaenzen. |
 | 2.1.05 | Document configuration of installed SW/HW | TEILWEISE | Erfassung und Pflege ueber UI + CRUD fuer Software/Hardware vorhanden. | `src/main/resources/static/create.html`, `src/main/resources/static/details.html`, `src/test/java/at/htlle/freq/web/CreateFlowIntegrationTest.java` | Keine formale Usability-Abnahme (nur funktional). |
 | 2.1.06 | Document project specialties | ERFUELLT | Projekt-Sonderheiten werden ueber `SpecialNotes` gespeichert. | `src/main/resources/schema.sql`, `src/main/java/at/htlle/freq/web/ProjectController.java` | Kein Gap sichtbar. |
@@ -35,17 +35,17 @@ Created: 2026-02-22
 | 2.4.1 | User interface authentication | ERFUELLT | UI bleibt ohne eigene Login-Maske erreichbar; nur Backend-APIs sind geschuetzt. | `src/main/java/at/htlle/freq/infrastructure/security/BackendSecurityConfig.java`, `src/test/java/at/htlle/freq/web/BackendSecurityIntegrationTest.java` | Kein Gap sichtbar. |
 | 2.4.2 | Logging | ERFUELLT | App-/Audit-/Ops-Logs, Request-Kontext, Access-Logging, strukturierte Audit-Eintraege inkl. FAIL. | `src/main/resources/logback-spring.xml`, `src/main/java/at/htlle/freq/infrastructure/logging/LoggingContextFilter.java`, `src/main/java/at/htlle/freq/infrastructure/logging/AccessLoggingFilter.java`, `src/test/java/at/htlle/freq/infrastructure/logging/AccessLoggingFilterTest.java`, `src/test/java/at/htlle/freq/infrastructure/logging/LogbackRoutingIntegrationTest.java` | Kein Gap sichtbar. |
 | 2.4.3 | Disaster recovery | AUS_SCOPE_ENTSCHEID | Kein eigenes DR-Modul umgesetzt; Backup-Strategie auf Container-/Volume-Ebene beschlossen. | `README.md` | Falls formal verlangt: DR-Akzeptanztext im Requirement explizit auf Container-Backup aendern. |
-| 3.1.1 | Performance UI search <= 10s | OFFEN | Suchfunktion vorhanden, aber kein verifizierter SLA-Nachweis unter Last. | `src/main/java/at/htlle/freq/web/SearchController.java`, `src/test/java/at/htlle/freq/web/SearchControllerIntegrationTest.java` | Messbare Performance-Tests mit Grenzwert-Assertions einfuehren. |
-| 3.1.2 | Performance UI report rendering <= 10s | OFFEN | Reporting vorhanden, aber kein automatischer Performance-Nachweis fuer 10s-SLA. | `src/main/java/at/htlle/freq/web/ReportController.java`, `src/test/java/at/htlle/freq/web/ReportControllerMaintenanceIntegrationTest.java` | Performance-Tests mit realistischem Datenvolumen und Laufzeitprotokoll einfuehren. |
+| 3.1.1 | Performance UI search <= 10s | ERFUELLT | Performance-Nachweis unter Last liegt vor; Search p95 liegt in allen Profilen deutlich unter 10s. | `perf/k6/search-and-reports.js`, `docs/performance-evidence.md`, `artifacts/perf/20260222-162541-docker/warmup-summary.json`, `artifacts/perf/20260222-162541-docker/normal-summary.json`, `artifacts/perf/20260222-162541-docker/peak-summary.json` | Kein Gap sichtbar. |
+| 3.1.2 | Performance UI report rendering <= 10s | ERFUELLT | Performance-Nachweis unter Last liegt vor; Report-Rendering p95 liegt in allen Profilen deutlich unter 10s. | `perf/k6/search-and-reports.js`, `docs/performance-evidence.md`, `artifacts/perf/20260222-162541-docker/warmup-summary.json`, `artifacts/perf/20260222-162541-docker/normal-summary.json`, `artifacts/perf/20260222-162541-docker/peak-summary.json` | Kein Gap sichtbar. |
 | 3.2.1 | Code readability and maintainability | TEILWEISE | Strukturierte Packages, Controller-/Service-Trennung, umfangreiche Tests und Doku vorhanden. | `src/main/java`, `src/test/java`, `README.md` | Formale Style-Gates (z. B. Checkstyle/Spotless/Sonar) als CI-Musskriterium ergaenzen. |
 
 ## Summary
-- `ERFUELLT`: 15
-- `TEILWEISE`: 7
-- `OFFEN`: 3
+- `ERFUELLT`: 17
+- `TEILWEISE`: 8
+- `OFFEN`: 0
 - `AUS_SCOPE_ENTSCHEID`: 1
 
 ## Priorisierte Restarbeiten fuer Abnahme
-1. Last- und Performance-Nachweis fuer 2.1.03, 3.1.1, 3.1.2.
-2. Reporting-Luecken fuer 2.1.04, 2.1.08, 2.1.09, 2.1.10 final klaeren (implementieren oder scope-klarstellen).
-3. 2.4.3 formell im Requirement-Set als Container-Backup-Entscheid dokumentieren.
+1. Reporting-Luecken fuer 2.1.04, 2.1.08, 2.1.09, 2.1.10 final klaeren (implementieren oder scope-klarstellen).
+2. 2.4.3 formell im Requirement-Set als Container-Backup-Entscheid dokumentieren.
+3. Optionaler Skalierungslauf fuer 2.1.03 mit erweiterten Zielmengen (z. B. 200/200/1000), falls von der Abnahme strikt gefordert.
