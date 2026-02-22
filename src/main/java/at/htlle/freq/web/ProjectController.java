@@ -122,65 +122,75 @@ public class ProjectController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        Map<String, Object> sanitized = normalizeColumns(body, CREATE_COLUMNS, PASSTHROUGH_KEYS);
-        String sapId = extractProjectSapId(sanitized);
-        if (sapId == null || sapId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ProjectSAPID is required");
-        }
-        sapId = sapId.trim();
-
-        int duplicates = Optional.ofNullable(jdbc.queryForObject(
-                        "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap",
-                        new MapSqlParameterSource("sap", sapId), Integer.class))
-                .orElse(0);
-        if (duplicates > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + sapId);
-        }
-
-        String sql = """
-            INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes)
-            VALUES (:ProjectSAPID, :ProjectName, :DeploymentVariantID, :BundleType, CURRENT_DATE, :LifecycleStatus, :AccountID, :AddressID, :SpecialNotes)
-            """;
-
-        boolean lifecycleProvided = sanitized.containsKey("LifecycleStatus");
-        Object statusRaw = lifecycleProvided ? sanitized.remove("LifecycleStatus") : null;
-
-        ProjectLifecycleStatus status;
-        if (statusRaw == null) {
-            status = ProjectLifecycleStatus.ACTIVE;
-        } else {
-            try {
-                status = ProjectLifecycleStatus.fromString(statusRaw.toString());
-            } catch (IllegalArgumentException ex) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        try {
+            Map<String, Object> sanitized = normalizeColumns(body, CREATE_COLUMNS, PASSTHROUGH_KEYS);
+            String sapId = extractProjectSapId(sanitized);
+            if (sapId == null || sapId.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ProjectSAPID is required");
             }
-            if (status == null) {
+            sapId = sapId.trim();
+
+            int duplicates = Optional.ofNullable(jdbc.queryForObject(
+                            "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap",
+                            new MapSqlParameterSource("sap", sapId), Integer.class))
+                    .orElse(0);
+            if (duplicates > 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + sapId);
+            }
+
+            String sql = """
+                INSERT INTO Project (ProjectSAPID, ProjectName, DeploymentVariantID, BundleType, CreateDateTime, LifecycleStatus, AccountID, AddressID, SpecialNotes)
+                VALUES (:ProjectSAPID, :ProjectName, :DeploymentVariantID, :BundleType, CURRENT_DATE, :LifecycleStatus, :AccountID, :AddressID, :SpecialNotes)
+                """;
+
+            boolean lifecycleProvided = sanitized.containsKey("LifecycleStatus");
+            Object statusRaw = lifecycleProvided ? sanitized.remove("LifecycleStatus") : null;
+
+            ProjectLifecycleStatus status;
+            if (statusRaw == null) {
                 status = ProjectLifecycleStatus.ACTIVE;
+            } else {
+                try {
+                    status = ProjectLifecycleStatus.fromString(statusRaw.toString());
+                } catch (IllegalArgumentException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+                }
+                if (status == null) {
+                    status = ProjectLifecycleStatus.ACTIVE;
+                }
             }
-        }
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        String specialNotes = normalizeNotes(sanitized.remove("SpecialNotes"));
-        sanitized.put("ProjectSAPID", sapId);
-        sanitized.put("LifecycleStatus", status.name());
-        sanitized.put("SpecialNotes", specialNotes);
-        sanitized.forEach(params::addValue);
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            String specialNotes = normalizeNotes(sanitized.remove("SpecialNotes"));
+            sanitized.put("ProjectSAPID", sapId);
+            sanitized.put("LifecycleStatus", status.name());
+            sanitized.put("SpecialNotes", specialNotes);
+            sanitized.forEach(params::addValue);
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbc.update(sql, params, keyHolder, new String[]{"ProjectID"});
-        UUID projectId = fetchProjectId(sapId, keyHolder);
-        List<UUID> siteIds = extractUuidList(body, "siteIds");
-        if (siteIds != null) {
-            projectSites.replaceSitesForProject(projectId, siteIds);
+            KeyHolder keyHolder = new GeneratedKeyHolder();
+            jdbc.update(sql, params, keyHolder, new String[]{"ProjectID"});
+            UUID projectId = fetchProjectId(sapId, keyHolder);
+            List<UUID> siteIds = extractUuidList(body, "siteIds");
+            if (siteIds != null) {
+                projectSites.replaceSitesForProject(projectId, siteIds);
+            }
+            Map<String, Object> identifiers = new LinkedHashMap<>();
+            if (projectId != null) {
+                identifiers.put("ProjectID", projectId);
+            }
+            if (sapId != null) {
+                identifiers.put("ProjectSAPID", sapId);
+            }
+            audit.created(TABLE, identifiers, body);
+        } catch (ResponseStatusException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getMessage(), body);
+            throw ex;
         }
-        Map<String, Object> identifiers = new LinkedHashMap<>();
-        if (projectId != null) {
-            identifiers.put("ProjectID", projectId);
-        }
-        if (sapId != null) {
-            identifiers.put("ProjectSAPID", sapId);
-        }
-        audit.created(TABLE, identifiers, body);
     }
 
     // UPDATE operations
@@ -197,70 +207,78 @@ public class ProjectController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        UUID projectId = parseUuid(id, "ProjectID");
-        Map<String, Object> sanitized = normalizeColumns(body, UPDATE_COLUMNS, PASSTHROUGH_KEYS);
-        boolean lifecycleKeyPresent = sanitized.containsKey("LifecycleStatus");
-        Object statusRaw = lifecycleKeyPresent ? sanitized.remove("LifecycleStatus") : null;
+        try {
+            UUID projectId = parseUuid(id, "ProjectID");
+            Map<String, Object> sanitized = normalizeColumns(body, UPDATE_COLUMNS, PASSTHROUGH_KEYS);
+            boolean lifecycleKeyPresent = sanitized.containsKey("LifecycleStatus");
+            Object statusRaw = lifecycleKeyPresent ? sanitized.remove("LifecycleStatus") : null;
 
-        ProjectLifecycleStatus status = null;
-        if (lifecycleKeyPresent) {
-            if (statusRaw == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be null");
+            ProjectLifecycleStatus status = null;
+            if (lifecycleKeyPresent) {
+                if (statusRaw == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be null");
+                }
+                try {
+                    status = ProjectLifecycleStatus.fromString(statusRaw.toString());
+                } catch (IllegalArgumentException ex) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+                }
+                if (status == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be blank");
+                }
             }
-            try {
-                status = ProjectLifecycleStatus.fromString(statusRaw.toString());
-            } catch (IllegalArgumentException ex) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+
+            if (sanitized.containsKey("ProjectSAPID")) {
+                String newSapId = normalizeRequiredText(sanitized.remove("ProjectSAPID"), "ProjectSAPID");
+                int duplicates = Optional.ofNullable(jdbc.queryForObject(
+                                "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap AND ProjectID <> :id",
+                                new MapSqlParameterSource("sap", newSapId).addValue("id", projectId), Integer.class))
+                        .orElse(0);
+                if (duplicates > 0) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + newSapId);
+                }
+                sanitized.put("ProjectSAPID", newSapId);
             }
-            if (status == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lifecycle status must not be blank");
+
+            if (sanitized.containsKey("SpecialNotes")) {
+                sanitized.put("SpecialNotes", normalizeNotes(sanitized.get("SpecialNotes")));
             }
-        }
 
-        if (sanitized.containsKey("ProjectSAPID")) {
-            String newSapId = normalizeRequiredText(sanitized.remove("ProjectSAPID"), "ProjectSAPID");
-            int duplicates = Optional.ofNullable(jdbc.queryForObject(
-                            "SELECT COUNT(1) FROM Project WHERE ProjectSAPID = :sap AND ProjectID <> :id",
-                            new MapSqlParameterSource("sap", newSapId).addValue("id", projectId), Integer.class))
-                    .orElse(0);
-            if (duplicates > 0) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "ProjectSAPID already exists: " + newSapId);
+            StringBuilder sql = new StringBuilder("UPDATE Project SET ");
+            List<String> sets = new ArrayList<>();
+            MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", projectId);
+            sanitized.forEach((key, value) -> {
+                sets.add(key + " = :" + key);
+                params.addValue(key, value);
+            });
+
+            if (status != null) {
+                sets.add("LifecycleStatus = :LifecycleStatus");
+                params.addValue("LifecycleStatus", status.name());
             }
-            sanitized.put("ProjectSAPID", newSapId);
-        }
 
-        if (sanitized.containsKey("SpecialNotes")) {
-            sanitized.put("SpecialNotes", normalizeNotes(sanitized.get("SpecialNotes")));
-        }
+            if (sets.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+            }
 
-        StringBuilder sql = new StringBuilder("UPDATE Project SET ");
-        List<String> sets = new ArrayList<>();
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", projectId);
-        sanitized.forEach((key, value) -> {
-            sets.add(key + " = :" + key);
-            params.addValue(key, value);
-        });
+            sql.append(String.join(", ", sets)).append(" WHERE ProjectID = :id");
+            int updated = jdbc.update(sql.toString(), params);
 
-        if (status != null) {
-            sets.add("LifecycleStatus = :LifecycleStatus");
-            params.addValue("LifecycleStatus", status.name());
+            if (updated == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project updated");
+            }
+            List<UUID> siteIds = extractUuidList(body, "siteIds");
+            if (siteIds != null) {
+                projectSites.replaceSitesForProject(projectId, siteIds);
+            }
+            audit.updated(TABLE, Map.of("ProjectID", projectId), body);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("ProjectID", id), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("ProjectID", id), ex.getMessage(), body);
+            throw ex;
         }
-
-        if (sets.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
-        }
-
-        sql.append(String.join(", ", sets)).append(" WHERE ProjectID = :id");
-        int updated = jdbc.update(sql.toString(), params);
-
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project updated");
-        }
-        List<UUID> siteIds = extractUuidList(body, "siteIds");
-        if (siteIds != null) {
-            projectSites.replaceSitesForProject(projectId, siteIds);
-        }
-        audit.updated(TABLE, Map.of("ProjectID", projectId), body);
     }
 
     // DELETE operations
@@ -276,13 +294,21 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        int count = jdbc.update("DELETE FROM Project WHERE ProjectID = :id",
-                new MapSqlParameterSource("id", id));
+        try {
+            int count = jdbc.update("DELETE FROM Project WHERE ProjectID = :id",
+                    new MapSqlParameterSource("id", id));
 
-        if (count == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
+            }
+            audit.deleted(TABLE, Map.of("ProjectID", id));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", TABLE, Map.of("ProjectID", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", TABLE, Map.of("ProjectID", id), ex.getMessage(), null);
+            throw ex;
         }
-        audit.deleted(TABLE, Map.of("ProjectID", id));
     }
 
     /**

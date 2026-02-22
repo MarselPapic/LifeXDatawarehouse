@@ -257,31 +257,40 @@ public class GenericCrudController {
     @PostMapping("/row/{name}")
     @ResponseStatus(HttpStatus.CREATED)
     public void insert(@PathVariable String name, @RequestBody Map<String, Object> body) {
-        String table = normalizeTable(name);
-        if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "insert", "empty body");
+        String table = null;
+        try {
+            table = normalizeTable(name);
+            if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "insert", "empty body");
 
-        Map<String, Object> sanitized = convertTemporalValues(table, sanitizeColumns(table, body));
+            Map<String, Object> sanitized = convertTemporalValues(table, sanitizeColumns(table, body));
 
-        var columns = String.join(", ", sanitized.keySet());
-        var values = ":" + String.join(", :", sanitized.keySet());
+            var columns = String.join(", ", sanitized.keySet());
+            var values = ":" + String.join(", :", sanitized.keySet());
 
-        String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + values + ")";
-        jdbc.update(sql, new MapSqlParameterSource(sanitized));
+            String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + values + ")";
+            jdbc.update(sql, new MapSqlParameterSource(sanitized));
 
-        String pk = PKS.get(table);
-        Object recordId = null;
-        if (pk != null) {
-            recordId = sanitized.get(pk);
+            String pk = PKS.get(table);
+            Object recordId = null;
+            if (pk != null) {
+                recordId = sanitized.get(pk);
+            }
+            if (recordId == null) {
+                recordId = sanitized.getOrDefault("id", sanitized.getOrDefault("ID", "(unknown)"));
+            }
+
+            Map<String, Object> identifiers = new LinkedHashMap<>();
+            if (recordId != null) {
+                identifiers.put(pk == null ? "id" : pk, recordId);
+            }
+            audit.created(table, identifiers, sanitized);
+        } catch (ResponseStatusException ex) {
+            audit.failed("CREATE", table == null ? name : table, Map.of(), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("CREATE", table == null ? name : table, Map.of(), ex.getMessage(), body);
+            throw ex;
         }
-        if (recordId == null) {
-            recordId = sanitized.getOrDefault("id", sanitized.getOrDefault("ID", "(unknown)"));
-        }
-
-        Map<String, Object> identifiers = new LinkedHashMap<>();
-        if (recordId != null) {
-            identifiers.put(pk == null ? "id" : pk, recordId);
-        }
-        audit.created(table, identifiers, sanitized);
     }
 
     // -------- UPDATE --------
@@ -298,38 +307,47 @@ public class GenericCrudController {
      */
     @PutMapping("/row/{name}/{id}")
     public void update(@PathVariable String name, @PathVariable String id, @RequestBody Map<String, Object> body) {
-        String table = normalizeTable(name);
-        String pk = PKS.get(table);
-        if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no PK known for table " + table);
+        String table = null;
+        try {
+            table = normalizeTable(name);
+            String pk = PKS.get(table);
+            if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no PK known for table " + table);
 
-        if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "empty body");
+            if (body == null || body.isEmpty()) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "empty body");
 
-        Map<String, Object> sanitized = new LinkedHashMap<>(convertTemporalValues(table, sanitizeColumns(table, body)));
+            Map<String, Object> sanitized = new LinkedHashMap<>(convertTemporalValues(table, sanitizeColumns(table, body)));
 
-        Object removedPkValue = sanitized.remove(pk);
-        if (removedPkValue != null) {
+            Object removedPkValue = sanitized.remove(pk);
+            if (removedPkValue != null) {
+                if (sanitized.isEmpty()) {
+                    throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no updatable columns provided");
+                }
+                log.debug("Ignoring primary key column {} in update for table {}", pk, table);
+            }
+
             if (sanitized.isEmpty()) {
                 throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no updatable columns provided");
             }
-            log.debug("Ignoring primary key column {} in update for table {}", pk, table);
+
+            var setClauses = new ArrayList<String>();
+            for (String col : sanitized.keySet()) {
+                setClauses.add(col + " = :" + col);
+            }
+            String sql = "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + pk + " = :id";
+            var params = new MapSqlParameterSource(sanitized).addValue("id", parsePrimaryKey(table, id));
+
+            int count = jdbc.update(sql, params);
+            if (count == 0)
+                throw logAndThrow(HttpStatus.NOT_FOUND, table, "update", "no record updated");
+
+            audit.updated(table, Map.of(pk, id), sanitized);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", table == null ? name : table, Map.of("id", id), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", table == null ? name : table, Map.of("id", id), ex.getMessage(), body);
+            throw ex;
         }
-
-        if (sanitized.isEmpty()) {
-            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "update", "no updatable columns provided");
-        }
-
-        var setClauses = new ArrayList<String>();
-        for (String col : sanitized.keySet()) {
-            setClauses.add(col + " = :" + col);
-        }
-        String sql = "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + pk + " = :id";
-        var params = new MapSqlParameterSource(sanitized).addValue("id", parsePrimaryKey(table, id));
-
-        int count = jdbc.update(sql, params);
-        if (count == 0)
-            throw logAndThrow(HttpStatus.NOT_FOUND, table, "update", "no record updated");
-
-        audit.updated(table, Map.of(pk, id), sanitized);
     }
 
     // -------- DELETE --------
@@ -345,17 +363,26 @@ public class GenericCrudController {
     @DeleteMapping("/row/{name}/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String name, @PathVariable String id) {
-        String table = normalizeTable(name);
-        String pk = PKS.get(table);
-        if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "delete", "no PK known for table " + table);
+        String table = null;
+        try {
+            table = normalizeTable(name);
+            String pk = PKS.get(table);
+            if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "delete", "no PK known for table " + table);
 
-        String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
-        int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)));
-        if (count == 0) {
-            throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
+            String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
+            int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)));
+            if (count == 0) {
+                throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
+            }
+
+            audit.deleted(table, Map.of(pk, id));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", table == null ? name : table, Map.of("id", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", table == null ? name : table, Map.of("id", id), ex.getMessage(), null);
+            throw ex;
         }
-
-        audit.deleted(table, Map.of(pk, id));
     }
 
     /**

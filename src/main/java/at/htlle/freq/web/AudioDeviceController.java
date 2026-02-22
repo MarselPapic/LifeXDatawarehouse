@@ -119,21 +119,31 @@ public class AudioDeviceController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        normalizeDeviceType(body);
-        Optional<String> direction = normalizeDirection(body);
-        if (direction.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Direction is required");
+        try {
+            normalizeDeviceType(body);
+            Optional<String> direction = normalizeDirection(body);
+            if (direction.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Direction is required");
+            }
+
+            Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
+            requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
+
+            String columns = String.join(", ", filteredBody.keySet());
+            String values = ":" + String.join(", :", filteredBody.keySet());
+            String sql = "INSERT INTO AudioDevice (" + columns + ") VALUES (" + values + ")";
+
+            jdbc.update(sql, new MapSqlParameterSource(filteredBody));
+            audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
+        } catch (ResponseStatusException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getMessage(), body);
+            throw ex;
         }
-
-        Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
-        requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
-
-        String columns = String.join(", ", filteredBody.keySet());
-        String values = ":" + String.join(", :", filteredBody.keySet());
-        String sql = "INSERT INTO AudioDevice (" + columns + ") VALUES (" + values + ")";
-
-        jdbc.update(sql, new MapSqlParameterSource(filteredBody));
-        audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
     }
 
     // UPDATE operations
@@ -149,28 +159,36 @@ public class AudioDeviceController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        UUID deviceId = parseUuid(id, "AudioDeviceID");
+        try {
+            UUID deviceId = parseUuid(id, "AudioDeviceID");
 
-        normalizeDeviceType(body);
-        normalizeDirection(body);
+            normalizeDeviceType(body);
+            normalizeDirection(body);
 
-        Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
+            Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
 
-        var setClauses = new ArrayList<String>();
-        for (String key : filteredBody.keySet()) {
-            setClauses.add(key + " = :" + key);
+            var setClauses = new ArrayList<String>();
+            for (String key : filteredBody.keySet()) {
+                setClauses.add(key + " = :" + key);
+            }
+
+            String sql = "UPDATE AudioDevice SET " + String.join(", ", setClauses) +
+                    " WHERE AudioDeviceID = :id";
+
+            var params = new MapSqlParameterSource(filteredBody).addValue("id", deviceId);
+            int updated = jdbc.update(sql, params);
+
+            if (updated == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no audio device updated");
+            }
+            audit.updated(TABLE, Map.of("AudioDeviceID", deviceId), filteredBody);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("AudioDeviceID", id), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("AudioDeviceID", id), ex.getMessage(), body);
+            throw ex;
         }
-
-        String sql = "UPDATE AudioDevice SET " + String.join(", ", setClauses) +
-                " WHERE AudioDeviceID = :id";
-
-        var params = new MapSqlParameterSource(filteredBody).addValue("id", deviceId);
-        int updated = jdbc.update(sql, params);
-
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no audio device updated");
-        }
-        audit.updated(TABLE, Map.of("AudioDeviceID", deviceId), filteredBody);
     }
 
     // DELETE operations
@@ -185,14 +203,22 @@ public class AudioDeviceController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        UUID deviceId = parseUuid(id, "AudioDeviceID");
-        int count = jdbc.update("DELETE FROM AudioDevice WHERE AudioDeviceID = :id",
-                new MapSqlParameterSource("id", deviceId));
+        try {
+            UUID deviceId = parseUuid(id, "AudioDeviceID");
+            int count = jdbc.update("DELETE FROM AudioDevice WHERE AudioDeviceID = :id",
+                    new MapSqlParameterSource("id", deviceId));
 
-        if (count == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no audio device deleted");
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no audio device deleted");
+            }
+            audit.deleted(TABLE, Map.of("AudioDeviceID", deviceId));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", TABLE, Map.of("AudioDeviceID", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", TABLE, Map.of("AudioDeviceID", id), ex.getMessage(), null);
+            throw ex;
         }
-        audit.deleted(TABLE, Map.of("AudioDeviceID", deviceId));
     }
 
     /**

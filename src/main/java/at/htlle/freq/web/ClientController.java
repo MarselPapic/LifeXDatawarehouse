@@ -75,8 +75,10 @@ public class ClientController {
             audit.created("Client", identifiers, saved);
             return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException ex) {
+            audit.failed("CREATE", "Client", Map.of(), ex.getMessage(), client);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         } catch (Exception ex) {
+            audit.failed("CREATE", "Client", Map.of(), ex.getMessage(), client);
             log.error("Create client failed", ex);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Create client failed", ex);
         }

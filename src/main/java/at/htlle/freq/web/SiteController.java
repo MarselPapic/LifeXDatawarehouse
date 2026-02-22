@@ -225,27 +225,40 @@ public class SiteController {
     public void updateSoftwareStatus(@PathVariable String siteId,
                                      @PathVariable String installationId,
                                      @RequestBody InstalledSoftwareStatusUpdateRequest request) {
-        if (request == null || request.normalizedStatus() == null || request.normalizedStatus().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status is required");
-        }
-
-        UUID siteUuid = parseUuid(siteId, "SiteID");
-        UUID installationUuid = parseUuid(installationId, "InstalledSoftwareID");
-
-        var installation = installedSoftwareService.getInstalledSoftwareById(installationUuid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Installed software not found"));
-
-        if (installation.getSiteID() != null && !installation.getSiteID().equals(siteUuid)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Installation does not belong to the requested site");
-        }
-
         try {
+            if (request == null || request.normalizedStatus() == null || request.normalizedStatus().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status is required");
+            }
+
+            UUID siteUuid = parseUuid(siteId, "SiteID");
+            UUID installationUuid = parseUuid(installationId, "InstalledSoftwareID");
+
+            var installation = installedSoftwareService.getInstalledSoftwareById(installationUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Installed software not found"));
+
+            if (installation.getSiteID() != null && !installation.getSiteID().equals(siteUuid)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Installation does not belong to the requested site");
+            }
+
             installedSoftwareService.updateStatus(installationUuid, request.normalizedStatus());
             audit.updated("InstalledSoftware",
                     Map.of("InstalledSoftwareID", installationUuid, "SiteID", siteUuid),
                     Map.of("status", request.normalizedStatus()));
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", "InstalledSoftware",
+                    Map.of("InstalledSoftwareID", installationId, "SiteID", siteId),
+                    ex.getReason(), request);
+            throw ex;
         } catch (IllegalArgumentException ex) {
+            audit.failed("UPDATE", "InstalledSoftware",
+                    Map.of("InstalledSoftwareID", installationId, "SiteID", siteId),
+                    ex.getMessage(), request);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", "InstalledSoftware",
+                    Map.of("InstalledSoftwareID", installationId, "SiteID", siteId),
+                    ex.getMessage(), request);
+            throw ex;
         }
     }
 
@@ -263,25 +276,24 @@ public class SiteController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody SiteUpsertRequest request) {
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
-        }
-
         try {
+            if (request == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+            }
             request.validateForCreate();
+            Site saved = siteService.createOrUpdateSite(request.toSite(), request.normalizedProjectIds());
+            persistAssignments(saved.getSiteID(), request);
+            audit.created(TABLE, Map.of("SiteID", saved.getSiteID()), request);
+        } catch (ResponseStatusException ex) {
+            audit.failed("CREATE", TABLE, Map.of(), ex.getReason(), request);
+            throw ex;
         } catch (IllegalArgumentException ex) {
+            audit.failed("CREATE", TABLE, Map.of(), ex.getMessage(), request);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("CREATE", TABLE, Map.of(), ex.getMessage(), request);
+            throw ex;
         }
-
-        Site saved;
-        try {
-            saved = siteService.createOrUpdateSite(request.toSite(), request.normalizedProjectIds());
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
-        }
-
-        persistAssignments(saved.getSiteID(), request);
-        audit.created(TABLE, Map.of("SiteID", saved.getSiteID()), request);
     }
 
     // UPDATE operations
@@ -298,31 +310,29 @@ public class SiteController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody SiteUpsertRequest request) {
-        UUID siteId = parseUuid(id, "SiteID");
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
-        }
-
         try {
+            UUID siteId = parseUuid(id, "SiteID");
+            if (request == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "empty body");
+            }
             request.validateForUpdate();
+            Site patch = request.toSite();
+            Optional<Site> updated = siteService.updateSite(siteId, patch, request.normalizedProjectIds());
+            if (updated.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site updated");
+            }
+            persistAssignments(siteId, request);
+            audit.updated(TABLE, Map.of("SiteID", siteId), request);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("SiteID", id), ex.getReason(), request);
+            throw ex;
         } catch (IllegalArgumentException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("SiteID", id), ex.getMessage(), request);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("SiteID", id), ex.getMessage(), request);
+            throw ex;
         }
-
-        Site patch = request.toSite();
-        Optional<Site> updated;
-        try {
-            updated = siteService.updateSite(siteId, patch, request.normalizedProjectIds());
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
-        }
-
-        if (updated.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site updated");
-        }
-
-        persistAssignments(siteId, request);
-        audit.updated(TABLE, Map.of("SiteID", siteId), request);
     }
 
     // DELETE operations
@@ -338,12 +348,20 @@ public class SiteController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        UUID siteId = parseUuid(id, "SiteID");
-        if (siteService.getSiteById(siteId).isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site deleted");
+        try {
+            UUID siteId = parseUuid(id, "SiteID");
+            if (siteService.getSiteById(siteId).isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site deleted");
+            }
+            siteService.deleteSite(siteId);
+            audit.deleted(TABLE, Map.of("SiteID", id));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", TABLE, Map.of("SiteID", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", TABLE, Map.of("SiteID", id), ex.getMessage(), null);
+            throw ex;
         }
-        siteService.deleteSite(siteId);
-        audit.deleted(TABLE, Map.of("SiteID", id));
     }
 
     /**

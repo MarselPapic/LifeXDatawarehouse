@@ -3,8 +3,10 @@ package at.htlle.freq.web;
 import at.htlle.freq.application.AccountService;
 import at.htlle.freq.domain.Account;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -73,17 +75,24 @@ public class AccountController {
      */
     @PostMapping
     public ResponseEntity<Account> create(@RequestBody Account account) {
-        // Account already carries the contactName field; AccountService#createAccount handles it along with the rest.
-        Account created = accountService.createAccount(account);
-        Map<String, Object> identifiers = new HashMap<>();
-        identifiers.put("AccountID", created.getAccountID());
-        audit.created("Account", identifiers, created);
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(created.getAccountID())
-                .toUri();
-
-        return ResponseEntity.created(location).body(created);
+        try {
+            // Account already carries the contactName field; AccountService#createAccount handles it along with the rest.
+            Account created = accountService.createAccount(account);
+            Map<String, Object> identifiers = new HashMap<>();
+            identifiers.put("AccountID", created.getAccountID());
+            audit.created("Account", identifiers, created);
+            URI location = ServletUriComponentsBuilder
+                    .fromCurrentRequest()
+                    .path("/{id}")
+                    .buildAndExpand(created.getAccountID())
+                    .toUri();
+            return ResponseEntity.created(location).body(created);
+        } catch (IllegalArgumentException ex) {
+            audit.failed("CREATE", "Account", Map.of(), ex.getMessage(), account);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("CREATE", "Account", Map.of(), ex.getMessage(), account);
+            throw ex;
+        }
     }
 }

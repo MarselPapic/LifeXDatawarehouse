@@ -116,15 +116,25 @@ public class ServerController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
-        requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
+        try {
+            Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
+            requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
 
-        String columns = String.join(", ", filteredBody.keySet());
-        String values = ":" + String.join(", :", filteredBody.keySet());
-        String sql = "INSERT INTO Server (" + columns + ") VALUES (" + values + ")";
+            String columns = String.join(", ", filteredBody.keySet());
+            String values = ":" + String.join(", :", filteredBody.keySet());
+            String sql = "INSERT INTO Server (" + columns + ") VALUES (" + values + ")";
 
-        jdbc.update(sql, new MapSqlParameterSource(filteredBody));
-        audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
+            jdbc.update(sql, new MapSqlParameterSource(filteredBody));
+            audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
+        } catch (ResponseStatusException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getMessage(), body);
+            throw ex;
+        }
     }
 
     // UPDATE operations
@@ -141,22 +151,30 @@ public class ServerController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        UUID serverId = parseUuid(id, "ServerID");
-        Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
+        try {
+            UUID serverId = parseUuid(id, "ServerID");
+            Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
 
-        List<String> sets = new ArrayList<>();
-        for (String key : filteredBody.keySet()) {
-            sets.add(key + " = :" + key);
+            List<String> sets = new ArrayList<>();
+            for (String key : filteredBody.keySet()) {
+                sets.add(key + " = :" + key);
+            }
+
+            String sql = "UPDATE Server SET " + String.join(", ", sets) + " WHERE ServerID = :id";
+            var params = new MapSqlParameterSource(filteredBody).addValue("id", serverId);
+
+            int updated = jdbc.update(sql, params);
+            if (updated == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server updated");
+            }
+            audit.updated(TABLE, Map.of("ServerID", serverId), filteredBody);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("ServerID", id), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("ServerID", id), ex.getMessage(), body);
+            throw ex;
         }
-
-        String sql = "UPDATE Server SET " + String.join(", ", sets) + " WHERE ServerID = :id";
-        var params = new MapSqlParameterSource(filteredBody).addValue("id", serverId);
-
-        int updated = jdbc.update(sql, params);
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server updated");
-        }
-        audit.updated(TABLE, Map.of("ServerID", serverId), filteredBody);
     }
 
     // DELETE operations
@@ -172,14 +190,22 @@ public class ServerController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        UUID serverId = parseUuid(id, "ServerID");
-        int count = jdbc.update("DELETE FROM Server WHERE ServerID = :id",
-                new MapSqlParameterSource("id", serverId));
+        try {
+            UUID serverId = parseUuid(id, "ServerID");
+            int count = jdbc.update("DELETE FROM Server WHERE ServerID = :id",
+                    new MapSqlParameterSource("id", serverId));
 
-        if (count == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server deleted");
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server deleted");
+            }
+            audit.deleted(TABLE, Map.of("ServerID", serverId));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", TABLE, Map.of("ServerID", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", TABLE, Map.of("ServerID", id), ex.getMessage(), null);
+            throw ex;
         }
-        audit.deleted(TABLE, Map.of("ServerID", serverId));
     }
 
     /**

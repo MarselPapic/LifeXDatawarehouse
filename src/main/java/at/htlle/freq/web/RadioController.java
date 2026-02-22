@@ -109,15 +109,25 @@ public class RadioController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void create(@RequestBody Map<String, Object> body) {
-        Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
-        requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
+        try {
+            Map<String, Object> filteredBody = requireAllowedKeys(body, CREATE_COLUMNS);
+            requireRequiredKeys(filteredBody, REQUIRED_COLUMNS);
 
-        String columns = String.join(", ", filteredBody.keySet());
-        String values = ":" + String.join(", :", filteredBody.keySet());
-        String sql = "INSERT INTO Radio (" + columns + ") VALUES (" + values + ")";
+            String columns = String.join(", ", filteredBody.keySet());
+            String values = ":" + String.join(", :", filteredBody.keySet());
+            String sql = "INSERT INTO Radio (" + columns + ") VALUES (" + values + ")";
 
-        jdbc.update(sql, new MapSqlParameterSource(filteredBody));
-        audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
+            jdbc.update(sql, new MapSqlParameterSource(filteredBody));
+            audit.created(TABLE, extractIdentifiers(filteredBody), filteredBody);
+        } catch (ResponseStatusException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            Map<String, Object> identifiers = body == null ? Map.of() : extractIdentifiers(body);
+            audit.failed("CREATE", TABLE, identifiers, ex.getMessage(), body);
+            throw ex;
+        }
     }
 
     // UPDATE operations
@@ -134,22 +144,30 @@ public class RadioController {
      */
     @PutMapping("/{id}")
     public void update(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        UUID radioId = parseUuid(id, "RadioID");
-        Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
+        try {
+            UUID radioId = parseUuid(id, "RadioID");
+            Map<String, Object> filteredBody = requireAllowedKeys(body, UPDATE_COLUMNS);
 
-        List<String> sets = new ArrayList<>();
-        for (String key : filteredBody.keySet()) {
-            sets.add(key + " = :" + key);
+            List<String> sets = new ArrayList<>();
+            for (String key : filteredBody.keySet()) {
+                sets.add(key + " = :" + key);
+            }
+
+            String sql = "UPDATE Radio SET " + String.join(", ", sets) + " WHERE RadioID = :id";
+            var params = new MapSqlParameterSource(filteredBody).addValue("id", radioId);
+
+            int updated = jdbc.update(sql, params);
+            if (updated == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio updated");
+            }
+            audit.updated(TABLE, Map.of("RadioID", radioId), filteredBody);
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("RadioID", id), ex.getReason(), body);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", TABLE, Map.of("RadioID", id), ex.getMessage(), body);
+            throw ex;
         }
-
-        String sql = "UPDATE Radio SET " + String.join(", ", sets) + " WHERE RadioID = :id";
-        var params = new MapSqlParameterSource(filteredBody).addValue("id", radioId);
-
-        int updated = jdbc.update(sql, params);
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio updated");
-        }
-        audit.updated(TABLE, Map.of("RadioID", radioId), filteredBody);
     }
 
     // DELETE operations
@@ -165,14 +183,22 @@ public class RadioController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        UUID radioId = parseUuid(id, "RadioID");
-        int count = jdbc.update("DELETE FROM Radio WHERE RadioID = :id",
-                new MapSqlParameterSource("id", radioId));
+        try {
+            UUID radioId = parseUuid(id, "RadioID");
+            int count = jdbc.update("DELETE FROM Radio WHERE RadioID = :id",
+                    new MapSqlParameterSource("id", radioId));
 
-        if (count == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio deleted");
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio deleted");
+            }
+            audit.deleted(TABLE, Map.of("RadioID", radioId));
+        } catch (ResponseStatusException ex) {
+            audit.failed("DELETE", TABLE, Map.of("RadioID", id), ex.getReason(), null);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("DELETE", TABLE, Map.of("RadioID", id), ex.getMessage(), null);
+            throw ex;
         }
-        audit.deleted(TABLE, Map.of("RadioID", radioId));
     }
 
     /**

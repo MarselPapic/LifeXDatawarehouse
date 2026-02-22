@@ -124,6 +124,17 @@ country:germany             # Field search
 - Tests live under `src/test/java` and are executed via `./mvnw test` or `./mvnw clean verify`.
 - Manual UI checks typically cover search, autocomplete, and report export.
 
+## Logs and Troubleshooting
+- Log directory: `logs/` by default. Override with environment variable `LOG_PATH`.
+- `LiveXDataWarehouse-app.log`: regular application flow (web/API calls, service logic, infrastructure events).
+- `LiveXDataWarehouse-audit.log`: data mutations (`CREATE`, `UPDATE`, `DELETE`, `UPSERT`) including failed write attempts (`result=FAIL`).
+- `LiveXDataWarehouse-ops.log`: operational components (Lucene indexing, Camel routes, index admin operations).
+
+Quick checks:
+- Verify audit failures: search for `result=FAIL` in `LiveXDataWarehouse-audit.log`.
+- Verify request context: each line includes `requestId`, `httpMethod`, `path`, `status`, and `durationMs`.
+- If no files are written, ensure the process can write to `LOG_PATH` and that the directory exists.
+
 ## Manual QA (UI)
 - Create a project and assign multiple sites; verify the main index lists only project rows.
 - Edit a site and update project assignments; ensure join-table links update correctly.

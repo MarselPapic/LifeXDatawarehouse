@@ -79,7 +79,11 @@ public class DeploymentVariantController {
             audit.upserted("DeploymentVariant", identifiers, saved);
             return saved;
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+            audit.failed("UPSERT", "DeploymentVariant", Map.of(), ex.getMessage(), payload);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("UPSERT", "DeploymentVariant", Map.of(), ex.getMessage(), payload);
+            throw ex;
         }
     }
 }

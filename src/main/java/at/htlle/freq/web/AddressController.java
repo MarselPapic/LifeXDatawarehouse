@@ -85,7 +85,11 @@ public class AddressController {
             audit.created("Address", identifiers, created);
             return created;
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+            audit.failed("CREATE", "Address", Map.of(), ex.getMessage(), payload);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (RuntimeException ex) {
+            audit.failed("CREATE", "Address", Map.of(), ex.getMessage(), payload);
+            throw ex;
         }
     }
 
@@ -101,10 +105,18 @@ public class AddressController {
      */
     @PutMapping("/{id}")
     public Address update(@PathVariable UUID id, @RequestBody Address patch) {
-        Optional<Address> updated = service.updateAddress(id, patch);
-        Address result = updated.orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found"));
-        audit.updated("Address", Map.of("AddressID", id), result);
-        return result;
+        try {
+            Optional<Address> updated = service.updateAddress(id, patch);
+            Address result = updated.orElseThrow(() ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Address not found"));
+            audit.updated("Address", Map.of("AddressID", id), result);
+            return result;
+        } catch (ResponseStatusException ex) {
+            audit.failed("UPDATE", "Address", Map.of("AddressID", id), ex.getReason(), patch);
+            throw ex;
+        } catch (RuntimeException ex) {
+            audit.failed("UPDATE", "Address", Map.of("AddressID", id), ex.getMessage(), patch);
+            throw ex;
+        }
     }
 }
