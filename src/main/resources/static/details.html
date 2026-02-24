@@ -41,6 +41,13 @@
             box-shadow:0 2px 4px rgba(15,23,42,.12);
         }
         .nav-buttons a:focus,.nav-buttons a:hover{background:#0054a6;color:#fff;outline:2px solid transparent;outline-offset:2px;box-shadow:0 0 0 2px rgba(0,103,194,.2)}
+        .archive-state-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:999px;font-size:.76rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:#f8fafc;border:1px solid #cbd5e1;color:#475569}
+        .archive-state-badge.is-archived{background:#f3f4f6;border-color:#d1d5db;color:#6b7280}
+        .archive-action-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #0f172a;border-radius:.55rem;background:#fff;color:#0f172a;padding:.42rem .82rem;font-size:.86rem;font-weight:600;cursor:pointer}
+        .archive-action-button:hover,.archive-action-button:focus-visible{background:#0f172a;color:#fff}
+        .archive-action-button:focus-visible{outline:2px solid #0f172a;outline-offset:2px}
+        .archive-action-button.is-restore{border-color:#0b5f3a;color:#0b5f3a}
+        .archive-action-button.is-restore:hover,.archive-action-button.is-restore:focus-visible{background:#0b5f3a;color:#fff}
         .software-overview{display:grid;gap:1rem;margin-top:.5rem}
         .software-overview__item{border:1px solid #e5e7eb;border-radius:.75rem;padding:1rem;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.04)}
         .software-overview__header{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}
@@ -186,6 +193,7 @@
     let currentSiteSoftwareAssignments = [];
     let softwareOptionCache = null;
     let softwareOptionLoadError = null;
+    const ARCHIVE_STATE_STORAGE_KEY = 'ui:archive-state';
 
     const detailBox = document.getElementById('view');
     const detailLayoutEl = document.getElementById('detail-layout');
@@ -199,6 +207,9 @@
     let detailBodyEl;
     let detailStatusEl;
     let editButtonEl;
+    let archiveBadgeEl;
+    let archiveNoticeEl;
+    let archiveActionButtonEl;
     const defaultDocumentTitle = document.title || 'Detail View';
     const defaultDashboardHref = 'index.html';
 
@@ -270,6 +281,46 @@
             "'": '&#39;',
         };
         return (value ?? '').toString().replace(/[&<>"']/g, c => map[c] ?? c);
+    }
+    function normalizeArchiveState(raw){
+        const normalized = String(raw ?? '').trim().toUpperCase();
+        if(normalized === 'ACTIVE' || normalized === 'ARCHIVED' || normalized === 'ALL'){
+            return normalized;
+        }
+        return 'ACTIVE';
+    }
+    function readArchiveState(){
+        try{
+            return normalizeArchiveState(window.localStorage.getItem(ARCHIVE_STATE_STORAGE_KEY));
+        }catch{
+            return 'ACTIVE';
+        }
+    }
+    function withArchiveState(url){
+        try{
+            const resolved = new URL(url, window.location.origin);
+            if(resolved.origin !== window.location.origin){
+                return url;
+            }
+            if(!resolved.searchParams.has('archiveState')){
+                resolved.searchParams.set('archiveState', readArchiveState());
+            }
+            if(/^https?:/i.test(String(url))){
+                return resolved.toString();
+            }
+            return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+        }catch{
+            return url;
+        }
+    }
+    function isArchivedRecord(record){
+        if(!record || typeof record !== 'object') return false;
+        const raw = record.IsArchived ?? record.isArchived ?? record.archived;
+        if(typeof raw === 'boolean') return raw;
+        return String(raw ?? '').trim().toLowerCase() === 'true';
+    }
+    function isCurrentArchived(){
+        return isArchivedRecord(currentRow);
     }
     function shortId(value){
         const str = (value ?? '').toString().trim();
@@ -831,7 +882,7 @@
         }
     }
     async function fetchJson(url){
-        const res = await fetch(url);
+        const res = await fetch(withArchiveState(url));
         if(!res.ok) return null;
         return res.json();
     }
@@ -1770,10 +1821,20 @@
         detailBodyEl = null;
         detailStatusEl = null;
         editButtonEl = null;
+        archiveBadgeEl = null;
+        archiveNoticeEl = null;
+        archiveActionButtonEl = null;
     }
 
     function ensureDetailLayout(){
-        const hasElements = detailTitleEl?.isConnected && detailBodyEl?.isConnected && detailStatusEl?.isConnected && editButtonEl?.isConnected && detailTypeEl?.isConnected;
+        const hasElements = detailTitleEl?.isConnected
+            && detailBodyEl?.isConnected
+            && detailStatusEl?.isConnected
+            && editButtonEl?.isConnected
+            && detailTypeEl?.isConnected
+            && archiveBadgeEl?.isConnected
+            && archiveNoticeEl?.isConnected
+            && archiveActionButtonEl?.isConnected;
         if(hasElements) return;
 
         detailBox.innerHTML = '';
@@ -1793,6 +1854,18 @@
         detailTypeEl.setAttribute('aria-hidden', 'true');
         detailTypeEl.hidden = true;
         headerMain.appendChild(detailTypeEl);
+
+        archiveBadgeEl = document.createElement('span');
+        archiveBadgeEl.className = 'archive-state-badge';
+        archiveBadgeEl.hidden = true;
+        archiveBadgeEl.textContent = 'Archived';
+        headerMain.appendChild(archiveBadgeEl);
+
+        archiveNoticeEl = document.createElement('div');
+        archiveNoticeEl.className = 'archive-state-notice';
+        archiveNoticeEl.hidden = true;
+        archiveNoticeEl.textContent = 'Archived record - read-only until restored';
+        headerMain.appendChild(archiveNoticeEl);
 
         header.appendChild(headerMain);
 
@@ -1814,6 +1887,14 @@
         });
 
         actions.appendChild(editButtonEl);
+
+        archiveActionButtonEl = document.createElement('button');
+        archiveActionButtonEl.type = 'button';
+        archiveActionButtonEl.className = 'archive-action-button';
+        archiveActionButtonEl.hidden = true;
+        archiveActionButtonEl.addEventListener('click', () => toggleArchiveState());
+        actions.appendChild(archiveActionButtonEl);
+
         header.appendChild(actions);
         detailBox.appendChild(header);
 
@@ -1830,6 +1911,19 @@
         detailBox.appendChild(detailBodyEl);
     }
 
+    function applyArchivedCardState(){
+        const archived = !!currentRow && isCurrentArchived();
+        if(detailBox){
+            detailBox.classList.toggle('is-archived-view', archived);
+        }
+        if(siteSoftwareOverviewCard){
+            siteSoftwareOverviewCard.classList.toggle('is-archived-view', archived);
+        }
+        if(archiveNoticeEl){
+            archiveNoticeEl.hidden = !archived;
+        }
+    }
+
     function updateModeIndicator(){
         if(!detailBox) return;
         detailBox.dataset.mode = isEditing ? 'edit' : 'view';
@@ -1843,10 +1937,57 @@
     function updateEditButton(){
         ensureDetailLayout();
         if(!editButtonEl) return;
-        editButtonEl.disabled = !currentRow;
+        const archived = isCurrentArchived();
+        editButtonEl.disabled = !currentRow || archived;
         editButtonEl.setAttribute('aria-pressed', isEditing ? 'true' : 'false');
         editButtonEl.classList.toggle('is-active', !!isEditing);
-        editButtonEl.title = isEditing ? 'Editing active' : 'Edit entry';
+        if(archived){
+            editButtonEl.title = 'Archived entries are read-only';
+        }else{
+            editButtonEl.title = isEditing ? 'Editing active' : 'Edit entry';
+        }
+    }
+
+    function updateArchiveActionButton(){
+        ensureDetailLayout();
+        if(!archiveActionButtonEl) return;
+        if(!currentRow || !currentTable || !currentId){
+            archiveActionButtonEl.hidden = true;
+            archiveActionButtonEl.disabled = true;
+            return;
+        }
+        const archived = isCurrentArchived();
+        archiveActionButtonEl.hidden = false;
+        archiveActionButtonEl.disabled = false;
+        archiveActionButtonEl.classList.toggle('is-restore', archived);
+        archiveActionButtonEl.textContent = archived ? 'Restore' : 'Archive';
+        archiveActionButtonEl.title = archived ? 'Restore this entry' : 'Archive this entry';
+    }
+
+    async function toggleArchiveState(){
+        if(!currentTable || !currentId || !archiveActionButtonEl) return;
+        const archived = isCurrentArchived();
+        const action = archived ? 'restore' : 'archive';
+        const endpoint = `/row/${currentTable}/${encodeURIComponent(currentId)}/${action}`;
+        archiveActionButtonEl.disabled = true;
+        if(editButtonEl) editButtonEl.disabled = true;
+        setStatus(archived ? 'Restoring entry...' : 'Archiving entry...', 'info');
+        try{
+            const res = await fetch(endpoint, { method: 'PATCH' });
+            if(!res.ok){
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
+            isEditing = false;
+            await loadData({ preserveStatus: true });
+            setStatus(archived ? 'Entry restored.' : 'Entry archived.', 'success');
+        }catch(err){
+            setStatus(`Archive action failed: ${err.message}`, 'error');
+        }finally{
+            archiveActionButtonEl.disabled = false;
+            updateEditButton();
+            updateArchiveActionButton();
+        }
     }
 
     function setStatus(message, variant){
@@ -1888,6 +2029,12 @@
                 detailTypeEl.hidden = true;
                 detailTypeEl.classList.remove('is-visible');
             }
+        }
+        if(archiveBadgeEl){
+            const archived = isCurrentArchived();
+            archiveBadgeEl.hidden = !archived;
+            archiveBadgeEl.classList.toggle('is-archived', archived);
+            archiveBadgeEl.textContent = archived ? 'Archived' : '';
         }
         const captionIdRaw = (currentId ?? '').toString().trim();
         const captionId = captionIdRaw ? (captionIdRaw.startsWith('#') ? captionIdRaw : `#${captionIdRaw}`) : '';
@@ -1953,8 +2100,10 @@
 
     function renderViewMode(row){
         ensureDetailLayout();
+        applyArchivedCardState();
         updateModeIndicator();
         updateEditButton();
+        updateArchiveActionButton();
         const { captionText } = updateHeading();
         const entries = Object.entries(row || {});
           const kvRows = entries
@@ -2016,8 +2165,10 @@
 
     function renderEditMode(row){
         ensureDetailLayout();
+        applyArchivedCardState();
         updateModeIndicator();
         updateEditButton();
+        updateArchiveActionButton();
         updateHeading();
 
         detailAsyncSelectConfigs = {};
@@ -2214,7 +2365,9 @@
 
     function renderDetail(){
         if(!currentRow){
+            applyArchivedCardState();
             updateEditButton();
+            updateArchiveActionButton();
             return;
         }
         if(isEditing){
@@ -2226,6 +2379,10 @@
 
     function enterEditMode(){
         if(!currentRow) return;
+        if(isCurrentArchived()){
+            setStatus('Archived entries are read-only. Restore first to edit.', 'info');
+            return;
+        }
         isEditing = true;
         renderDetail();
     }
@@ -2238,6 +2395,10 @@
 
     async function saveForm(form, saveButton){
         if(!currentTable || !currentId) return;
+        if(isCurrentArchived()){
+            setStatus('Archived entries are read-only. Restore first to edit.', 'error');
+            return;
+        }
 
         const payload = {};
         const elements = Array.from(form.querySelectorAll('input, select, textarea'));
@@ -2425,8 +2586,10 @@
         try{
             const configKey = configKeyForTable(currentTable);
             if(configKey === 'Site'){
-                const res = await fetch(`/sites/${encodeURIComponent(currentId)}/detail`);
+                const res = await fetch(withArchiveState(`/sites/${encodeURIComponent(currentId)}/detail`));
                 if(!res.ok){
+                    currentRow = null;
+                    applyArchivedCardState();
                     resetDetailRefs();
                     detailBox.textContent = res.status === 404 ? 'Entry not found.' : 'Error loading data.';
                     return;
@@ -2436,8 +2599,10 @@
                 const { softwareAssignments, ...siteRow } = detail || {};
                 currentRow = siteRow;
             }else{
-                const res = await fetch(`/row/${currentTable}/${encodeURIComponent(currentId)}`);
+                const res = await fetch(withArchiveState(`/row/${currentTable}/${encodeURIComponent(currentId)}`));
                 if(!res.ok){
+                    currentRow = null;
+                    applyArchivedCardState();
                     resetDetailRefs();
                     if(res.status === 404){
                         detailBox.textContent = 'Entry not found.';
@@ -2449,6 +2614,7 @@
                 const row = await res.json();
                 currentRow = row;
             }
+            applyArchivedCardState();
             if(!preserveStatus) clearStatus();
             renderDetail();
 
@@ -2456,6 +2622,8 @@
             await loadParents(typeKey, currentId, currentRow);
             await loadChildren(typeKey, currentId, currentRow);
         }catch(e){
+            currentRow = null;
+            applyArchivedCardState();
             resetDetailRefs();
             detailBox.textContent = 'Error: ' + e;
         }finally{

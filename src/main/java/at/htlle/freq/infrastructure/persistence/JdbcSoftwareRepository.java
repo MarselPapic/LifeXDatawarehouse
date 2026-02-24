@@ -88,7 +88,7 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Software WHERE SoftwareID = :id";
+        String sql = "UPDATE Software SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE SoftwareID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -150,3 +150,4 @@ public class JdbcSoftwareRepository implements SoftwareRepository {
         return s;
     }
 }
+

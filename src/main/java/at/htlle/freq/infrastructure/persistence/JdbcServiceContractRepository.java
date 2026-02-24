@@ -83,7 +83,7 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM ServiceContract WHERE ContractID = :id";
+        String sql = "UPDATE ServiceContract SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE ContractID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -146,3 +146,4 @@ public class JdbcServiceContractRepository implements ServiceContractRepository 
         return date != null ? Date.valueOf(date) : null;
     }
 }
+

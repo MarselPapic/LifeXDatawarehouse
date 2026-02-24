@@ -52,7 +52,7 @@ public class JdbcAddressRepository implements AddressRepository {
      */
     @Override
     public List<Address> findAll() {
-        return jdbc.query("SELECT AddressID, Street, CityID FROM Address", mapper);
+        return jdbc.query("SELECT AddressID, Street, CityID FROM Address WHERE IsArchived = FALSE", mapper);
     }
 
     /**
@@ -62,7 +62,7 @@ public class JdbcAddressRepository implements AddressRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Address WHERE AddressID = :id";
+        String sql = "UPDATE Address SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE AddressID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -105,3 +105,4 @@ public class JdbcAddressRepository implements AddressRepository {
     }
 
 }
+

@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.domain.ArchiveState;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -41,7 +42,10 @@ public class ServiceContractController {
     public List<Map<String, Object>> findContracts(
             @RequestParam(required = false) String accountId,
             @RequestParam(required = false) String projectId,
-            @RequestParam(required = false) String siteId) {
+            @RequestParam(required = false) String siteId,
+            @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
 
         StringBuilder sql = new StringBuilder("""
             SELECT ContractID, AccountID, ProjectID, SiteID,
@@ -49,8 +53,13 @@ public class ServiceContractController {
             FROM ServiceContract
             """);
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
+        MapSqlParameterSource params = new MapSqlParameterSource("archived", archiveState.name());
         List<String> where = new ArrayList<>();
+        where.add("""
+                (:archived = 'ALL'
+                 OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                 OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """);
 
         if (accountId != null && !accountId.isBlank()) {
             where.add("AccountID = :accountId");
@@ -93,5 +102,13 @@ public class ServiceContractController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service contract not found");
         }
         return rows.get(0);
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 }

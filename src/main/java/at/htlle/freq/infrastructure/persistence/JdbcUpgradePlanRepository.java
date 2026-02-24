@@ -86,7 +86,7 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM UpgradePlan WHERE UpgradePlanID = :id";
+        String sql = "UPDATE UpgradePlan SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE UpgradePlanID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -149,3 +149,4 @@ public class JdbcUpgradePlanRepository implements UpgradePlanRepository {
         return date != null ? Date.valueOf(date) : null;
     }
 }
+

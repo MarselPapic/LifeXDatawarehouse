@@ -19,5 +19,6 @@ public record SiteDetailResponse(
         @JsonProperty("TenantCount") Integer tenantCount,
         @JsonProperty("RedundantServers") Integer redundantServers,
         @JsonProperty("HighAvailability") Boolean highAvailability,
+        @JsonProperty("IsArchived") Boolean isArchived,
         List<SiteSoftwareOverviewEntry> softwareAssignments
 ) { }

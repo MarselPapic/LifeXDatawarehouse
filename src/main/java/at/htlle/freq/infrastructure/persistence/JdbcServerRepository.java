@@ -86,7 +86,7 @@ public class JdbcServerRepository implements ServerRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Server WHERE ServerID = :id";
+        String sql = "UPDATE Server SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE ServerID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -144,3 +144,4 @@ public class JdbcServerRepository implements ServerRepository {
         return s;
     }
 }
+

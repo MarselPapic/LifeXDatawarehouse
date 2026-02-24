@@ -212,6 +212,7 @@ class SiteControllerIntegrationTest {
                 SELECT ProjectID
                 FROM ProjectSite
                 WHERE SiteID = :sid
+                  AND IsArchived = FALSE
                 """, new MapSqlParameterSource("sid", siteId));
         assertEquals(1, assignments.size(), "duplicate assignments should be ignored");
         assertEquals(newProject, assignments.get(0).get("ProjectID"));
@@ -238,9 +239,13 @@ class SiteControllerIntegrationTest {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/sites/{id}", siteId))
                 .andExpect(status().isNoContent());
 
-        Integer remaining = jdbc.queryForObject("SELECT COUNT(*) FROM ProjectSite WHERE SiteID = :sid",
+        Integer remaining = jdbc.queryForObject("SELECT COUNT(*) FROM ProjectSite WHERE SiteID = :sid AND IsArchived = FALSE",
                 new MapSqlParameterSource("sid", siteId), Integer.class);
         assertEquals(0, remaining);
+
+        Boolean siteArchived = jdbc.queryForObject("SELECT IsArchived FROM Site WHERE SiteID = :sid",
+                new MapSqlParameterSource("sid", siteId), Boolean.class);
+        assertEquals(Boolean.TRUE, siteArchived);
     }
 
     @Test

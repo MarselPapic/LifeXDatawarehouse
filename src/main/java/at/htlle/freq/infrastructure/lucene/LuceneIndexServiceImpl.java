@@ -17,6 +17,8 @@ import org.apache.lucene.store.LockObtainFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -93,6 +95,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     private final SiteRepository siteRepository;
     private final SoftwareRepository softwareRepository;
     private final UpgradePlanRepository upgradePlanRepository;
+    private final NamedParameterJdbcTemplate jdbc;
 
     private final StandardAnalyzer analyzer = new StandardAnalyzer();
     private final ReentrantLock writerLock = new ReentrantLock();
@@ -105,7 +108,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
      * The index path is configured via {@link #setIndexPath(Path)}, which also resolves the license files.
      */
     public LuceneIndexServiceImpl() {
-        this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -128,7 +131,8 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                                   ServiceContractRepository serviceContractRepository,
                                   SiteRepository siteRepository,
                                   SoftwareRepository softwareRepository,
-                                  UpgradePlanRepository upgradePlanRepository) {
+                                  UpgradePlanRepository upgradePlanRepository,
+                                  NamedParameterJdbcTemplate jdbc) {
         this.accountRepository = accountRepository;
         this.addressRepository = addressRepository;
         this.audioDeviceRepository = audioDeviceRepository;
@@ -145,7 +149,34 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         this.siteRepository = siteRepository;
         this.softwareRepository = softwareRepository;
         this.upgradePlanRepository = upgradePlanRepository;
+        this.jdbc = jdbc;
         setIndexPath(Paths.get(LuceneIndexService.INDEX_PATH));
+    }
+
+    /**
+     * Backwards-compatible constructor kept for tests that instantiate the service manually
+     * without a JDBC template.
+     */
+    public LuceneIndexServiceImpl(AccountRepository accountRepository,
+                                  AddressRepository addressRepository,
+                                  AudioDeviceRepository audioDeviceRepository,
+                                  CityRepository cityRepository,
+                                  ClientsRepository clientsRepository,
+                                  CountryRepository countryRepository,
+                                  DeploymentVariantRepository deploymentVariantRepository,
+                                  InstalledSoftwareRepository installedSoftwareRepository,
+                                  PhoneIntegrationRepository phoneIntegrationRepository,
+                                  ProjectRepository projectRepository,
+                                  RadioRepository radioRepository,
+                                  ServerRepository serverRepository,
+                                  ServiceContractRepository serviceContractRepository,
+                                  SiteRepository siteRepository,
+                                  SoftwareRepository softwareRepository,
+                                  UpgradePlanRepository upgradePlanRepository) {
+        this(accountRepository, addressRepository, audioDeviceRepository, cityRepository, clientsRepository,
+                countryRepository, deploymentVariantRepository, installedSoftwareRepository, phoneIntegrationRepository,
+                projectRepository, radioRepository, serverRepository, serviceContractRepository, siteRepository,
+                softwareRepository, upgradePlanRepository, null);
     }
 
     /**
@@ -668,9 +699,12 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                 String typeValue = safe(type);
                 String typeKey = typeValue.toLowerCase(Locale.ROOT);
                 String safeId = safe(id);
+                boolean archived = resolveArchivedFlag(typeKey, safeId);
+                String archiveToken = archived ? "archivedtrue" : "archivedfalse";
 
                 doc.add(new StringField("id", safeId, Field.Store.YES));
                 doc.add(new StringField("type", typeKey, Field.Store.YES));
+                doc.add(new StringField("archived", archived ? "true" : "false", Field.Store.YES));
                 if (!typeValue.isEmpty()) {
                     doc.add(new StoredField("typeDisplay", typeValue));
                 }
@@ -679,6 +713,7 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
                 if (!typeKey.isEmpty()) {
                     content.append(typeKey).append(' ');
                 }
+                content.append(archiveToken).append(' ');
                 for (String f : fields) {
                     content.append(safe(f)).append(' ');
                 }
@@ -797,12 +832,98 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
         String typeDisplay = doc.get("typeDisplay");
         String display = doc.get("display");
         String content = doc.get("content");
+        boolean archived = Boolean.parseBoolean(doc.get("archived"));
 
         String type = firstNonBlank(typeDisplay, typeKey);
         String text = firstNonBlank(display, content, id, type);
-        String snippet = buildSnippet(content, text, typeKey, typeDisplay);
+        String snippet = buildSnippet(content, text, typeKey, typeDisplay, "archivedtrue", "archivedfalse");
 
-        return new SearchHit(id, type, text, snippet);
+        return new SearchHit(id, type, text, snippet, archived);
+    }
+
+    private boolean resolveArchivedFlag(String typeKey, String id) {
+        if (jdbc == null || id == null || id.isBlank()) {
+            return false;
+        }
+        String table = tableForType(typeKey);
+        String pk = pkForType(typeKey);
+        if (table == null || pk == null) {
+            return false;
+        }
+
+        Object typedId = convertIdentifier(typeKey, id);
+        if (typedId == null) {
+            return false;
+        }
+
+        String sql = "SELECT IsArchived FROM " + table + " WHERE " + pk + " = :id";
+        try {
+            Boolean value = jdbc.queryForObject(sql, new MapSqlParameterSource("id", typedId), Boolean.class);
+            return Boolean.TRUE.equals(value);
+        } catch (Exception ex) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to resolve archive flag for type={} id={}", typeKey, id, ex);
+            }
+            return false;
+        }
+    }
+
+    private String tableForType(String typeKey) {
+        String normalized = typeKey == null ? "" : typeKey.toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "account" -> "Account";
+            case "address" -> "Address";
+            case "audiodevice" -> "AudioDevice";
+            case "city" -> "City";
+            case "client" -> "Clients";
+            case "country" -> "Country";
+            case "deploymentvariant" -> "DeploymentVariant";
+            case "installedsoftware" -> "InstalledSoftware";
+            case "phoneintegration" -> "PhoneIntegration";
+            case "project" -> "Project";
+            case "radio" -> "Radio";
+            case "server" -> "Server";
+            case "servicecontract" -> "ServiceContract";
+            case "site" -> "Site";
+            case "software" -> "Software";
+            case "upgradeplan" -> "UpgradePlan";
+            default -> null;
+        };
+    }
+
+    private String pkForType(String typeKey) {
+        String normalized = typeKey == null ? "" : typeKey.toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "account" -> "AccountID";
+            case "address" -> "AddressID";
+            case "audiodevice" -> "AudioDeviceID";
+            case "city" -> "CityID";
+            case "client" -> "ClientID";
+            case "country" -> "CountryCode";
+            case "deploymentvariant" -> "VariantID";
+            case "installedsoftware" -> "InstalledSoftwareID";
+            case "phoneintegration" -> "PhoneIntegrationID";
+            case "project" -> "ProjectID";
+            case "radio" -> "RadioID";
+            case "server" -> "ServerID";
+            case "servicecontract" -> "ContractID";
+            case "site" -> "SiteID";
+            case "software" -> "SoftwareID";
+            case "upgradeplan" -> "UpgradePlanID";
+            default -> null;
+        };
+    }
+
+    private Object convertIdentifier(String typeKey, String id) {
+        String normalized = typeKey == null ? "" : typeKey.toLowerCase(Locale.ROOT);
+        if ("city".equals(normalized) || "country".equals(normalized)) {
+            return id;
+        }
+        try {
+            return java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     /**

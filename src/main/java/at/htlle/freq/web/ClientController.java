@@ -2,12 +2,16 @@
 package at.htlle.freq.web;
 
 import at.htlle.freq.application.ClientsService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.domain.Clients;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -29,15 +33,25 @@ public class ClientController {
 
     private final ClientsService service;
     private final AuditLogger audit;
+    private final NamedParameterJdbcTemplate jdbc;
 
     /**
      * Creates a controller that delegates client operations to {@link ClientsService}.
      *
      * @param service service used for client CRUD operations.
      */
-    public ClientController(ClientsService service, AuditLogger audit) {
+    @Autowired
+    public ClientController(ClientsService service, AuditLogger audit, NamedParameterJdbcTemplate jdbc) {
         this.service = service;
         this.audit = audit;
+        this.jdbc = jdbc;
+    }
+
+    /**
+     * Backwards-compatible constructor for tests.
+     */
+    public ClientController(ClientsService service, AuditLogger audit) {
+        this(service, audit, null);
     }
 
     /**
@@ -50,11 +64,47 @@ public class ClientController {
      * @return 200 OK with a list of {@link Clients}.
      */
     @GetMapping
-    public List<Clients> findBySite(@RequestParam(required = false) UUID siteId) {
-        if (siteId == null) {
-            return service.findAll();
+    public List<Clients> findBySite(@RequestParam(required = false) UUID siteId,
+                                    @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
+        if (archiveState == ArchiveState.ACTIVE || jdbc == null) {
+            if (siteId == null) {
+                return service.findAll();
+            }
+            return service.findBySite(siteId);
         }
-        return service.findBySite(siteId);
+        MapSqlParameterSource params = new MapSqlParameterSource("archived", archiveState.name());
+        StringBuilder sql = new StringBuilder("""
+                SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr,
+                       ClientOS, PatchLevel, InstallType, WorkingPositionType, OtherInstalledSoftware
+                FROM Clients
+                WHERE (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """);
+        if (siteId != null) {
+            sql.append(" AND SiteID = :sid");
+            params.addValue("sid", siteId);
+        }
+        return jdbc.query(sql.toString(), params, (rs, n) -> new Clients(
+                rs.getObject("ClientID", UUID.class),
+                rs.getObject("SiteID", UUID.class),
+                rs.getString("ClientName"),
+                rs.getString("ClientBrand"),
+                rs.getString("ClientSerialNr"),
+                rs.getString("ClientOS"),
+                rs.getString("PatchLevel"),
+                rs.getString("InstallType"),
+                rs.getString("WorkingPositionType"),
+                rs.getString("OtherInstalledSoftware")
+        ));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<Clients> findBySite(UUID siteId) {
+        return findBySite(siteId, null);
     }
 
     /**
@@ -81,6 +131,14 @@ public class ClientController {
             audit.failed("CREATE", "Client", Map.of(), ex.getMessage(), client);
             log.error("Create client failed", ex);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Create client failed", ex);
+        }
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 }

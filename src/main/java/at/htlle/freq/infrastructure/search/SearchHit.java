@@ -17,6 +17,7 @@ public class SearchHit {
     private String type;
     private String text;
     private String snippet;
+    private boolean archived;
 
     /**
      * Creates an empty search hit instance.
@@ -38,10 +39,24 @@ public class SearchHit {
      *                available.
      */
     public SearchHit(String id, String type, String text, String snippet) {
+        this(id, type, text, snippet, false);
+    }
+
+    /**
+     * Creates a fully configured search hit including archive state.
+     *
+     * @param id unique identifier.
+     * @param type logical type.
+     * @param text display text.
+     * @param snippet optional snippet.
+     * @param archived archive flag.
+     */
+    public SearchHit(String id, String type, String text, String snippet, boolean archived) {
         this.id = id;
         this.type = type;
         this.text = text;
         this.snippet = snippet;
+        this.archived = archived;
     }
 
     /**
@@ -117,6 +132,24 @@ public class SearchHit {
     }
 
     /**
+     * Returns whether the hit points to an archived record.
+     *
+     * @return true when archived.
+     */
+    public boolean isArchived() {
+        return archived;
+    }
+
+    /**
+     * Sets the archive flag.
+     *
+     * @param archived archive flag.
+     */
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    /**
      * Returns a string representation useful for logging and debugging.
      */
     @Override
@@ -126,6 +159,7 @@ public class SearchHit {
                 ", type='" + type + '\'' +
                 ", text='" + text + '\'' +
                 ", snippet='" + snippet + '\'' +
+                ", archived=" + archived +
                 '}';
     }
 }

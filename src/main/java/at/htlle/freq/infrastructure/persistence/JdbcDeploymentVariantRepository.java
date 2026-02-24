@@ -56,7 +56,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
     public Optional<DeploymentVariant> findByCode(String code) {
         String sql = """
             SELECT VariantID, VariantCode, VariantName, Description, IsActive
-            FROM DeploymentVariant WHERE VariantCode = :code
+            FROM DeploymentVariant WHERE VariantCode = :code AND IsArchived = FALSE
             """;
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("code", code), mapper));
@@ -72,7 +72,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
     public Optional<DeploymentVariant> findByName(String name) {
         String sql = """
             SELECT VariantID, VariantCode, VariantName, Description, IsActive
-            FROM DeploymentVariant WHERE VariantName = :name
+            FROM DeploymentVariant WHERE VariantName = :name AND IsArchived = FALSE
             """;
         try {
             return Optional.ofNullable(jdbc.queryForObject(sql, new MapSqlParameterSource("name", name), mapper));
@@ -85,7 +85,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
      */
     @Override
     public List<DeploymentVariant> findAll() {
-        String sql = "SELECT VariantID, VariantCode, VariantName, Description, IsActive FROM DeploymentVariant";
+        String sql = "SELECT VariantID, VariantCode, VariantName, Description, IsActive FROM DeploymentVariant WHERE IsArchived = FALSE";
         return jdbc.query(sql, mapper);
     }
 
@@ -95,7 +95,7 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM DeploymentVariant WHERE VariantID = :id";
+        String sql = "UPDATE DeploymentVariant SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE VariantID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -148,3 +148,4 @@ public class JdbcDeploymentVariantRepository implements DeploymentVariantReposit
         return dv;
     }
 }
+

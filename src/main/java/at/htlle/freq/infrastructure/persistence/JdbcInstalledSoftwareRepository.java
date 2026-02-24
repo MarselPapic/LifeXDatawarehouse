@@ -159,7 +159,7 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM InstalledSoftware WHERE InstalledSoftwareID = :id";
+        String sql = "UPDATE InstalledSoftware SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE InstalledSoftwareID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -264,3 +264,4 @@ public class JdbcInstalledSoftwareRepository implements InstalledSoftwareReposit
         throw new IllegalStateException("Unable to convert generated key to UUID: " + value);
     }
 }
+

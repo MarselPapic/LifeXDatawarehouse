@@ -71,6 +71,7 @@ public class JdbcAccountRepository implements AccountRepository {
             SELECT AccountID, AccountName, ContactName, ContactEmail, ContactPhone, VATNumber, Country
             FROM Account
             WHERE AccountName = :name
+              AND IsArchived = FALSE
             """;
         try {
             return Optional.ofNullable(
@@ -90,6 +91,7 @@ public class JdbcAccountRepository implements AccountRepository {
         String sql = """
             SELECT AccountID, AccountName, ContactName, ContactEmail, ContactPhone, VATNumber, Country
             FROM Account
+            WHERE IsArchived = FALSE
             """;
         return jdbc.query(sql, mapper);
     }
@@ -163,8 +165,9 @@ public class JdbcAccountRepository implements AccountRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Account WHERE AccountID = :id";
+        String sql = "UPDATE Account SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE AccountID = :id AND IsArchived = FALSE";
         var params = new MapSqlParameterSource("id", id);
         jdbc.update(sql, params);
     }
 }
+

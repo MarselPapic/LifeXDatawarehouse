@@ -1,9 +1,14 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -20,6 +25,7 @@ public class PhoneController {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
     private static final String TABLE = "PhoneIntegration";
     private static final Set<String> CREATE_COLUMNS = Set.of(
             "SiteID",
@@ -40,9 +46,18 @@ public class PhoneController {
      *
      * @param jdbc JDBC template used for phone integration queries.
      */
-    public PhoneController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+    @Autowired
+    public PhoneController(NamedParameterJdbcTemplate jdbc, AuditLogger audit, ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.archiveService = archiveService;
+    }
+
+    /**
+     * Backwards-compatible constructor for tests.
+     */
+    public PhoneController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+        this(jdbc, audit, null);
     }
 
     // READ operations: list all integrations or filter by site
@@ -56,7 +71,9 @@ public class PhoneController {
      * @return 200 OK with a JSON list of phone integrations.
      */
     @GetMapping
-    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId) {
+    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId,
+                                                @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         if (siteId != null) {
             UUID siteUuid = parseUuid(siteId, "siteId");
             return jdbc.queryForList("""
@@ -64,14 +81,28 @@ public class PhoneController {
                        InterfaceName, Capacity, PhoneFirmware
                 FROM PhoneIntegration
                 WHERE SiteID = :sid
-                """, new MapSqlParameterSource("sid", siteUuid));
+                  AND (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """, new MapSqlParameterSource("sid", siteUuid)
+                    .addValue("archived", archiveState.name()));
         }
 
         return jdbc.queryForList("""
             SELECT PhoneIntegrationID, SiteID, PhoneType, PhoneBrand,
                    InterfaceName, Capacity, PhoneFirmware
             FROM PhoneIntegration
-            """, new HashMap<>());
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+            """, new MapSqlParameterSource("archived", archiveState.name()));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<Map<String, Object>> findBySite(String siteId) {
+        return findBySite(siteId, null);
     }
 
     /**
@@ -210,14 +241,27 @@ public class PhoneController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         try {
-            UUID phoneId = parseUuid(id, "PhoneIntegrationID");
-            int count = jdbc.update("DELETE FROM PhoneIntegration WHERE PhoneIntegrationID = :id",
-                    new MapSqlParameterSource("id", phoneId));
-
-            if (count == 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration deleted");
+            parseUuid(id, "PhoneIntegrationID");
+            String actor = currentActor();
+            boolean archived;
+            if (archiveService != null) {
+                archived = archiveService.archive("phoneintegration", id, actor);
+            } else {
+                archived = jdbc.update("""
+                        UPDATE PhoneIntegration
+                           SET IsArchived = TRUE,
+                               ArchivedAt = CURRENT_TIMESTAMP,
+                               ArchivedBy = :actor
+                         WHERE PhoneIntegrationID = :id
+                           AND IsArchived = FALSE
+                        """, new MapSqlParameterSource("id", parseUuid(id, "PhoneIntegrationID"))
+                        .addValue("actor", actor)) > 0;
             }
-            audit.deleted(TABLE, Map.of("PhoneIntegrationID", phoneId));
+            if (!archived) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration archived");
+            }
+            audit.archived(TABLE, Map.of("PhoneIntegrationID", id), Map.of("actor", actor));
+            audit.deleted(TABLE, Map.of("PhoneIntegrationID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("PhoneIntegrationID", id), ex.getReason(), null);
             throw ex;
@@ -287,6 +331,22 @@ public class PhoneController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " must be a valid UUID", ex);
+        }
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 }

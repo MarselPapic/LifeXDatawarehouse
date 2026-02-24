@@ -1,6 +1,8 @@
 package at.htlle.freq.infrastructure.search;
 
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Terms;
@@ -52,11 +54,32 @@ public class SuggestService {
      * @return list of suggestions ordered by discovery.
      */
     public List<String> suggest(String prefix, int max) {
+        return suggest(prefix, max, ArchiveState.ACTIVE);
+    }
+
+    /**
+     * Returns suggestions filtered by archive state.
+     *
+     * @param prefix user-entered prefix.
+     * @param max maximum number of suggestions.
+     * @param archiveState archive visibility state.
+     * @return suggestions.
+     */
+    public List<String> suggest(String prefix, int max, ArchiveState archiveState) {
         if (prefix == null) return List.of();
         String pfx = prefix.toLowerCase(Locale.ROOT);
         if (pfx.length() < 2) return List.of();
         if (max <= 0) return List.of();
 
+        ArchiveState effectiveState = archiveState == null ? ArchiveState.ACTIVE : archiveState;
+        if (effectiveState != ArchiveState.ALL) {
+            return suggestFromFilteredHits(pfx, max, effectiveState);
+        }
+
+        return suggestFromTerms(pfx, max);
+    }
+
+    private List<String> suggestFromTerms(String pfx, int max) {
         Set<String> out = new LinkedHashSet<>();
 
         Path indexPath = lucene.getIndexPath();
@@ -93,5 +116,40 @@ public class SuggestService {
         }
 
         return out.stream().limit(max).collect(Collectors.toList());
+    }
+
+    private List<String> suggestFromFilteredHits(String pfx, int max, ArchiveState archiveState) {
+        String escapedPrefix = QueryParser.escape(pfx);
+        String archiveClause = archiveState == ArchiveState.ARCHIVED ? "archived:true" : "archived:false";
+        String query = archiveClause + " AND content:" + escapedPrefix + "*";
+
+        Set<String> out = new LinkedHashSet<>();
+        for (SearchHit hit : lucene.search(query)) {
+            collectTerms(hit.getText(), pfx, out, max);
+            collectTerms(hit.getSnippet(), pfx, out, max);
+            if (out.size() >= max) {
+                break;
+            }
+        }
+        return out.stream().limit(max).collect(Collectors.toList());
+    }
+
+    private void collectTerms(String source, String pfx, Set<String> out, int max) {
+        if (source == null || source.isBlank() || out.size() >= max) {
+            return;
+        }
+        String[] tokens = source.toLowerCase(Locale.ROOT).split("[^\\p{Alnum}]+");
+        for (String token : tokens) {
+            if (token.length() < 2) {
+                continue;
+            }
+            if (!token.startsWith(pfx)) {
+                continue;
+            }
+            out.add(token);
+            if (out.size() >= max) {
+                return;
+            }
+        }
     }
 }

@@ -81,7 +81,7 @@ public class JdbcCountryRepository implements CountryRepository {
      */
     @Override
     public List<Country> findAll() {
-        return jdbc.query("SELECT CountryCode, CountryName FROM Country", mapper);
+        return jdbc.query("SELECT CountryCode, CountryName FROM Country WHERE IsArchived = FALSE", mapper);
     }
 
     /**
@@ -90,7 +90,8 @@ public class JdbcCountryRepository implements CountryRepository {
      */
     @Override
     public void deleteById(String code) {
-        String sql = "DELETE FROM Country WHERE CountryCode = :code";
+        String sql = "UPDATE Country SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE CountryCode = :code AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("code", code));
     }
 }
+

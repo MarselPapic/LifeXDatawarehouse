@@ -49,7 +49,7 @@ public class JdbcCityRepository implements CityRepository {
      */
     @Override
     public List<City> findByCountry(String countryCode) {
-        String sql = "SELECT CityID, CityName, CountryCode FROM City WHERE CountryCode = :cc";
+        String sql = "SELECT CityID, CityName, CountryCode FROM City WHERE CountryCode = :cc AND IsArchived = FALSE";
         return jdbc.query(sql, new MapSqlParameterSource("cc", countryCode), mapper);
     }
 
@@ -59,7 +59,7 @@ public class JdbcCityRepository implements CityRepository {
      */
     @Override
     public void deleteById(String id) {
-        String sql = "DELETE FROM City WHERE CityID = :id";
+        String sql = "UPDATE City SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE CityID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -110,6 +110,7 @@ public class JdbcCityRepository implements CityRepository {
      */
     @Override
     public List<City> findAll() {
-        return jdbc.query("SELECT CityID, CityName, CountryCode FROM City", mapper);
+        return jdbc.query("SELECT CityID, CityName, CountryCode FROM City WHERE IsArchived = FALSE", mapper);
     }
 }
+

@@ -34,6 +34,14 @@ public class AuditLogger {
         logChange("UPSERT", entity, identifiers, data);
     }
 
+    public void archived(String entity, Map<String, Object> identifiers, Object data) {
+        logChange("ARCHIVE", entity, identifiers, data);
+    }
+
+    public void restored(String entity, Map<String, Object> identifiers, Object data) {
+        logChange("RESTORE", entity, identifiers, data);
+    }
+
     public void failed(String action, String entity, Map<String, Object> identifiers, String reason, Object data) {
         LOG.warn("action={} entity={} identifiers={} result=FAIL reason={} data={}",
                 safe(action), safe(entity), safeMap(identifiers), reason, toJsonSafe(data));

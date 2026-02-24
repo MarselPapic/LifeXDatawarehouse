@@ -83,7 +83,7 @@ public class JdbcSiteRepository implements SiteRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Site WHERE SiteID = :id";
+        String sql = "UPDATE Site SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE SiteID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -231,3 +231,4 @@ public class JdbcSiteRepository implements SiteRepository {
         }
     }
 }
+

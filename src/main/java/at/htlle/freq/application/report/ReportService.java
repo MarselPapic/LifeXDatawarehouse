@@ -1,5 +1,6 @@
 package at.htlle.freq.application.report;
 
+import at.htlle.freq.domain.ArchiveState;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -100,6 +101,7 @@ public class ReportService {
                 WHERE sw.SupportEndDate IS NOT NULL
                   AND LOWER(isw.Status) = 'installed'
                 """);
+        appendArchiveStateClause(sql, filter, "isw", "sw", "s", "p", "a");
         appendSupportEndRangeClause(sql, params, filter);
 
         Map<String, Object> row = jdbc.queryForMap(sql.toString(), params);
@@ -275,6 +277,7 @@ public class ReportService {
             WHERE sw.SupportEndDate IS NOT NULL
               AND LOWER(isw.Status) = 'installed'
         """);
+        appendArchiveStateClause(sql, filter, "isw", "sw", "s", "p", "a");
         appendSupportEndRangeClause(sql, params, filter);
         sql.append(" ORDER BY sw.SupportEndDate, sw.Name, sw.Version, sw.Release, sw.Revision");
 
@@ -312,6 +315,7 @@ public class ReportService {
                 JOIN Account a ON a.AccountID = p.AccountID
                 WHERE sw.SupportEndDate IS NOT NULL
                 """);
+        appendArchiveStateClause(sql, filter, "isw", "sw", "s", "p", "a");
         appendSupportEndRangeClause(sql, params, filter);
         sql.append("""
                  GROUP BY COALESCE(sw.SupportPhase, 'Unknown'), COALESCE(isw.Status, 'Unknown')
@@ -357,6 +361,7 @@ public class ReportService {
                 WHERE sw.SupportEndDate IS NOT NULL
                   AND LOWER(isw.Status) = 'installed'
                 """);
+        appendArchiveStateClause(sql, filter, "isw", "sw", "s", "p", "a");
         appendSupportEndRangeClause(sql, params, filter);
         sql.append("""
                  GROUP BY a.AccountID, a.AccountName
@@ -405,6 +410,24 @@ public class ReportService {
             sql.append(" AND sw.SupportEndDate <= :to");
             params.put("to", filter.to());
         }
+    }
+
+    private void appendArchiveStateClause(StringBuilder sql, ReportFilter filter, String... aliases) {
+        ArchiveState archiveState = filter == null ? ArchiveState.ACTIVE : filter.effectiveArchiveState();
+        if (archiveState == ArchiveState.ALL || aliases == null || aliases.length == 0) {
+            return;
+        }
+        if (archiveState == ArchiveState.ACTIVE) {
+            for (String alias : aliases) {
+                sql.append(" AND ").append(alias).append(".IsArchived = FALSE");
+            }
+            return;
+        }
+        List<String> archivedChecks = new LinkedList<>();
+        for (String alias : aliases) {
+            archivedChecks.add(alias + ".IsArchived = TRUE");
+        }
+        sql.append(" AND (").append(String.join(" OR ", archivedChecks)).append(")");
     }
 
     /**

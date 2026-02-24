@@ -67,7 +67,7 @@ public class JdbcClientsRepository implements ClientsRepository {
         String sql = """
             SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType,
                    WorkingPositionType, OtherInstalledSoftware
-            FROM Clients WHERE SiteID = :sid
+            FROM Clients WHERE SiteID = :sid AND IsArchived = FALSE
             """;
         return jdbc.query(sql, new MapSqlParameterSource("sid", siteId), mapper);
     }
@@ -82,6 +82,7 @@ public class JdbcClientsRepository implements ClientsRepository {
             SELECT ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, ClientOS, PatchLevel, InstallType,
                    WorkingPositionType, OtherInstalledSoftware
             FROM Clients
+            WHERE IsArchived = FALSE
             """, mapper);
     }
 

@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.application.report.ReportFilter;
 import at.htlle.freq.application.report.ReportResponse;
 import at.htlle.freq.application.report.ReportSummary;
@@ -58,10 +59,18 @@ public class ReportController {
     public ReportResponse getReportData(@RequestParam(name = "from", required = false) String from,
                                         @RequestParam(name = "to", required = false) String to,
                                         @RequestParam(name = "preset", required = false) String preset,
-                                        @RequestParam(name = "view", required = false) String view) {
-        ReportFilter filter = buildFilter(preset, from, to);
+                                        @RequestParam(name = "view", required = false) String view,
+                                        @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
+        ReportFilter filter = buildFilter(preset, from, to, archiveStateRaw);
         ReportView reportView = resolveView(view);
         return reportService.getReport(reportView, filter);
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ReportResponse getReportData(String from, String to, String preset, String view) {
+        return getReportData(from, to, preset, view, null);
     }
 
     /**
@@ -78,8 +87,18 @@ public class ReportController {
     @GetMapping("/summary")
     public ReportSummary getSummary(@RequestParam(name = "from", required = false) String from,
                                     @RequestParam(name = "to", required = false) String to,
-                                    @RequestParam(name = "preset", required = false) String preset) {
-        return reportService.getSummary(null);
+                                    @RequestParam(name = "preset", required = false) String preset,
+                                    @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
+        // Summary KPIs remain independent from date-range filters; only archive-state is applied.
+        ReportFilter filter = new ReportFilter(null, null, null, resolveArchiveState(archiveStateRaw));
+        return reportService.getSummary(filter);
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ReportSummary getSummary(String from, String to, String preset) {
+        return getSummary(from, to, preset, null);
     }
 
     /**
@@ -94,8 +113,9 @@ public class ReportController {
     public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
                                                        @RequestParam(name = "preset", required = false) String preset,
-                                                       @RequestParam(name = "view", required = false) String view) {
-        ReportFilter filter = buildFilter(preset, from, to);
+                                                       @RequestParam(name = "view", required = false) String view,
+                                                       @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
+        ReportFilter filter = buildFilter(preset, from, to, archiveStateRaw);
         ReportView reportView = resolveView(view);
         ReportResponse response = reportService.getReport(reportView, filter);
         String csv = reportService.renderCsv(response);
@@ -106,6 +126,13 @@ public class ReportController {
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .contentLength(data.length)
                 .body(resource);
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ResponseEntity<ByteArrayResource> exportCsv(String from, String to, String preset, String view) {
+        return exportCsv(from, to, preset, view, null);
     }
 
     /**
@@ -121,8 +148,9 @@ public class ReportController {
     public ResponseEntity<ByteArrayResource> exportPdf(@RequestParam(name = "from", required = false) String from,
                                                        @RequestParam(name = "to", required = false) String to,
                                                        @RequestParam(name = "preset", required = false) String preset,
-                                                       @RequestParam(name = "view", required = false) String view) {
-        ReportFilter filter = buildFilter(preset, from, to);
+                                                       @RequestParam(name = "view", required = false) String view,
+                                                       @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
+        ReportFilter filter = buildFilter(preset, from, to, archiveStateRaw);
         ReportView reportView = resolveView(view);
         ReportResponse response = reportService.getReport(reportView, filter);
         byte[] data = reportService.renderPdf(response);
@@ -132,6 +160,13 @@ public class ReportController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .contentLength(data.length)
                 .body(resource);
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ResponseEntity<ByteArrayResource> exportPdf(String from, String to, String preset, String view) {
+        return exportPdf(from, to, preset, view, null);
     }
 
     /**
@@ -147,8 +182,9 @@ public class ReportController {
     public ResponseEntity<ByteArrayResource> exportXlsx(@RequestParam(name = "from", required = false) String from,
                                                          @RequestParam(name = "to", required = false) String to,
                                                          @RequestParam(name = "preset", required = false) String preset,
-                                                         @RequestParam(name = "view", required = false) String view) {
-        ReportFilter filter = buildFilter(preset, from, to);
+                                                         @RequestParam(name = "view", required = false) String view,
+                                                         @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
+        ReportFilter filter = buildFilter(preset, from, to, archiveStateRaw);
         ReportView reportView = resolveView(view);
         ReportResponse response = reportService.getReport(reportView, filter);
         byte[] data = reportService.renderExcel(response);
@@ -161,6 +197,13 @@ public class ReportController {
     }
 
     /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ResponseEntity<ByteArrayResource> exportXlsx(String from, String to, String preset, String view) {
+        return exportXlsx(from, to, preset, view, null);
+    }
+
+    /**
      * Builds a {@link ReportFilter} from preset and custom date ranges.
      *
      * @param preset preset label (for example {@code last30}).
@@ -168,10 +211,10 @@ public class ReportController {
      * @param to custom range end date string.
      * @return filter for report generation.
      */
-    private ReportFilter buildFilter(String preset, String from, String to) {
+    private ReportFilter buildFilter(String preset, String from, String to, String archiveStateRaw) {
         String normalizedPreset = preset == null ? null : preset.trim().toLowerCase(Locale.ROOT);
         DateRange range = resolveRange(normalizedPreset, from, to);
-        return new ReportFilter(range.from, range.to, normalizedPreset);
+        return new ReportFilter(range.from, range.to, normalizedPreset, resolveArchiveState(archiveStateRaw));
     }
 
     /**
@@ -244,6 +287,14 @@ public class ReportController {
     private ReportView resolveView(String rawView) {
         try {
             return ReportView.fromQuery(rawView);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    private ArchiveState resolveArchiveState(String rawArchiveState) {
+        try {
+            return ArchiveState.from(rawArchiveState);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }

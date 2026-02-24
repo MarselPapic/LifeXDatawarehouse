@@ -1,5 +1,6 @@
 package at.htlle.freq.application.report;
 
+import at.htlle.freq.domain.ArchiveState;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -63,7 +64,7 @@ class ReportServiceTest {
                 "distinctSites", 1L
         ));
 
-        ReportFilter filter = new ReportFilter(LocalDate.now(), LocalDate.now().plusDays(30), "next30");
+        ReportFilter filter = new ReportFilter(LocalDate.now(), LocalDate.now().plusDays(30), "next30", ArchiveState.ACTIVE);
         ReportResponse response = service.getReport(filter);
 
         Map<String, Object> firstRow = response.table().rows().get(0);

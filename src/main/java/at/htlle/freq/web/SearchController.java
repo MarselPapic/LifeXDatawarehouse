@@ -1,5 +1,6 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.search.SearchHit;
 import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
 import at.htlle.freq.infrastructure.search.SmartQueryBuilder;
@@ -7,10 +8,12 @@ import at.htlle.freq.infrastructure.search.SuggestService;
 import org.apache.lucene.search.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -57,9 +60,11 @@ public class SearchController {
     public ResponseEntity<?> query(
             @RequestParam(name = "q", required = false) String q,
             @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "archiveState", required = false) String archiveStateRaw,
             @RequestParam(name = "raw", defaultValue = "false") boolean raw
     ) {
         String normalizedType = normalizeType(type);
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         boolean hasQuery = q != null && !q.isBlank();
         if (!hasQuery && normalizedType == null) {
             return ResponseEntity.ok(List.of());
@@ -69,14 +74,16 @@ public class SearchController {
             // Run the Lucene query verbatim when 'raw' is true or the input already uses Lucene syntax.
             if (raw || SmartQueryBuilder.looksLikeLucene(q)) {
                 String luceneQuery = appendTypeFilter(q, normalizedType);
+                luceneQuery = appendArchiveFilter(luceneQuery, archiveState);
                 return ResponseEntity.ok(lucene.search(luceneQuery));
             }
 
             // Otherwise build a Lucene query from the user-friendly input and use the Query overload.
-            Query built = smart.build(q, normalizedType);
+            Query built = smart.build(q, normalizedType, archiveState);
             return ResponseEntity.ok(lucene.search(built));
         } catch (IllegalArgumentException ex) {
-            LOGGER.warn("Failed to execute search for query='{}', type='{}', raw={}", q, normalizedType, raw, ex);
+            LOGGER.warn("Failed to execute search for query='{}', type='{}', archiveState='{}', raw={}",
+                    q, normalizedType, archiveState, raw, ex);
             String message = ex.getMessage() != null ? ex.getMessage() : "Invalid search query";
             return ResponseEntity.badRequest().body(message);
         }
@@ -117,6 +124,48 @@ public class SearchController {
         return typeClause + " AND (" + query.trim() + ")";
     }
 
+    private static String appendArchiveFilter(String query, ArchiveState archiveState) {
+        if (archiveState == ArchiveState.ALL) {
+            return query;
+        }
+        String clause = archiveState == ArchiveState.ARCHIVED ? "archived:true" : "archived:false";
+        if (query == null || query.isBlank()) {
+            return clause;
+        }
+        return clause + " AND (" + query.trim() + ")";
+    }
+
+    private static ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public ResponseEntity<?> query(String q, String type, boolean raw) {
+        String normalizedType = normalizeType(type);
+        boolean hasQuery = q != null && !q.isBlank();
+        if (!hasQuery && normalizedType == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        try {
+            if (raw || SmartQueryBuilder.looksLikeLucene(q)) {
+                String luceneQuery = appendTypeFilter(q, normalizedType);
+                return ResponseEntity.ok(lucene.search(luceneQuery));
+            }
+            Query built = smart.build(q, normalizedType);
+            return ResponseEntity.ok(lucene.search(built));
+        } catch (IllegalArgumentException ex) {
+            LOGGER.warn("Failed to execute search for query='{}', type='{}', raw={}", q, normalizedType, raw, ex);
+            String message = ex.getMessage() != null ? ex.getMessage() : "Invalid search query";
+            return ResponseEntity.badRequest().body(message);
+        }
+    }
+
     // Autocomplete/Suggest
     /**
      * Provides autocomplete suggestions.
@@ -131,8 +180,16 @@ public class SearchController {
     @GetMapping("/search/suggest")
     public List<String> suggest(
             @RequestParam("q") String q,
+            @RequestParam(name = "archiveState", required = false) String archiveStateRaw,
             @RequestParam(name = "max", defaultValue = "8") int max
     ) {
+        return suggest.suggest(q, Math.max(1, Math.min(max, 25)), parseArchiveState(archiveStateRaw));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<String> suggest(String q, int max) {
         return suggest.suggest(q, Math.max(1, Math.min(max, 25)));
     }
 }

@@ -80,7 +80,7 @@ public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepositor
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM PhoneIntegration WHERE PhoneIntegrationID = :id";
+        String sql = "UPDATE PhoneIntegration SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE PhoneIntegrationID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -132,3 +132,4 @@ public class JdbcPhoneIntegrationRepository implements PhoneIntegrationRepositor
         return p;
     }
 }
+

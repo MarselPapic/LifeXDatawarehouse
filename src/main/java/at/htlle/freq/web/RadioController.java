@@ -1,9 +1,13 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -20,6 +24,7 @@ public class RadioController {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
     private static final String TABLE = "Radio";
     private static final Set<String> CREATE_COLUMNS = Set.of(
             "SiteID",
@@ -40,9 +45,10 @@ public class RadioController {
      *
      * @param jdbc JDBC template used for radio queries.
      */
-    public RadioController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+    public RadioController(NamedParameterJdbcTemplate jdbc, AuditLogger audit, ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.archiveService = archiveService;
     }
 
     // READ operations
@@ -57,19 +63,28 @@ public class RadioController {
      * @return 200 OK with a JSON list of radios.
      */
     @GetMapping
-    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId) {
+    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId,
+                                                @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         if (siteId != null) {
             UUID siteUuid = parseUuid(siteId, "siteId");
             return jdbc.queryForList("""
                 SELECT RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr, Mode, DigitalStandard
                 FROM Radio
                 WHERE SiteID = :sid
-                """, new MapSqlParameterSource("sid", siteUuid));
+                  AND (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """, new MapSqlParameterSource("sid", siteUuid)
+                    .addValue("archived", archiveState.name()));
         }
         return jdbc.queryForList("""
             SELECT RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr, Mode, DigitalStandard
             FROM Radio
-            """, new HashMap<>());
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+            """, new MapSqlParameterSource("archived", archiveState.name()));
     }
 
     /**
@@ -184,14 +199,14 @@ public class RadioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         try {
-            UUID radioId = parseUuid(id, "RadioID");
-            int count = jdbc.update("DELETE FROM Radio WHERE RadioID = :id",
-                    new MapSqlParameterSource("id", radioId));
-
-            if (count == 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio deleted");
+            parseUuid(id, "RadioID");
+            String actor = currentActor();
+            boolean archived = archiveService.archive("radio", id, actor);
+            if (!archived) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio archived");
             }
-            audit.deleted(TABLE, Map.of("RadioID", radioId));
+            audit.archived(TABLE, Map.of("RadioID", id), Map.of("actor", actor));
+            audit.deleted(TABLE, Map.of("RadioID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("RadioID", id), ex.getReason(), null);
             throw ex;
@@ -261,6 +276,22 @@ public class RadioController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " must be a valid UUID", ex);
+        }
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 }

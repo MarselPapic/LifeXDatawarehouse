@@ -96,7 +96,7 @@ public class JdbcProjectRepository implements ProjectRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Project WHERE ProjectID = :id";
+        String sql = "UPDATE Project SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE ProjectID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -165,3 +165,4 @@ public class JdbcProjectRepository implements ProjectRepository {
         return p;
     }
 }
+

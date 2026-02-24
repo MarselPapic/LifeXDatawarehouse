@@ -1,11 +1,16 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
 import at.htlle.freq.application.ProjectSiteAssignmentService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.domain.ProjectLifecycleStatus;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +30,7 @@ public class ProjectController {
     private final NamedParameterJdbcTemplate jdbc;
     private final ProjectSiteAssignmentService projectSites;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
     private static final String TABLE = "Project";
     private static final Set<String> CREATE_COLUMNS = Set.of(
             "ProjectSAPID",
@@ -54,10 +60,24 @@ public class ProjectController {
      * @param jdbc JDBC template used for project queries.
      * @param projectSites service that maintains project/site assignments.
      */
-    public ProjectController(NamedParameterJdbcTemplate jdbc, ProjectSiteAssignmentService projectSites, AuditLogger audit) {
+    @Autowired
+    public ProjectController(NamedParameterJdbcTemplate jdbc,
+                             ProjectSiteAssignmentService projectSites,
+                             AuditLogger audit,
+                             ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.projectSites = projectSites;
         this.audit = audit;
+        this.archiveService = archiveService;
+    }
+
+    /**
+     * Backwards-compatible constructor for tests.
+     */
+    public ProjectController(NamedParameterJdbcTemplate jdbc,
+                             ProjectSiteAssignmentService projectSites,
+                             AuditLogger audit) {
+        this(jdbc, projectSites, audit, null);
     }
 
     // READ operations: list all projects or filter by account
@@ -72,18 +92,34 @@ public class ProjectController {
      * @return 200 OK with project rows as JSON.
      */
     @GetMapping
-    public List<Map<String, Object>> findByAccount(@RequestParam(required = false) String accountId) {
+    public List<Map<String, Object>> findByAccount(@RequestParam(required = false) String accountId,
+                                                   @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         if (accountId != null) {
             return jdbc.queryForList("""
                 SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime, SpecialNotes
                 FROM Project
                 WHERE AccountID = :accId
-                """, new MapSqlParameterSource("accId", accountId));
+                  AND (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """, new MapSqlParameterSource("accId", accountId)
+                    .addValue("archived", archiveState.name()));
         }
         return jdbc.queryForList("""
             SELECT ProjectID, ProjectName, DeploymentVariantID, BundleType, AccountID, AddressID, LifecycleStatus, CreateDateTime, SpecialNotes
             FROM Project
-            """, new HashMap<>());
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+            """, new MapSqlParameterSource("archived", archiveState.name()));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<Map<String, Object>> findByAccount(String accountId) {
+        return findByAccount(accountId, null);
     }
 
     /**
@@ -295,12 +331,25 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         try {
-            int count = jdbc.update("DELETE FROM Project WHERE ProjectID = :id",
-                    new MapSqlParameterSource("id", id));
-
-            if (count == 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project deleted");
+            String actor = currentActor();
+            boolean archived;
+            if (archiveService != null) {
+                archived = archiveService.archive("project", id, actor);
+            } else {
+                archived = jdbc.update("""
+                        UPDATE Project
+                           SET IsArchived = TRUE,
+                               ArchivedAt = CURRENT_TIMESTAMP,
+                               ArchivedBy = :actor
+                         WHERE ProjectID = :id
+                           AND IsArchived = FALSE
+                        """, new MapSqlParameterSource("id", parseUuid(id, "ProjectID"))
+                        .addValue("actor", actor)) > 0;
             }
+            if (!archived) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no project archived");
+            }
+            audit.archived(TABLE, Map.of("ProjectID", id), Map.of("actor", actor));
             audit.deleted(TABLE, Map.of("ProjectID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("ProjectID", id), ex.getReason(), null);
@@ -483,5 +532,21 @@ public class ProjectController {
             }
         }
         return null;
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 }

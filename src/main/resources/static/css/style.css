@@ -128,6 +128,21 @@ header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
     flex-wrap:wrap;
     margin-bottom:1rem;
 }
+.archive-filter{
+    border:1px solid #cbd5e1;
+    border-radius:999px;
+    padding:.2rem .7rem;
+    font-size:.8rem;
+    font-weight:600;
+    text-transform:uppercase;
+    background:#fff;
+    color:#334155;
+    flex:0 0 auto;
+}
+.archive-filter:focus-visible{
+    outline:2px solid #003a70;
+    outline-offset:2px;
+}
 .search-scope-badge{
     background:#0b4c9c;
     color:#fff;
@@ -351,6 +366,13 @@ header nav a[aria-current="page"]{background:rgba(255,255,255,.2)}
 .table-scroll{overflow-x:auto}
 table{border-collapse:collapse;width:100%;min-width:650px}
 th,td{border:1px solid #ccc;padding:.45rem;text-align:left}
+tr.is-archived{
+    opacity:.58;
+    background:#f8fafc;
+}
+tr.is-archived td{
+    color:#64748b;
+}
 .id-chip{
     display:inline-flex;
     align-items:center;
@@ -437,6 +459,58 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 .detail-status--error{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
 .detail-status--info{background:#f4f6fb;color:#1f2a44;border-color:#d0defc}
 .detail-body{display:flex;flex-direction:column;gap:1rem}
+.archive-state-notice{
+    display:inline-flex;
+    align-items:center;
+    gap:.4rem;
+    margin-top:.45rem;
+    padding:.28rem .62rem;
+    border-radius:6px;
+    border:1px solid #d1d5db;
+    background:#eef2f7;
+    color:#4b5563;
+    font-size:.82rem;
+    font-weight:600;
+}
+.archive-state-notice::before{
+    content:'';
+    width:.45rem;
+    height:.45rem;
+    border-radius:999px;
+    background:#9ca3af;
+    display:inline-block;
+}
+.card.is-archived-view{
+    position:relative;
+    overflow:hidden;
+    background:#f8fafc;
+    border:1px solid #d1d5db;
+    box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.card.is-archived-view::before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:0;
+    width:100%;
+    height:4px;
+    background:linear-gradient(90deg,#94a3b8 0%, #cbd5e1 100%);
+    pointer-events:none;
+}
+.card.is-archived-view #kv th.key{
+    background:#e5e7eb;
+    color:#475569;
+}
+.card.is-archived-view #kv td{
+    color:#334155;
+}
+.card.is-archived-view .empty{
+    color:#6b7280;
+}
+.card.is-archived-view .software-overview__item{
+    background:#f8fafc;
+    border-color:#d1d5db;
+}
 .detail-edit-form{display:flex;flex-direction:column;gap:1rem}
 .detail-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
 .detail-field{display:flex;flex-direction:column;gap:.35rem;font-weight:600;color:#1f2a44}

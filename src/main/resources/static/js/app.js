@@ -13,6 +13,7 @@ const resultArea  = document.getElementById('resultArea');
 const searchInput = document.getElementById('search-input');
 const searchBtn   = document.getElementById('search-btn');
 const searchScopeIndicator = document.getElementById('search-scope-indicator');
+const archiveStateSelect = document.getElementById('archive-state');
 
 const idxBox  = document.getElementById('idx-box');
 const idxBar  = document.querySelector('#idx-bar > span');
@@ -37,6 +38,8 @@ const SCOPE_ALIAS_LOOKUP = new Map();
 SCOPE_ALIAS_LOOKUP.set('all', 'all');
 
 let searchScopeKey = 'all';
+const ARCHIVE_STATE_STORAGE_KEY = 'ui:archive-state';
+let archiveState = 'ACTIVE';
 
 const appIdUtils = (typeof window !== 'undefined' && window.appIdUtils) || {};
 
@@ -68,6 +71,26 @@ const debounce = (fn, ms=250) => { let t; return (...a)=>{clearTimeout(t); t=set
 const stGet = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } };
 const stSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 function escapeHtml(s){ return (s??'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function normalizeArchiveState(value) {
+    const normalized = String(value ?? '').trim().toUpperCase();
+    if (normalized === 'ACTIVE' || normalized === 'ARCHIVED' || normalized === 'ALL') {
+        return normalized;
+    }
+    return 'ACTIVE';
+}
+function resolveArchiveState() {
+    return normalizeArchiveState(archiveState);
+}
+function isArchivedRow(row) {
+    if (!row || typeof row !== 'object') {
+        return false;
+    }
+    const value = row.IsArchived ?? row.isArchived ?? row.archived;
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    return String(value ?? '').trim().toLowerCase() === 'true';
+}
 function getHighlightTerms(raw){
     if (raw === undefined || raw === null) return [];
     const tokens = Array.isArray(raw)
@@ -206,6 +229,12 @@ function updateUrlState(overrideQuery) {
     } else {
         params.delete('type');
     }
+    const currentArchiveState = resolveArchiveState();
+    if (currentArchiveState !== 'ACTIVE') {
+        params.set('archiveState', currentArchiveState);
+    } else {
+        params.delete('archiveState');
+    }
     const newQuery = params.toString();
     const newUrl = `${window.location.pathname}${newQuery ? '?' + newQuery : ''}`;
     window.history.replaceState(null, '', newUrl);
@@ -339,7 +368,7 @@ async function loadShortcutItems(kind){
     const key = (kind || '').toString().toLowerCase();
     switch (key){
         case 'projects-active': {
-            const res = await fetch('/projects');
+            const res = await fetch(`/projects?archiveState=${encodeURIComponent(resolveArchiveState())}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const rows = await res.json();
             return rows
@@ -364,7 +393,7 @@ async function loadShortcutItems(kind){
                 .sort((a, b) => (a.primary || '').localeCompare(b.primary || '', 'en', { sensitivity: 'base' }));
         }
         case 'servicecontracts-progress': {
-            const res = await fetch(`${API.table}/servicecontract?limit=200`);
+            const res = await fetch(`${API.table}/servicecontract?limit=200&archiveState=${encodeURIComponent(resolveArchiveState())}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const rows = await res.json();
             return rows
@@ -393,7 +422,7 @@ async function loadShortcutItems(kind){
                 .sort((a, b) => (a.primary || '').localeCompare(b.primary || '', 'en', { sensitivity: 'base' }));
         }
         case 'sites-bravo': {
-            const res = await fetch('/sites');
+            const res = await fetch(`/sites?archiveState=${encodeURIComponent(resolveArchiveState())}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const rows = await res.json();
             return rows
@@ -931,6 +960,15 @@ function wireEvents() {
             }
         });
     }
+    if (archiveStateSelect) {
+        archiveStateSelect.addEventListener('change', () => {
+            archiveState = normalizeArchiveState(archiveStateSelect.value);
+            stSet(ARCHIVE_STATE_STORAGE_KEY, archiveState);
+            if (searchInput && (searchInput.value || '').trim()) {
+                runSearch(searchInput.value);
+            }
+        });
+    }
 
     // Enter → search | Tab → accept top suggestion + search immediately
     searchInput.addEventListener('keydown', (e) => {
@@ -955,7 +993,7 @@ function wireEvents() {
         const q = (searchInput.value || '').trim();
         if (q.length < 2) { if (sugList) sugList.innerHTML = ''; return; }
         try {
-            const res = await fetch(`${API.suggest}?q=${encodeURIComponent(q)}&max=8`);
+            const res = await fetch(`${API.suggest}?q=${encodeURIComponent(q)}&max=8&archiveState=${encodeURIComponent(resolveArchiveState())}`);
             if (!res.ok) return;
             const arr = await res.json();
             if (sugList) sugList.innerHTML = arr.map(s => `<option value="${s}">`).join('');
@@ -988,12 +1026,24 @@ function wireEvents() {
 }
 
 function bootstrapSearchFromUrl() {
+    archiveState = normalizeArchiveState(stGet(ARCHIVE_STATE_STORAGE_KEY, archiveState));
+    if (archiveStateSelect) {
+        archiveStateSelect.value = archiveState;
+    }
     updateScopeIndicator();
     if (typeof window === 'undefined' || !window?.location) return;
     try {
         const params = new URLSearchParams(window.location.search);
         const typeParam = params.get('type');
+        const archiveParam = params.get('archiveState');
         const queryParam = params.get('q');
+        if (archiveParam) {
+            archiveState = normalizeArchiveState(archiveParam);
+            stSet(ARCHIVE_STATE_STORAGE_KEY, archiveState);
+            if (archiveStateSelect) {
+                archiveStateSelect.value = archiveState;
+            }
+        }
         const hasQuery = !!(queryParam && queryParam.trim());
         const scopeChanged = typeParam ? setSearchScope(typeParam, { syncUrl: false }) : false;
         if (hasQuery && searchInput) {
@@ -1332,6 +1382,7 @@ async function runLucene(q, scopeOption, highlightTerms) {
         } else {
             url.searchParams.delete('type');
         }
+        url.searchParams.set('archiveState', resolveArchiveState());
         const res  = await fetch(url.toString());
         const hits = await res.json();
         const filteredHits = filterHitsByScope(hits, scopeKey);
@@ -1346,8 +1397,9 @@ async function runLucene(q, scopeOption, highlightTerms) {
             const typeArg = JSON.stringify(h.type ?? '');
             const idArg = JSON.stringify(h.id ?? '');
             const idDisplay = renderIdDisplay(h.id);
+            const archivedClass = h?.archived ? 'is-archived' : '';
             return `
-      <tr onclick='toDetails(${typeArg},${idArg})' style="cursor:pointer">
+      <tr class="${archivedClass}" onclick='toDetails(${typeArg},${idArg})' style="cursor:pointer">
         <td>${renderTypeCell(h.type)}</td>
         <td><div class="hit-text">${highlightMatches(h.text ?? '', highlightTerms)}</div></td>
         <td>${snippetHtml}<div id="info-${i}" class="hit-info"></div></td>
@@ -1423,6 +1475,7 @@ async function fetchSiteSoftwareSummary(statusKey) {
     if (statusKey) {
         params.set('status', statusKey);
     }
+    params.set('archiveState', resolveArchiveState());
     const query = params.toString();
     const url = query ? `${API.siteSoftwareSummary}?${query}` : API.siteSoftwareSummary;
     const res = await fetch(url);
@@ -1490,7 +1543,7 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
 
         const hdr = allColumns.map(c => `<th>${escapeHtml(displayColumnLabel(c))}</th>`).join('');
         const body = formattedRows
-            .map(r => `<tr>${allColumns.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`)
+            .map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${allColumns.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`)
             .join('');
 
         const safeName = escapeHtml(name);
@@ -1550,7 +1603,7 @@ function renderTableCell(tableName, columnName, value) {
 async function showTable(name) {
     try {
         setBusy(resultArea, true);
-        const res  = await fetch(`${API.table}/${encodeURIComponent(name)}`);
+        const res  = await fetch(`${API.table}/${encodeURIComponent(name)}?archiveState=${encodeURIComponent(resolveArchiveState())}`);
         const rows = await res.json();
         if (!Array.isArray(rows) || !rows.length) { resultArea.textContent = '(empty)'; return; }
 
@@ -1564,7 +1617,7 @@ async function showTable(name) {
             return;
         }
         const hdr  = cols.map(c => `<th>${escapeHtml(displayColumnLabel(c))}</th>`).join('');
-        const body = rows.map(r => `<tr>${cols.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`).join('');
+        const body = rows.map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${cols.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`).join('');
         const { typeToken } = tableTypeInfo;
         const safeName = escapeHtml(name);
         const titleQuery = typeToken ? escapeHtml(typeToken) : null;

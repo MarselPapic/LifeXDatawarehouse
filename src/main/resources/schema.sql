@@ -26,7 +26,10 @@ DROP TABLE IF EXISTS Country;
 -- =========================================================
 CREATE TABLE Country (
                          CountryCode   VARCHAR(2)   PRIMARY KEY,         -- ISO 3166-1 alpha-2 code
-                         CountryName   VARCHAR(100) NOT NULL
+                         CountryName   VARCHAR(100) NOT NULL,
+                         IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+                         ArchivedAt    TIMESTAMP,
+                         ArchivedBy    VARCHAR(100)
 );
 
 -- =========================================================
@@ -36,6 +39,9 @@ CREATE TABLE City (
                       CityID        VARCHAR(50)  PRIMARY KEY,         -- natural identifier
                       CityName      VARCHAR(100) NOT NULL,
                       CountryCode   VARCHAR(2)   NOT NULL,
+                      IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+                      ArchivedAt    TIMESTAMP,
+                      ArchivedBy    VARCHAR(100),
                       CONSTRAINT fk_city_country
                           FOREIGN KEY (CountryCode) REFERENCES Country(CountryCode)
 );
@@ -47,6 +53,9 @@ CREATE TABLE Address (
                          AddressID     UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
                          Street        VARCHAR(150) NOT NULL,
                          CityID        VARCHAR(50)  NOT NULL,
+                         IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+                         ArchivedAt    TIMESTAMP,
+                         ArchivedBy    VARCHAR(100),
                          CONSTRAINT fk_address_city
                              FOREIGN KEY (CityID) REFERENCES City(CityID)
 );
@@ -61,7 +70,10 @@ CREATE TABLE Account (
                          ContactEmail  VARCHAR(100),
                          ContactPhone  VARCHAR(30),
                          VATNumber     VARCHAR(30),
-                         Country       VARCHAR(50)
+                         Country       VARCHAR(50),
+                         IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+                         ArchivedAt    TIMESTAMP,
+                         ArchivedBy    VARCHAR(100)
 );
 
 -- =========================================================
@@ -73,6 +85,9 @@ CREATE TABLE DeploymentVariant (
                                    VariantName   VARCHAR(100) NOT NULL,
                                    Description   VARCHAR(100),
                                    IsActive      BOOLEAN NOT NULL,
+                                   IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+                                   ArchivedAt    TIMESTAMP,
+                                   ArchivedBy    VARCHAR(100),
                                    CONSTRAINT uq_deploy_variant_code UNIQUE (VariantCode),
                                    CONSTRAINT uq_deploy_variant_name UNIQUE (VariantName)
 );
@@ -91,6 +106,9 @@ CREATE TABLE Project (
                          AccountID           UUID NOT NULL,
                          AddressID           UUID NOT NULL,
                          SpecialNotes        VARCHAR(500),
+                         IsArchived          BOOLEAN      NOT NULL DEFAULT FALSE,
+                         ArchivedAt          TIMESTAMP,
+                         ArchivedBy          VARCHAR(100),
                          CONSTRAINT uq_project_sap UNIQUE (ProjectSAPID),
                          CONSTRAINT fk_project_variant FOREIGN KEY (DeploymentVariantID)
                              REFERENCES DeploymentVariant(VariantID),
@@ -112,6 +130,9 @@ CREATE TABLE Site (
                       TenantCount  INT,
                       RedundantServers INT NOT NULL,
                       HighAvailability BOOLEAN NOT NULL,
+                      IsArchived      BOOLEAN      NOT NULL DEFAULT FALSE,
+                      ArchivedAt      TIMESTAMP,
+                      ArchivedBy      VARCHAR(100),
                       CONSTRAINT fk_site_project FOREIGN KEY (ProjectID)
                           REFERENCES Project(ProjectID),
                       CONSTRAINT fk_site_address FOREIGN KEY (AddressID)
@@ -125,6 +146,9 @@ CREATE TABLE ProjectSite (
     ProjectSiteID UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
     ProjectID     UUID NOT NULL,
     SiteID        UUID NOT NULL,
+    IsArchived    BOOLEAN      NOT NULL DEFAULT FALSE,
+    ArchivedAt    TIMESTAMP,
+    ArchivedBy    VARCHAR(100),
     CONSTRAINT fk_projectsite_project FOREIGN KEY (ProjectID) REFERENCES Project(ProjectID),
     CONSTRAINT fk_projectsite_site FOREIGN KEY (SiteID) REFERENCES Site(SiteID),
     CONSTRAINT uq_projectsite UNIQUE (ProjectID, SiteID)
@@ -147,6 +171,9 @@ CREATE TABLE Software (
                           EndOfSalesDate   DATE,
                           SupportStartDate DATE,
                           SupportEndDate   DATE,
+                          IsArchived       BOOLEAN      NOT NULL DEFAULT FALSE,
+                          ArchivedAt       TIMESTAMP,
+                          ArchivedBy       VARCHAR(100),
                           CONSTRAINT ck_software_supportphase
                               CHECK (SupportPhase IN ('Preview','Production','EoL'))
 );
@@ -164,6 +191,9 @@ CREATE TABLE Server (
                         PatchLevel       VARCHAR(50),
                         VirtualPlatform  VARCHAR(20),
                         VirtualVersion   VARCHAR(50),
+                        IsArchived       BOOLEAN      NOT NULL DEFAULT FALSE,
+                        ArchivedAt       TIMESTAMP,
+                        ArchivedBy       VARCHAR(100),
                         CONSTRAINT fk_server_site FOREIGN KEY (SiteID)
                             REFERENCES Site(SiteID),
                         CONSTRAINT ck_server_virtualplatform
@@ -184,6 +214,9 @@ CREATE TABLE Clients (
                          InstallType    VARCHAR(20) NOT NULL,
                          WorkingPositionType   VARCHAR(100),
                          OtherInstalledSoftware VARCHAR(500),
+                         IsArchived       BOOLEAN      NOT NULL DEFAULT FALSE,
+                         ArchivedAt       TIMESTAMP,
+                         ArchivedBy       VARCHAR(100),
                          CONSTRAINT fk_clients_site FOREIGN KEY (SiteID)
                              REFERENCES Site(SiteID),
                          CONSTRAINT ck_clients_installtype
@@ -201,6 +234,9 @@ CREATE TABLE Radio (
                        RadioSerialNr    VARCHAR(100),
                        Mode             VARCHAR(10) NOT NULL,
                        DigitalStandard  VARCHAR(20),
+                       IsArchived       BOOLEAN      NOT NULL DEFAULT FALSE,
+                       ArchivedAt       TIMESTAMP,
+                       ArchivedBy       VARCHAR(100),
                        CONSTRAINT fk_radio_site FOREIGN KEY (SiteID)
                            REFERENCES Site(SiteID),
                        CONSTRAINT fk_radio_client FOREIGN KEY (AssignedClientID)
@@ -222,6 +258,9 @@ CREATE TABLE AudioDevice (
                              AudioDeviceFirmware VARCHAR(50),
                              DeviceType          VARCHAR(10) NOT NULL,
                              Direction           VARCHAR(15) NOT NULL,
+                             IsArchived          BOOLEAN      NOT NULL DEFAULT FALSE,
+                             ArchivedAt          TIMESTAMP,
+                             ArchivedBy          VARCHAR(100),
                              CONSTRAINT fk_audiodevice_client FOREIGN KEY (ClientID)
                                  REFERENCES Clients(ClientID),
                              CONSTRAINT ck_audiodevice_devicetype
@@ -241,6 +280,9 @@ CREATE TABLE PhoneIntegration (
                                   InterfaceName       VARCHAR(50),
                                   Capacity            INT,
                                   PhoneFirmware       VARCHAR(50),
+                                  IsArchived          BOOLEAN      NOT NULL DEFAULT FALSE,
+                                  ArchivedAt          TIMESTAMP,
+                                  ArchivedBy          VARCHAR(100),
                                   CONSTRAINT fk_phone_site FOREIGN KEY (SiteID)
                                       REFERENCES Site(SiteID),
                                   CONSTRAINT ck_phone_type
@@ -259,6 +301,9 @@ CREATE TABLE InstalledSoftware (
                                    InstalledDate       DATE,
                                    RejectedDate        DATE,
                                    OutdatedDate        DATE,
+                                   IsArchived          BOOLEAN      NOT NULL DEFAULT FALSE,
+                                   ArchivedAt          TIMESTAMP,
+                                   ArchivedBy          VARCHAR(100),
                                    CONSTRAINT fk_instsw_site FOREIGN KEY (SiteID)
                                        REFERENCES Site(SiteID),
                                    CONSTRAINT fk_instsw_software FOREIGN KEY (SoftwareID)
@@ -278,6 +323,9 @@ CREATE TABLE UpgradePlan (
                              Status             VARCHAR(12) NOT NULL,
                              CreatedAt          DATE NOT NULL,
                              CreatedBy          VARCHAR(20) NOT NULL,
+                             IsArchived         BOOLEAN      NOT NULL DEFAULT FALSE,
+                             ArchivedAt         TIMESTAMP,
+                             ArchivedBy         VARCHAR(100),
                              CONSTRAINT fk_upgrade_site FOREIGN KEY (SiteID)
                                  REFERENCES Site(SiteID),
                              CONSTRAINT fk_upgrade_software FOREIGN KEY (SoftwareID)
@@ -298,6 +346,9 @@ CREATE TABLE ServiceContract (
                                  Status         VARCHAR(12) NOT NULL,
                                  StartDate      DATE NOT NULL,
                                  EndDate        DATE NOT NULL,
+                                 IsArchived     BOOLEAN      NOT NULL DEFAULT FALSE,
+                                 ArchivedAt     TIMESTAMP,
+                                 ArchivedBy     VARCHAR(100),
                                  CONSTRAINT fk_contract_account FOREIGN KEY (AccountID)
                                      REFERENCES Account(AccountID),
                                  CONSTRAINT fk_contract_project FOREIGN KEY (ProjectID)
@@ -323,3 +374,21 @@ CREATE INDEX ix_installed_software   ON InstalledSoftware(SoftwareID);
 CREATE INDEX ix_upgrade_site         ON UpgradePlan(SiteID);
 CREATE INDEX ix_upgrade_software     ON UpgradePlan(SoftwareID);
 CREATE INDEX ix_service_contracts    ON ServiceContract(AccountID, ProjectID, SiteID);
+
+CREATE INDEX ix_country_is_archived ON Country(IsArchived);
+CREATE INDEX ix_city_is_archived ON City(IsArchived);
+CREATE INDEX ix_address_is_archived ON Address(IsArchived);
+CREATE INDEX ix_account_is_archived ON Account(IsArchived);
+CREATE INDEX ix_deploymentvariant_is_archived ON DeploymentVariant(IsArchived);
+CREATE INDEX ix_project_is_archived ON Project(IsArchived);
+CREATE INDEX ix_site_is_archived ON Site(IsArchived);
+CREATE INDEX ix_projectsite_is_archived ON ProjectSite(IsArchived);
+CREATE INDEX ix_software_is_archived ON Software(IsArchived);
+CREATE INDEX ix_server_is_archived ON Server(IsArchived);
+CREATE INDEX ix_clients_is_archived ON Clients(IsArchived);
+CREATE INDEX ix_radio_is_archived ON Radio(IsArchived);
+CREATE INDEX ix_audiodevice_is_archived ON AudioDevice(IsArchived);
+CREATE INDEX ix_phoneintegration_is_archived ON PhoneIntegration(IsArchived);
+CREATE INDEX ix_installedsoftware_is_archived ON InstalledSoftware(IsArchived);
+CREATE INDEX ix_upgradeplan_is_archived ON UpgradePlan(IsArchived);
+CREATE INDEX ix_servicecontract_is_archived ON ServiceContract(IsArchived);

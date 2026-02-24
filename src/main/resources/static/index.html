@@ -122,6 +122,12 @@
 
         <div class="search-shell">
             <button type="button" id="search-scope-indicator" class="search-scope-badge" aria-live="polite" aria-label="Active search scope">All</button>
+            <label for="archive-state" class="visually-hidden">Archive filter</label>
+            <select id="archive-state" class="archive-filter" aria-label="Archive filter">
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived</option>
+                <option value="ALL">All</option>
+            </select>
             <div id="search-bar">
                 <label for="search-input" class="visually-hidden">Global search</label>
                 <!-- Keep the datalist for autocomplete; hide the native icon via CSS -->

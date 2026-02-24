@@ -16,13 +16,15 @@
         view: DEFAULT_VIEW,
         range: DEFAULT_RANGE,
         startDate: '',
-        endDate: ''
+        endDate: '',
+        archiveState: 'ACTIVE'
     };
 
     const elements = {
         form: document.getElementById('range-form'),
         view: document.getElementById('view'),
         range: document.getElementById('range'),
+        archiveState: document.getElementById('archive-state'),
         startDate: document.getElementById('start-date'),
         endDate: document.getElementById('end-date'),
         customStart: document.getElementById('custom-range'),
@@ -87,12 +89,19 @@
                 updateSelectionInfo();
             });
         }
+        if (elements.archiveState) {
+            elements.archiveState.addEventListener('change', () => {
+                state.archiveState = normalizeArchiveState(elements.archiveState.value);
+                updateSelectionInfo();
+            });
+        }
         if (elements.reset) {
             elements.reset.addEventListener('click', () => {
                 state.view = DEFAULT_VIEW;
                 state.range = DEFAULT_RANGE;
                 state.startDate = '';
                 state.endDate = '';
+                state.archiveState = 'ACTIVE';
                 applyStateToForm();
                 loadReport();
             });
@@ -105,10 +114,13 @@
     function applyStateToForm() {
         const preset = normalizeRange(state.range);
         const view = normalizeView(state.view);
+        const archiveState = normalizeArchiveState(state.archiveState);
         state.range = preset;
         state.view = view;
+        state.archiveState = archiveState;
         if (elements.range) elements.range.value = preset;
         if (elements.view) elements.view.value = view;
+        if (elements.archiveState) elements.archiveState.value = archiveState;
         if (elements.startDate) elements.startDate.value = state.startDate;
         if (elements.endDate) elements.endDate.value = state.endDate;
         toggleCustomRange(preset === 'custom');
@@ -125,6 +137,14 @@
         return DEFAULT_VIEW;
     }
 
+    function normalizeArchiveState(raw) {
+        const normalized = (raw || '').toString().trim().toUpperCase();
+        if (normalized === 'ACTIVE' || normalized === 'ARCHIVED' || normalized === 'ALL') {
+            return normalized;
+        }
+        return 'ACTIVE';
+    }
+
     function toggleCustomRange(show) {
         if (elements.customStart) elements.customStart.hidden = !show;
         if (elements.customEnd) elements.customEnd.hidden = !show;
@@ -137,6 +157,7 @@
     function readFormState() {
         state.view = normalizeView((elements.view && elements.view.value) || DEFAULT_VIEW);
         state.range = normalizeRange((elements.range && elements.range.value) || DEFAULT_RANGE);
+        state.archiveState = normalizeArchiveState((elements.archiveState && elements.archiveState.value) || 'ACTIVE');
         if (state.range === 'custom') {
             state.startDate = elements.startDate ? elements.startDate.value : '';
             state.endDate = elements.endDate ? elements.endDate.value : '';
@@ -149,7 +170,7 @@
 
     async function loadReport() {
         const params = buildParams();
-        const summaryUrl = API.summary;
+        const summaryUrl = `${API.summary}?${params}`;
         setBusy(true);
         setStatus('Loading...');
         try {
@@ -342,8 +363,10 @@
         const params = new URLSearchParams();
         const view = normalizeView(state.view);
         const preset = normalizeRange(state.range);
+        const archiveState = normalizeArchiveState(state.archiveState);
         params.set('view', view);
         params.set('preset', preset);
+        params.set('archiveState', archiveState);
         if (preset === 'custom') {
             if (state.startDate) params.set('from', state.startDate);
             if (state.endDate) params.set('to', state.endDate);
@@ -368,12 +391,18 @@
             quarter: 'Current quarter',
             custom: 'Custom'
         };
+        const archiveLabels = {
+            ACTIVE: 'Active only',
+            ARCHIVED: 'Archived only',
+            ALL: 'All records'
+        };
+        const archiveState = normalizeArchiveState(state.archiveState);
 
         if (preset === 'custom' && state.startDate && state.endDate) {
-            elements.selectionInfo.textContent = `${viewLabels[view]} | Custom range: ${state.startDate} - ${state.endDate}`;
+            elements.selectionInfo.textContent = `${viewLabels[view]} | Custom range: ${state.startDate} - ${state.endDate} | ${archiveLabels[archiveState]}`;
             return;
         }
-        elements.selectionInfo.textContent = `${viewLabels[view]} | ${rangeLabels[preset] || ''}`;
+        elements.selectionInfo.textContent = `${viewLabels[view]} | ${rangeLabels[preset] || ''} | ${archiveLabels[archiveState]}`;
     }
 
     function setReportViewHelpExpanded(expanded) {

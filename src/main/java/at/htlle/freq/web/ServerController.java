@@ -1,9 +1,13 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,6 +25,7 @@ public class ServerController {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
     private static final String TABLE = "Server";
     private static final Set<String> CREATE_COLUMNS = Set.of(
             "SiteID",
@@ -43,9 +48,10 @@ public class ServerController {
      *
      * @param jdbc JDBC access component for SQL queries.
      */
-    public ServerController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+    public ServerController(NamedParameterJdbcTemplate jdbc, AuditLogger audit, ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.archiveService = archiveService;
     }
 
     // READ operations
@@ -60,7 +66,9 @@ public class ServerController {
      * @return 200 OK with server rows as JSON.
      */
     @GetMapping
-    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId) {
+    public List<Map<String, Object>> findBySite(@RequestParam(required = false) String siteId,
+                                                @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         if (siteId != null) {
             UUID siteUuid = parseUuid(siteId, "siteId");
             return jdbc.queryForList("""
@@ -68,14 +76,21 @@ public class ServerController {
                        ServerOS, PatchLevel, VirtualPlatform, VirtualVersion
                 FROM Server
                 WHERE SiteID = :sid
-                """, new MapSqlParameterSource("sid", siteUuid));
+                  AND (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+                """, new MapSqlParameterSource("sid", siteUuid)
+                    .addValue("archived", archiveState.name()));
         }
 
         return jdbc.queryForList("""
             SELECT ServerID, SiteID, ServerName, ServerBrand, ServerSerialNr,
                    ServerOS, PatchLevel, VirtualPlatform, VirtualVersion
             FROM Server
-            """, new HashMap<>());
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
+            """, new MapSqlParameterSource("archived", archiveState.name()));
     }
 
     /**
@@ -191,14 +206,14 @@ public class ServerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         try {
-            UUID serverId = parseUuid(id, "ServerID");
-            int count = jdbc.update("DELETE FROM Server WHERE ServerID = :id",
-                    new MapSqlParameterSource("id", serverId));
-
-            if (count == 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server deleted");
+            parseUuid(id, "ServerID");
+            String actor = currentActor();
+            boolean archived = archiveService.archive("server", id, actor);
+            if (!archived) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server archived");
             }
-            audit.deleted(TABLE, Map.of("ServerID", serverId));
+            audit.archived(TABLE, Map.of("ServerID", id), Map.of("actor", actor));
+            audit.deleted(TABLE, Map.of("ServerID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("ServerID", id), ex.getReason(), null);
             throw ex;
@@ -269,6 +284,22 @@ public class ServerController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " must be a valid UUID", ex);
+        }
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 }

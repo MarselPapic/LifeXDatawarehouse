@@ -1,11 +1,16 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,15 +31,25 @@ public class GenericCrudController {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
 
     /**
      * Creates a controller backed by a {@link NamedParameterJdbcTemplate}.
      *
      * @param jdbc JDBC template used to query the whitelisted tables.
      */
-    public GenericCrudController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+    @Autowired
+    public GenericCrudController(NamedParameterJdbcTemplate jdbc, AuditLogger audit, ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.archiveService = archiveService;
+    }
+
+    /**
+     * Backwards-compatible constructor for tests.
+     */
+    public GenericCrudController(NamedParameterJdbcTemplate jdbc, AuditLogger audit) {
+        this(jdbc, audit, null);
     }
 
     // -------- Whitelist of allowed tables and aliases --------
@@ -215,10 +230,34 @@ public class GenericCrudController {
      */
     @GetMapping("/table/{name}")
     public List<Map<String, Object>> list(@PathVariable String name,
-                                          @RequestParam(name = "limit", defaultValue = "100") int limit) {
+                                          @RequestParam(name = "limit", defaultValue = "100") int limit,
+                                          @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
         String table = normalizeTable(name);
         limit = Math.max(1, Math.min(limit, 500));
-        return jdbc.queryForList("SELECT * FROM " + table + " LIMIT " + limit, new HashMap<>());
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw, table);
+        StringBuilder sql = new StringBuilder("SELECT * FROM " + table);
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        if (archiveService != null && archiveService.supports(name)) {
+            switch (archiveState) {
+                case ACTIVE -> sql.append(" WHERE IsArchived = FALSE");
+                case ARCHIVED -> sql.append(" WHERE IsArchived = TRUE");
+                case ALL -> {
+                    // no-op
+                }
+            }
+        }
+        sql.append(" LIMIT ").append(limit);
+        return jdbc.queryForList(sql.toString(), params);
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<Map<String, Object>> list(String name, int limit) {
+        String table = normalizeTable(name);
+        int boundedLimit = Math.max(1, Math.min(limit, 500));
+        String sql = "SELECT * FROM " + table + " LIMIT " + boundedLimit;
+        return jdbc.queryForList(sql, Map.of());
     }
 
     /**
@@ -366,15 +405,22 @@ public class GenericCrudController {
         String table = null;
         try {
             table = normalizeTable(name);
-            String pk = PKS.get(table);
-            if (pk == null) throw logAndThrow(HttpStatus.BAD_REQUEST, table, "delete", "no PK known for table " + table);
-
+            String pk = PKS.getOrDefault(table, "id");
+            if (archiveService != null && archiveService.supports(name)) {
+                String actor = currentActor();
+                boolean archived = archiveService.archive(name, id, actor);
+                if (!archived) {
+                    throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record archived");
+                }
+                audit.archived(table, Map.of(PKS.getOrDefault(table, "id"), id), Map.of("actor", actor));
+                audit.deleted(table, Map.of(pk, id));
+                return;
+            }
             String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
             int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)));
             if (count == 0) {
                 throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
             }
-
             audit.deleted(table, Map.of(pk, id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", table == null ? name : table, Map.of("id", id), ex.getReason(), null);
@@ -433,5 +479,61 @@ public class GenericCrudController {
         } catch (IllegalArgumentException ex) {
             throw logAndThrow(HttpStatus.BAD_REQUEST, table, "parsePrimaryKey", "invalid UUID: " + id);
         }
+    }
+
+    /**
+     * Archives a record without deleting it physically.
+     *
+     * <p>Path: {@code PATCH /row/{name}/{id}/archive}</p>
+     */
+    @PatchMapping("/row/{name}/{id}/archive")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void archive(@PathVariable String name, @PathVariable String id) {
+        String table = normalizeTable(name);
+        if (archiveService == null || !archiveService.supports(name)) {
+            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "archive", "archive not supported for table " + table);
+        }
+        String actor = currentActor();
+        if (!archiveService.archive(name, id, actor)) {
+            throw logAndThrow(HttpStatus.NOT_FOUND, table, "archive", "no record archived");
+        }
+        String pk = PKS.getOrDefault(table, "id");
+        audit.archived(table, Map.of(pk, id), Map.of("actor", actor));
+    }
+
+    /**
+     * Restores a previously archived record.
+     *
+     * <p>Path: {@code PATCH /row/{name}/{id}/restore}</p>
+     */
+    @PatchMapping("/row/{name}/{id}/restore")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void restore(@PathVariable String name, @PathVariable String id) {
+        String table = normalizeTable(name);
+        if (archiveService == null || !archiveService.supports(name)) {
+            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "restore", "restore not supported for table " + table);
+        }
+        String actor = currentActor();
+        if (!archiveService.restore(name, id, actor)) {
+            throw logAndThrow(HttpStatus.NOT_FOUND, table, "restore", "no record restored");
+        }
+        String pk = PKS.getOrDefault(table, "id");
+        audit.restored(table, Map.of(pk, id), Map.of("actor", actor));
+    }
+
+    private ArchiveState parseArchiveState(String raw, String table) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw logAndThrow(HttpStatus.BAD_REQUEST, table, "list", ex.getMessage(), ex.getMessage());
+        }
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
     }
 }

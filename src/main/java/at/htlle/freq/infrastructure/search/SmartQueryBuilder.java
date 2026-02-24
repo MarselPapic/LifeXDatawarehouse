@@ -1,5 +1,6 @@
 package at.htlle.freq.infrastructure.search;
 
+import at.htlle.freq.domain.ArchiveState;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -68,7 +69,7 @@ public class SmartQueryBuilder {
      *                                  query.
      */
     public Query build(String userInput) {
-        return build(userInput, null);
+        return build(userInput, null, ArchiveState.ALL);
     }
 
     /**
@@ -78,6 +79,18 @@ public class SmartQueryBuilder {
      * @return the built value.
      */
     public Query build(String userInput, String typeFilter) {
+        return build(userInput, typeFilter, ArchiveState.ALL);
+    }
+
+    /**
+     * Builds a query with optional type and archive-state filtering.
+     *
+     * @param userInput raw user input.
+     * @param typeFilter optional type filter.
+     * @param archiveState archive visibility state.
+     * @return parsed Lucene query.
+     */
+    public Query build(String userInput, String typeFilter, ArchiveState archiveState) {
         try {
             QueryParser p = new QueryParser(DEFAULT_FIELD, ANALYZER);
             p.setAllowLeadingWildcard(true);
@@ -90,15 +103,25 @@ public class SmartQueryBuilder {
             }
 
             String normalizedType = normalizeType(typeFilter);
-            if (normalizedType == null) {
+            ArchiveState normalizedArchiveState = archiveState == null ? ArchiveState.ACTIVE : archiveState;
+
+            if (normalizedType == null && normalizedArchiveState == ArchiveState.ALL) {
                 return baseQuery;
             }
 
-            TermQuery typeQuery = new TermQuery(new Term("type", normalizedType));
-            return new BooleanQuery.Builder()
-                    .add(baseQuery, BooleanClause.Occur.MUST)
-                    .add(typeQuery, BooleanClause.Occur.MUST)
-                    .build();
+            BooleanQuery.Builder builder = new BooleanQuery.Builder()
+                    .add(baseQuery, BooleanClause.Occur.MUST);
+
+            if (normalizedType != null) {
+                TermQuery typeQuery = new TermQuery(new Term("type", normalizedType));
+                builder.add(typeQuery, BooleanClause.Occur.MUST);
+            }
+            if (normalizedArchiveState == ArchiveState.ACTIVE) {
+                builder.add(new TermQuery(new Term("archived", "false")), BooleanClause.Occur.MUST);
+            } else if (normalizedArchiveState == ArchiveState.ARCHIVED) {
+                builder.add(new TermQuery(new Term("archived", "true")), BooleanClause.Occur.MUST);
+            }
+            return builder.build();
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid search query: " + userInput, e);
         }

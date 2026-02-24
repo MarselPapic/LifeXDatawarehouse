@@ -1,9 +1,11 @@
 package at.htlle.freq.web;
 
+import at.htlle.freq.application.ArchiveService;
 import at.htlle.freq.application.InstalledSoftwareService;
 import at.htlle.freq.application.ProjectSiteAssignmentService;
 import at.htlle.freq.application.SiteService;
 import at.htlle.freq.application.dto.SiteSoftwareOverviewEntry;
+import at.htlle.freq.domain.ArchiveState;
 import at.htlle.freq.domain.InstalledSoftwareStatus;
 import at.htlle.freq.domain.Site;
 import at.htlle.freq.infrastructure.logging.AuditLogger;
@@ -11,9 +13,12 @@ import at.htlle.freq.web.dto.InstalledSoftwareStatusUpdateRequest;
 import at.htlle.freq.web.dto.SiteDetailResponse;
 import at.htlle.freq.web.dto.SiteSoftwareSummary;
 import at.htlle.freq.web.dto.SiteUpsertRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -33,6 +38,7 @@ public class SiteController {
     private final InstalledSoftwareService installedSoftwareService;
     private final ProjectSiteAssignmentService projectSites;
     private final AuditLogger audit;
+    private final ArchiveService archiveService;
     private static final String TABLE = "Site";
 
     /**
@@ -43,15 +49,28 @@ public class SiteController {
      * @param installedSoftwareService service managing installed software assignments.
      * @param projectSites service that maintains site/project relationships.
      */
+    @Autowired
     public SiteController(NamedParameterJdbcTemplate jdbc, SiteService siteService,
                           InstalledSoftwareService installedSoftwareService,
                           ProjectSiteAssignmentService projectSites,
-                          AuditLogger audit) {
+                          AuditLogger audit,
+                          ArchiveService archiveService) {
         this.jdbc = jdbc;
         this.siteService = siteService;
         this.installedSoftwareService = installedSoftwareService;
         this.projectSites = projectSites;
         this.audit = audit;
+        this.archiveService = archiveService;
+    }
+
+    /**
+     * Backwards-compatible constructor for tests.
+     */
+    public SiteController(NamedParameterJdbcTemplate jdbc, SiteService siteService,
+                          InstalledSoftwareService installedSoftwareService,
+                          ProjectSiteAssignmentService projectSites,
+                          AuditLogger audit) {
+        this(jdbc, siteService, installedSoftwareService, projectSites, audit, null);
     }
 
     /**
@@ -64,8 +83,10 @@ public class SiteController {
      */
     @GetMapping("/software-summary")
     public List<SiteSoftwareSummary> getSoftwareSummary(
-            @RequestParam(name = "status", required = false) String status) {
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
         InstalledSoftwareStatus resolved;
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
         try {
             resolved = (status == null || status.isBlank())
                     ? InstalledSoftwareStatus.INSTALLED
@@ -82,16 +103,30 @@ public class SiteController {
             LEFT JOIN InstalledSoftware isw
                    ON isw.SiteID = s.SiteID
                   AND LOWER(isw.Status) = LOWER(:status)
+                  AND (:archived = 'ALL'
+                       OR (:archived = 'ACTIVE' AND isw.IsArchived = FALSE)
+                       OR (:archived = 'ARCHIVED' AND isw.IsArchived = TRUE))
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND s.IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND s.IsArchived = TRUE))
             GROUP BY s.SiteID, s.SiteName
             ORDER BY s.SiteName NULLS LAST, s.SiteID
             """;
 
-        return jdbc.query(sql, new MapSqlParameterSource("status", resolved.dbValue()),
+        return jdbc.query(sql, new MapSqlParameterSource("status", resolved.dbValue())
+                        .addValue("archived", archiveState.name()),
                 (rs, rowNum) -> new SiteSoftwareSummary(
                         rs.getObject("site_id", UUID.class),
                         rs.getString("site_name"),
                         rs.getInt("status_count"),
                         resolved.dbValue()));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<SiteSoftwareSummary> getSoftwareSummary(String status) {
+        return getSoftwareSummary(status, null);
     }
 
     // READ operations: list all sites or filter by project
@@ -107,9 +142,11 @@ public class SiteController {
      */
     @GetMapping
     public List<Map<String, Object>> findByProject(@RequestParam(required = false) String projectId,
-                                                   @RequestParam(required = false, name = "accountId") String accountId) {
+                                                   @RequestParam(required = false, name = "accountId") String accountId,
+                                                   @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
         boolean filterByProject = projectId != null && !projectId.isBlank();
         boolean filterByAccount = accountId != null && !accountId.isBlank();
+        ArchiveState archiveState = parseArchiveState(archiveStateRaw);
 
         if (filterByProject || filterByAccount) {
             StringBuilder sql = new StringBuilder("""
@@ -125,12 +162,15 @@ public class SiteController {
             }
 
             List<String> where = new ArrayList<>();
+            appendArchiveWhere(where, "s.IsArchived", archiveState);
+            appendArchiveWhere(where, "ps.IsArchived", archiveState);
             if (filterByProject) {
                 params.addValue("pid", projectId);
                 where.add("ps.ProjectID = :pid");
             }
             if (filterByAccount) {
                 where.add("p.AccountID = :accId");
+                appendArchiveWhere(where, "p.IsArchived", archiveState);
             }
             if (!where.isEmpty()) {
                 sql.append(" WHERE ").append(String.join(" AND ", where)).append("\n");
@@ -143,8 +183,52 @@ public class SiteController {
         return jdbc.queryForList("""
             SELECT SiteID, SiteName, FireZone, TenantCount, RedundantServers, HighAvailability, AddressID, ProjectID
             FROM Site
+            WHERE (:archived = 'ALL'
+                   OR (:archived = 'ACTIVE' AND IsArchived = FALSE)
+                   OR (:archived = 'ARCHIVED' AND IsArchived = TRUE))
             ORDER BY SiteName NULLS LAST, SiteID
-            """, new HashMap<>());
+            """, new MapSqlParameterSource("archived", archiveState.name()));
+    }
+
+    /**
+     * Backwards-compatible overload without archive-state parameter.
+     */
+    public List<Map<String, Object>> findByProject(String projectId, String accountId) {
+        boolean filterByProject = projectId != null && !projectId.isBlank();
+        boolean filterByAccount = accountId != null && !accountId.isBlank();
+
+        if (filterByProject || filterByAccount) {
+            StringBuilder sql = new StringBuilder("""
+                SELECT DISTINCT s.SiteID, s.SiteName, s.FireZone, s.TenantCount, s.RedundantServers, s.HighAvailability, s.AddressID, s.ProjectID
+                FROM Site s
+                JOIN ProjectSite ps ON ps.SiteID = s.SiteID
+                """);
+
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            if (filterByAccount) {
+                sql.append(" JOIN Project p ON p.ProjectID = ps.ProjectID\n");
+                params.addValue("accId", accountId);
+            }
+            List<String> where = new ArrayList<>();
+            if (filterByProject) {
+                where.add("ps.ProjectID = :pid");
+                params.addValue("pid", projectId);
+            }
+            if (filterByAccount) {
+                where.add("p.AccountID = :accId");
+            }
+            if (!where.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", where)).append('\n');
+            }
+            sql.append(" ORDER BY s.SiteName NULLS LAST, s.SiteID");
+            return jdbc.queryForList(sql.toString(), params);
+        }
+
+        return jdbc.queryForList("""
+            SELECT SiteID, SiteName, FireZone, TenantCount, RedundantServers, HighAvailability, AddressID, ProjectID
+            FROM Site
+            ORDER BY SiteName NULLS LAST, SiteID
+            """, Map.of());
     }
 
     /**
@@ -182,6 +266,11 @@ public class SiteController {
         UUID siteId = parseUuid(id, "SiteID");
         Site site = siteService.getSiteById(siteId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Site not found"));
+        Boolean isArchived = jdbc.queryForObject("""
+                SELECT IsArchived
+                FROM Site
+                WHERE SiteID = :id
+                """, new MapSqlParameterSource("id", siteId), Boolean.class);
         List<UUID> projectIds = projectSites.getProjectsForSite(siteId);
         List<SiteSoftwareOverviewEntry> assignments = installedSoftwareService.getSiteSoftwareOverview(siteId);
 
@@ -195,6 +284,7 @@ public class SiteController {
                 site.getTenantCount(),
                 site.getRedundantServers(),
                 site.getHighAvailability(),
+                Boolean.TRUE.equals(isArchived),
                 assignments
         );
     }
@@ -350,10 +440,20 @@ public class SiteController {
     public void delete(@PathVariable String id) {
         try {
             UUID siteId = parseUuid(id, "SiteID");
-            if (siteService.getSiteById(siteId).isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site deleted");
+            String actor = currentActor();
+            boolean archived;
+            if (archiveService != null) {
+                archived = archiveService.archive("site", id, actor);
+            } else {
+                siteService.getSiteById(siteId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Site not found"));
+                siteService.deleteSite(siteId);
+                archived = true;
             }
-            siteService.deleteSite(siteId);
+            if (!archived) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site archived");
+            }
+            audit.archived(TABLE, Map.of("SiteID", id), Map.of("actor", actor));
             audit.deleted(TABLE, Map.of("SiteID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("SiteID", id), ex.getReason(), null);
@@ -392,6 +492,32 @@ public class SiteController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " must be a valid UUID", ex);
         }
+    }
+
+    private ArchiveState parseArchiveState(String raw) {
+        try {
+            return ArchiveState.from(raw);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    private void appendArchiveWhere(List<String> where, String column, ArchiveState archiveState) {
+        switch (archiveState) {
+            case ACTIVE -> where.add(column + " = FALSE");
+            case ARCHIVED -> where.add(column + " = TRUE");
+            case ALL -> {
+                // no-op
+            }
+        }
+    }
+
+    private String currentActor() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            return "system";
+        }
+        return auth.getName();
     }
 
 }

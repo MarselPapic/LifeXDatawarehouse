@@ -80,7 +80,7 @@ public class JdbcRadioRepository implements RadioRepository {
      */
     @Override
     public void deleteById(UUID id) {
-        String sql = "DELETE FROM Radio WHERE RadioID = :id";
+        String sql = "UPDATE Radio SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = 'system' WHERE RadioID = :id AND IsArchived = FALSE";
         jdbc.update(sql, new MapSqlParameterSource("id", id));
     }
 
@@ -131,3 +131,4 @@ public class JdbcRadioRepository implements RadioRepository {
         return r;
     }
 }
+
