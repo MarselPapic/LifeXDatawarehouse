@@ -406,8 +406,8 @@ public class GenericCrudController {
         try {
             table = normalizeTable(name);
             String pk = PKS.getOrDefault(table, "id");
+            String actor = currentActor();
             if (archiveService != null && archiveService.supports(name)) {
-                String actor = currentActor();
                 boolean archived = archiveService.archive(name, id, actor);
                 if (!archived) {
                     throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record archived");
@@ -416,11 +416,12 @@ public class GenericCrudController {
                 audit.deleted(table, Map.of(pk, id));
                 return;
             }
-            String sql = "DELETE FROM " + table + " WHERE " + pk + " = :id";
-            int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)));
+            String sql = "UPDATE " + table + " SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = :actor WHERE " + pk + " = :id AND IsArchived = FALSE";
+            int count = jdbc.update(sql, new MapSqlParameterSource("id", parsePrimaryKey(table, id)).addValue("actor", actor));
             if (count == 0) {
-                throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record deleted");
+                throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record archived");
             }
+            audit.archived(table, Map.of(pk, id), Map.of("actor", actor));
             audit.deleted(table, Map.of(pk, id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", table == null ? name : table, Map.of("id", id), ex.getReason(), null);

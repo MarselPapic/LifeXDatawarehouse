@@ -3,6 +3,8 @@ package at.htlle.freq.infrastructure.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -19,6 +21,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 public class BackendSecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(BackendSecurityConfig.class);
 
     @Value("${lifex.security.backend.enabled:true}")
     private boolean backendSecurityEnabled;
@@ -50,11 +53,11 @@ public class BackendSecurityConfig {
                         "/css/**",
                         "/js/**",
                         "/img/**",
-                        "/h2-console/**",
                         "/error"
                 ).permitAll()
                 .requestMatchers(
                         "/api/**",
+                        "/h2-console/**",
                         "/search/**",
                         "/table/**",
                         "/row/**",
@@ -76,6 +79,14 @@ public class BackendSecurityConfig {
 
     @Bean
     UserDetailsService userDetailsService() {
+        if (backendSecurityEnabled) {
+            if (username == null || username.isBlank() || password == null || password.isBlank()) {
+                throw new IllegalStateException("Backend security is enabled, but username/password are blank.");
+            }
+            if ("lifex".equals(username) && "12345".equals(password)) {
+                log.warn("Backend security uses default credentials (lifex/12345). Configure lifex.security.backend.* in production.");
+            }
+        }
         UserDetails backendUser = User.withUsername(username)
                 .password("{noop}" + password)
                 .roles("BACKEND")

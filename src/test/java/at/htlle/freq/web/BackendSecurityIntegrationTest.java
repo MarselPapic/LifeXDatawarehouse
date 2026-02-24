@@ -50,6 +50,12 @@ class BackendSecurityIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void h2ConsoleIsProtectedWhenBackendSecurityEnabled() throws Exception {
+        mockMvc.perform(get("/h2-console"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private static String basicAuth(String username, String password) {
         String raw = username + ":" + password;
         String encoded = Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));

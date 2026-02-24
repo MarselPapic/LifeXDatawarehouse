@@ -113,18 +113,18 @@ class GenericCrudControllerTest {
     }
 
     @Test
-    void deleteBuildsDeleteStatementAndChecksAffectedRows() {
-        // Arrange: allow the delete to acknowledge one removed row
+    void deleteBuildsSoftDeleteStatementAndChecksAffectedRows() {
+        // Arrange: allow the delete to acknowledge one archived row
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
         // Act: trigger the delete endpoint
         String id = java.util.UUID.randomUUID().toString();
         controller.delete("account", id);
-        // Assert: confirm the delete statement was issued once
-        verify(jdbc).update(startsWith("DELETE FROM Account"), any(MapSqlParameterSource.class));
+        // Assert: confirm the soft-delete statement was issued once
+        verify(jdbc).update(startsWith("UPDATE Account SET IsArchived = TRUE"), any(MapSqlParameterSource.class));
 
         // Arrange: mimic a delete that affects zero rows
         when(jdbc.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(0);
-        // Act & Assert: verify the controller responds with a 404 when nothing was deleted
+        // Act & Assert: verify the controller responds with a 404 when nothing was archived
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.delete("account", id));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
