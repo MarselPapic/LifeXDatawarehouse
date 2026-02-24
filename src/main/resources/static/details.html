@@ -313,14 +313,40 @@
             return url;
         }
     }
+    function normalizeFieldKey(key){
+        return String(key ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    }
+    function parseArchiveFlagValue(raw){
+        if(typeof raw === 'boolean') return raw;
+        if(typeof raw === 'number') return raw === 1;
+        const normalized = String(raw ?? '').trim().toLowerCase();
+        if(normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y'){
+            return true;
+        }
+        if(normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'n'){
+            return false;
+        }
+        return false;
+    }
     function isArchivedRecord(record){
         if(!record || typeof record !== 'object') return false;
-        const raw = record.IsArchived ?? record.isArchived ?? record.archived;
-        if(typeof raw === 'boolean') return raw;
-        return String(raw ?? '').trim().toLowerCase() === 'true';
+        for(const [key, value] of Object.entries(record)){
+            const normalized = normalizeFieldKey(key);
+            if(normalized === 'isarchived' || normalized === 'archived'){
+                return parseArchiveFlagValue(value);
+            }
+        }
+        return false;
     }
     function isCurrentArchived(){
         return isArchivedRecord(currentRow);
+    }
+    function shouldRenderDetailField(key, row){
+        const normalized = normalizeFieldKey(key);
+        if(normalized === 'softwareassignments') return false;
+        if(normalized === 'archivedby') return false;
+        if(normalized === 'archivedat') return isArchivedRecord(row);
+        return true;
     }
     function shortId(value){
         const str = (value ?? '').toString().trim();
@@ -1938,7 +1964,13 @@
         ensureDetailLayout();
         if(!editButtonEl) return;
         const archived = isCurrentArchived();
-        editButtonEl.disabled = !currentRow || archived;
+        if(!currentRow){
+            editButtonEl.hidden = true;
+            editButtonEl.disabled = true;
+            return;
+        }
+        editButtonEl.hidden = archived;
+        editButtonEl.disabled = archived;
         editButtonEl.setAttribute('aria-pressed', isEditing ? 'true' : 'false');
         editButtonEl.classList.toggle('is-active', !!isEditing);
         if(archived){
@@ -1960,8 +1992,8 @@
         archiveActionButtonEl.hidden = false;
         archiveActionButtonEl.disabled = false;
         archiveActionButtonEl.classList.toggle('is-restore', archived);
-        archiveActionButtonEl.textContent = archived ? 'Restore' : 'Archive';
-        archiveActionButtonEl.title = archived ? 'Restore this entry' : 'Archive this entry';
+        archiveActionButtonEl.textContent = archived ? 'Entarchivieren' : 'Archivieren';
+        archiveActionButtonEl.title = archived ? 'Dieses Objekt entarchivieren' : 'Dieses Objekt archivieren';
     }
 
     async function toggleArchiveState(){
@@ -2107,7 +2139,7 @@
         const { captionText } = updateHeading();
         const entries = Object.entries(row || {});
           const kvRows = entries
-              .filter(([k]) => (k ?? '').toString().toLowerCase() !== 'softwareassignments')
+              .filter(([k]) => shouldRenderDetailField(k, row))
               .map(([k,v]) => {
               const normalizedKey = (k ?? '').toString().trim().toLowerCase();
               let keyLabel = k;
@@ -2202,6 +2234,7 @@
 
         configFields.forEach(field => {
             const rowKey = field.name || field.rowKey || field.id;
+            if(rowKey && !shouldRenderDetailField(rowKey, row)) return;
             if(rowKey) usedKeys.add(rowKey.toLowerCase());
             let rawValue = rowKey ? val(row, rowKey) : undefined;
             if((field.name || '').toLowerCase() === 'projectids' && (rawValue === undefined || rawValue === null)){
@@ -2242,6 +2275,7 @@
         grid.innerHTML = html;
 
         Object.entries(row || {}).forEach(([key, value]) => {
+            if(!shouldRenderDetailField(key, row)) return;
             if(usedKeys.has(key.toLowerCase())) return;
             const inputId = `field-${key}`;
             const label = document.createElement('label');

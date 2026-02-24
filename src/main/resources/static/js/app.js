@@ -81,15 +81,42 @@ function normalizeArchiveState(value) {
 function resolveArchiveState() {
     return normalizeArchiveState(archiveState);
 }
+function normalizeColumnKeyName(name) {
+    return String(name ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+function isArchivedAtColumn(name) {
+    return normalizeColumnKeyName(name) === 'archivedat';
+}
+function isArchivedByColumn(name) {
+    return normalizeColumnKeyName(name) === 'archivedby';
+}
+function parseArchiveFlagValue(value) {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    if (typeof value === 'number') {
+        return value === 1;
+    }
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y') {
+        return true;
+    }
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'n') {
+        return false;
+    }
+    return false;
+}
 function isArchivedRow(row) {
     if (!row || typeof row !== 'object') {
         return false;
     }
-    const value = row.IsArchived ?? row.isArchived ?? row.archived;
-    if (typeof value === 'boolean') {
-        return value;
+    for (const [key, value] of Object.entries(row)) {
+        const normalized = normalizeColumnKeyName(key);
+        if (normalized === 'isarchived' || normalized === 'archived') {
+            return parseArchiveFlagValue(value);
+        }
     }
-    return String(value ?? '').trim().toLowerCase() === 'true';
+    return false;
 }
 function getHighlightTerms(raw){
     if (raw === undefined || raw === null) return [];
@@ -1518,7 +1545,16 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
     try {
         const summaryMap = toSiteSoftwareSummaryMap(summaryEntries);
         const columnLabel = 'Software – Installed';
-        const allColumns = [...baseColumns, columnLabel];
+        const displayColumns = baseColumns.filter(column => {
+            if (isArchivedByColumn(column)) {
+                return false;
+            }
+            if (isArchivedAtColumn(column)) {
+                return rows.some(isArchivedRow);
+            }
+            return true;
+        });
+        const allColumns = [...displayColumns, columnLabel];
 
         const formattedRows = rows.map(row => {
             const siteIdKey = getNormalizedSiteId(row);
@@ -1543,7 +1579,7 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
 
         const hdr = allColumns.map(c => `<th>${escapeHtml(displayColumnLabel(c))}</th>`).join('');
         const body = formattedRows
-            .map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${allColumns.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`)
+            .map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${allColumns.map(c => renderTableCell(name, c, r[c], r)).join('')}</tr>`)
             .join('');
 
         const safeName = escapeHtml(name);
@@ -1569,9 +1605,15 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
     }
 }
 
-function renderTableCell(tableName, columnName, value) {
+function renderTableCell(tableName, columnName, value, row) {
     const key = (columnName === undefined || columnName === null) ? '' : String(columnName);
     const raw = (value === undefined || value === null) ? '' : String(value);
+    if (isArchivedByColumn(key)) {
+        return '<td></td>';
+    }
+    if (isArchivedAtColumn(key) && !isArchivedRow(row)) {
+        return '<td></td>';
+    }
     const isIdColumn = isIdColumnName(key);
     const tableTypeInfo = getTableTypeInfo(tableName);
     const columnDetailType = resolveColumnDetailType(key, tableTypeInfo.detailType);
@@ -1607,7 +1649,15 @@ async function showTable(name) {
         const rows = await res.json();
         if (!Array.isArray(rows) || !rows.length) { resultArea.textContent = '(empty)'; return; }
 
-        const cols = Object.keys(rows[0]);
+        const cols = Object.keys(rows[0]).filter(column => {
+            if (isArchivedByColumn(column)) {
+                return false;
+            }
+            if (isArchivedAtColumn(column)) {
+                return rows.some(isArchivedRow);
+            }
+            return true;
+        });
         const tableTypeInfo = getTableTypeInfo(name);
         if (tableTypeInfo.detailType && isScopeSelectable(tableTypeInfo.detailType)) {
             setSearchScope(tableTypeInfo.detailType);
@@ -1617,7 +1667,7 @@ async function showTable(name) {
             return;
         }
         const hdr  = cols.map(c => `<th>${escapeHtml(displayColumnLabel(c))}</th>`).join('');
-        const body = rows.map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${cols.map(c => renderTableCell(name, c, r[c])).join('')}</tr>`).join('');
+        const body = rows.map(r => `<tr class="${isArchivedRow(r) ? 'is-archived' : ''}">${cols.map(c => renderTableCell(name, c, r[c], r)).join('')}</tr>`).join('');
         const { typeToken } = tableTypeInfo;
         const safeName = escapeHtml(name);
         const titleQuery = typeToken ? escapeHtml(typeToken) : null;

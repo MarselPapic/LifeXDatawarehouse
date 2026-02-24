@@ -450,6 +450,7 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 .detail-edit-button:hover,.detail-edit-button:focus-visible{background:#2c64b5;color:#fff}
 .detail-edit-button:focus-visible{outline:2px solid #2c64b5;outline-offset:2px}
 .detail-edit-button.is-active{background:#2c64b5;color:#fff}
+.detail-edit-button[hidden]{display:none!important}
 .detail-edit-icon{width:1.1rem;height:1.1rem;fill:currentColor}
 .detail-type-badge{position:absolute;top:.15rem;right:0;display:none;padding:.15rem .5rem;border-radius:999px;font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:#64748b;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35)}
 .detail-type-badge.is-visible{display:inline-flex;align-items:center;justify-content:center}
@@ -472,6 +473,7 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
     font-size:.82rem;
     font-weight:600;
 }
+.archive-state-notice[hidden]{display:none!important}
 .archive-state-notice::before{
     content:'';
     width:.45rem;
@@ -483,9 +485,9 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 .card.is-archived-view{
     position:relative;
     overflow:hidden;
-    background:#f8fafc;
-    border:1px solid #d1d5db;
-    box-shadow:0 1px 3px rgba(15,23,42,.08);
+    background:#f1f5f9;
+    border:1px solid #c7ced8;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);
 }
 .card.is-archived-view::before{
     content:'';
@@ -503,6 +505,7 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 }
 .card.is-archived-view #kv td{
     color:#334155;
+    background:#f8fafc;
 }
 .card.is-archived-view .empty{
     color:#6b7280;
@@ -511,6 +514,8 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
     background:#f8fafc;
     border-color:#d1d5db;
 }
+.archive-action-button[hidden]{display:none!important}
+.archive-state-badge[hidden]{display:none!important}
 .detail-edit-form{display:flex;flex-direction:column;gap:1rem}
 .detail-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
 .detail-field{display:flex;flex-direction:column;gap:.35rem;font-weight:600;color:#1f2a44}
