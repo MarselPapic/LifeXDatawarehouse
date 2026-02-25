@@ -56,6 +56,18 @@ class BackendSecurityIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void reportExportsArePublicWhenBackendSecurityEnabled() throws Exception {
+        mockMvc.perform(get("/api/reports/export/csv"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/reports/export/pdf"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/reports/export/xlsx"))
+                .andExpect(status().isOk());
+    }
+
     private static String basicAuth(String username, String password) {
         String raw = username + ":" + password;
         String encoded = Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));

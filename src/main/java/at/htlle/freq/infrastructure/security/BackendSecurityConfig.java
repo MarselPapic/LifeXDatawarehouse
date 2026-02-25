@@ -56,6 +56,9 @@ public class BackendSecurityConfig {
                         "/error"
                 ).permitAll()
                 .requestMatchers(
+                        "/api/reports/export/**"
+                ).permitAll()
+                .requestMatchers(
                         "/api/**",
                         "/h2-console/**",
                         "/search/**",

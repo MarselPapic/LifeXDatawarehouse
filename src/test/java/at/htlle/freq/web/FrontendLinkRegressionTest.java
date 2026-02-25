@@ -50,12 +50,14 @@ class FrontendLinkRegressionTest {
     }
 
     @Test
-    void reportsFrontendSupportsViewFilterAndAllExportFormats() throws IOException {
+    void reportsFrontendSupportsViewFilterAndPdfAndXlsxExports() throws IOException {
         String reportsPage = Files.readString(Path.of("src/main/resources/static/reports.html"), StandardCharsets.UTF_8);
         String reportsJs = Files.readString(Path.of("src/main/resources/static/js/reports.js"), StandardCharsets.UTF_8);
 
         assertTrue(reportsPage.contains("id=\"view\""),
                 "Reports page must expose a report view selector.");
+        assertFalse(reportsPage.contains("id=\"export-csv\""),
+                "Reports page must not expose a CSV export action anymore.");
         assertTrue(reportsPage.contains("id=\"export-pdf\""),
                 "Reports page must expose a PDF export action.");
         assertTrue(reportsPage.contains("id=\"export-xlsx\""),
@@ -68,6 +70,8 @@ class FrontendLinkRegressionTest {
                 "Reports script must manage selected report view in state.");
         assertTrue(reportsJs.contains("params.set('view', view);"),
                 "Reports script must submit selected report view to backend.");
+        assertFalse(reportsJs.contains("API.csv"),
+                "Reports script must not wire a CSV export endpoint anymore.");
         assertTrue(reportsJs.contains("API.pdf"),
                 "Reports script must wire PDF export endpoint.");
         assertTrue(reportsJs.contains("API.xlsx"),

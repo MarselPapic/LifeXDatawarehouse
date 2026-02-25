@@ -1,0 +1,159 @@
+html, body {
+    font-family: "Helvetica", "Arial", sans-serif;
+    font-size: 10pt;
+    color: #1f2937;
+    line-height: 1.35;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, p {
+    margin: 0;
+}
+
+.report-header {
+    border-bottom: 1pt solid #d7dee8;
+    padding-bottom: 9pt;
+    margin-bottom: 12pt;
+}
+
+.report-header h1 {
+    font-size: 16pt;
+    color: #0f2941;
+    margin-bottom: 2pt;
+}
+
+.report-title {
+    font-size: 12pt;
+    color: #102a43;
+    margin-bottom: 2pt;
+}
+
+.generated-at {
+    font-size: 9.5pt;
+    color: #52637a;
+}
+
+.summary-section {
+    margin-bottom: 12pt;
+}
+
+.summary-section h2,
+.table-section h2 {
+    font-size: 11pt;
+    color: #0f2941;
+    margin-bottom: 7pt;
+}
+
+.summary {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6pt 6pt;
+    margin-left: -6pt;
+    margin-right: -6pt;
+}
+
+.summary-card {
+    display: inline-block;
+    width: 30%;
+    min-width: 130pt;
+    border: 1pt solid #d5dfec;
+    border-radius: 5pt;
+    padding: 7pt 8pt;
+    margin: 0 6pt 6pt 0;
+    background: #f9fbfd;
+    vertical-align: top;
+}
+
+.summary-label {
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #4b5f75;
+    margin-bottom: 2pt;
+}
+
+.summary-value {
+    font-size: 15pt;
+    font-weight: bold;
+    color: #0f2941;
+}
+
+.metric-primary .summary-value {
+    color: #0b5fa7;
+}
+
+.metric-danger .summary-value {
+    color: #b42318;
+}
+
+.metric-warning .summary-value {
+    color: #b85d00;
+}
+
+.metric-watch .summary-value {
+    color: #0e6f66;
+}
+
+.metric-neutral .summary-value {
+    color: #334155;
+}
+
+.summary-empty,
+.table-empty {
+    border: 1pt dashed #cbd5e1;
+    border-radius: 4pt;
+    background: #f8fafc;
+    padding: 8pt;
+    color: #475569;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 9pt;
+    -fs-table-paginate: paginate;
+}
+
+.report-table thead {
+    display: table-header-group;
+}
+
+.report-table tbody tr {
+    page-break-inside: avoid;
+}
+
+.report-table th,
+.report-table td {
+    border: 0.8pt solid #d4dbe6;
+    padding: 5pt 4pt;
+    vertical-align: top;
+    word-wrap: break-word;
+}
+
+.report-table th {
+    background: #edf3f9;
+    color: #0f2941;
+    font-size: 8.6pt;
+    font-weight: bold;
+}
+
+.report-table tbody tr:nth-child(even) td {
+    background: #f8fbff;
+}
+
+.align-left {
+    text-align: left;
+}
+
+.align-right {
+    text-align: right;
+}
+
+.align-center {
+    text-align: center;
+}

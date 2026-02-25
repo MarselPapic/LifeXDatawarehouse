@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>LifeX Report PDF</title>
+    <style>
+        @page {
+            size: A4 {{pageOrientation}};
+            margin: 15mm 12mm 14mm 12mm;
+        }
+{{reportCss}}
+    </style>
+</head>
+<body>
+<header class="report-header">
+    <h1>LifeX Report</h1>
+    <p class="report-title">{{reportTitle}}</p>
+    <p class="generated-at">Generated at: {{generatedAt}}</p>
+</header>
+
+<section class="summary-section">
+    <h2>Summary</h2>
+{{summarySection}}
+</section>
+
+<section class="table-section">
+    <h2>Details</h2>
+{{tableSection}}
+</section>
+</body>
+</html>

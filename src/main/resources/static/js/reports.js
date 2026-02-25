@@ -2,7 +2,6 @@
     const API = {
         data: '/api/reports/data',
         summary: '/api/reports/summary',
-        csv: '/api/reports/export/csv',
         pdf: '/api/reports/export/pdf',
         xlsx: '/api/reports/export/xlsx'
     };
@@ -33,7 +32,6 @@
         tableWrapper: document.getElementById('table-wrapper'),
         reportStatus: document.getElementById('report-status'),
         generatedAt: document.getElementById('generated-at'),
-        exportCsv: document.getElementById('export-csv'),
         exportPdf: document.getElementById('export-pdf'),
         exportXlsx: document.getElementById('export-xlsx'),
         panel: document.getElementById('report-panel'),
@@ -354,7 +352,6 @@
     }
 
     function updateExportLinks(queryString) {
-        if (elements.exportCsv) elements.exportCsv.href = `${API.csv}?${queryString}`;
         if (elements.exportPdf) elements.exportPdf.href = `${API.pdf}?${queryString}`;
         if (elements.exportXlsx) elements.exportXlsx.href = `${API.xlsx}?${queryString}`;
     }

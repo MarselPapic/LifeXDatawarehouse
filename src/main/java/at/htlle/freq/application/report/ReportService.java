@@ -1,20 +1,26 @@
 package at.htlle.freq.application.report;
 
 import at.htlle.freq.domain.ArchiveState;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.ParseException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -27,7 +33,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Aggregates reporting data and renders exports.
@@ -36,6 +41,7 @@ import java.util.stream.Collectors;
 public class ReportService {
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final PdfReportRenderer pdfReportRenderer;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
@@ -45,9 +51,11 @@ public class ReportService {
      * Creates the service with the required JDBC template.
      *
      * @param jdbc data access component for reporting queries
+     * @param pdfReportRenderer renderer for PDF export output
      */
-    public ReportService(NamedParameterJdbcTemplate jdbc) {
+    public ReportService(NamedParameterJdbcTemplate jdbc, PdfReportRenderer pdfReportRenderer) {
         this.jdbc = jdbc;
+        this.pdfReportRenderer = pdfReportRenderer;
     }
 
     /**
@@ -116,87 +124,13 @@ public class ReportService {
     }
 
     /**
-     * Serialises a report into CSV format.
-     *
-     * @param report previously generated report
-     * @return CSV content as a string
-     */
-    public String renderCsv(ReportResponse report) {
-        StringBuilder sb = new StringBuilder();
-        String caption = report.table() != null ? valueToString(report.table().caption()) : "";
-        sb.append("Report;").append(escapeCsv(caption)).append('\n');
-        sb.append("Generated at;").append(escapeCsv(report.generatedAt())).append('\n');
-
-        if (report.summary() != null) {
-            sb.append("Total deployments;").append(report.summary().totalDeployments()).append('\n');
-            sb.append("Overdue;").append(report.summary().overdue()).append('\n');
-            sb.append("Due in 30 days;").append(report.summary().dueIn30Days()).append('\n');
-            sb.append("Due in 90 days;").append(report.summary().dueIn90Days()).append('\n');
-            sb.append("Distinct accounts;").append(report.summary().distinctAccounts()).append('\n');
-            sb.append("Distinct sites;").append(report.summary().distinctSites()).append('\n');
-        }
-        sb.append('\n');
-
-        if (report.table() == null || report.table().columns().isEmpty()) {
-            return sb.toString();
-        }
-
-        List<ReportColumn> columns = report.table().columns();
-        sb.append(columns.stream().map(col -> escapeCsv(col.label())).collect(Collectors.joining(";"))).append('\n');
-        for (Map<String, Object> row : report.table().rows()) {
-            String line = columns.stream()
-                    .map(col -> escapeCsv(valueToString(row.get(col.key()))))
-                    .collect(Collectors.joining(";"));
-            sb.append(line).append('\n');
-        }
-        return sb.toString();
-    }
-
-    /**
      * Renders the report as a simple PDF document.
      *
      * @param report report payload.
      * @return PDF bytes.
      */
     public byte[] renderPdf(ReportResponse report) {
-        try (PDDocument doc = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            PDPage page = new PDPage(PDRectangle.A4);
-            doc.addPage(page);
-
-            float margin = 42f;
-            float leading = 14f;
-            float yStart = page.getMediaBox().getHeight() - margin;
-            float y = yStart;
-
-            PDPageContentStream stream = new PDPageContentStream(doc, page);
-            stream.beginText();
-            stream.setFont(PDType1Font.HELVETICA, 10);
-            stream.newLineAtOffset(margin, yStart);
-
-            for (String line : buildPdfLines(report)) {
-                if (y - leading < margin) {
-                    stream.endText();
-                    stream.close();
-                    page = new PDPage(PDRectangle.A4);
-                    doc.addPage(page);
-                    stream = new PDPageContentStream(doc, page);
-                    stream.beginText();
-                    stream.setFont(PDType1Font.HELVETICA, 10);
-                    stream.newLineAtOffset(margin, yStart);
-                    y = yStart;
-                }
-                stream.showText(sanitizePdf(line));
-                stream.newLineAtOffset(0, -leading);
-                y -= leading;
-            }
-
-            stream.endText();
-            stream.close();
-            doc.save(out);
-            return out.toByteArray();
-        } catch (IOException ex) {
-            throw new IllegalStateException("Failed to render PDF report", ex);
-        }
+        return pdfReportRenderer.render(report);
     }
 
     /**
@@ -208,44 +142,57 @@ public class ReportService {
     public byte[] renderExcel(ReportResponse report) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("LifeX Report");
+            ExcelStyles styles = createExcelStyles(workbook);
             int rowIdx = 0;
 
             Row titleRow = sheet.createRow(rowIdx++);
-            titleRow.createCell(0).setCellValue("Report");
-            titleRow.createCell(1).setCellValue(report.table() != null ? valueToString(report.table().caption()) : "");
+            Cell titleLabel = titleRow.createCell(0);
+            titleLabel.setCellValue("Report");
+            titleLabel.setCellStyle(styles.labelStyle());
+            Cell titleValue = titleRow.createCell(1);
+            titleValue.setCellValue(report.table() != null ? valueToString(report.table().caption()) : "");
+            titleValue.setCellStyle(styles.titleStyle());
 
             Row generatedRow = sheet.createRow(rowIdx++);
-            generatedRow.createCell(0).setCellValue("Generated at");
-            generatedRow.createCell(1).setCellValue(valueToString(report.generatedAt()));
+            Cell generatedLabel = generatedRow.createCell(0);
+            generatedLabel.setCellValue("Generated at");
+            generatedLabel.setCellStyle(styles.labelStyle());
+            Cell generatedValue = generatedRow.createCell(1);
+            generatedValue.setCellValue(valueToString(report.generatedAt()));
+            generatedValue.setCellStyle(styles.textStyle());
 
             if (report.summary() != null) {
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Total deployments", report.summary().totalDeployments());
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Overdue", report.summary().overdue());
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Due in 30 days", report.summary().dueIn30Days());
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Due in 90 days", report.summary().dueIn90Days());
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Distinct accounts", report.summary().distinctAccounts());
-                rowIdx = writeSummaryRow(sheet, rowIdx, "Distinct sites", report.summary().distinctSites());
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Total deployments", report.summary().totalDeployments(), styles);
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Overdue", report.summary().overdue(), styles);
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Due in 30 days", report.summary().dueIn30Days(), styles);
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Due in 90 days", report.summary().dueIn90Days(), styles);
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Distinct accounts", report.summary().distinctAccounts(), styles);
+                rowIdx = writeSummaryRow(sheet, rowIdx, "Distinct sites", report.summary().distinctSites(), styles);
             }
 
             rowIdx++;
-            if (report.table() != null && report.table().columns() != null) {
+            if (report.table() != null && report.table().columns() != null && !report.table().columns().isEmpty()) {
                 List<ReportColumn> columns = report.table().columns();
+                int headerRowIndex = rowIdx;
                 Row headerRow = sheet.createRow(rowIdx++);
                 for (int i = 0; i < columns.size(); i++) {
-                    headerRow.createCell(i).setCellValue(valueToString(columns.get(i).label()));
+                    Cell headerCell = headerRow.createCell(i);
+                    headerCell.setCellValue(valueToString(columns.get(i).label()));
+                    headerCell.setCellStyle(styles.headerStyle());
                 }
 
                 for (Map<String, Object> data : report.table().rows()) {
                     Row row = sheet.createRow(rowIdx++);
                     for (int i = 0; i < columns.size(); i++) {
                         ReportColumn column = columns.get(i);
-                        row.createCell(i).setCellValue(valueToString(data.get(column.key())));
+                        writeDataCell(row, i, data.get(column.key()), column, styles);
                     }
                 }
 
-                for (int i = 0; i < columns.size(); i++) {
-                    sheet.autoSizeColumn(i);
-                }
+                int lastRowIndex = Math.max(headerRowIndex, rowIdx - 1);
+                sheet.createFreezePane(0, headerRowIndex + 1);
+                sheet.setAutoFilter(new CellRangeAddress(headerRowIndex, lastRowIndex, 0, columns.size() - 1));
+                autoSizeColumns(sheet, columns.size());
             }
 
             workbook.write(out);
@@ -391,11 +338,110 @@ public class ReportService {
                 ReportView.ACCOUNT_RISK.title(), "No account risk rows found for the selected range.");
     }
 
-    private int writeSummaryRow(Sheet sheet, int rowIdx, String label, long value) {
+    private int writeSummaryRow(Sheet sheet, int rowIdx, String label, long value, ExcelStyles styles) {
         Row row = sheet.createRow(rowIdx++);
-        row.createCell(0).setCellValue(label);
-        row.createCell(1).setCellValue(value);
+        Cell labelCell = row.createCell(0);
+        labelCell.setCellValue(label);
+        labelCell.setCellStyle(styles.labelStyle());
+        Cell valueCell = row.createCell(1);
+        valueCell.setCellValue(value);
+        valueCell.setCellStyle(styles.numberStyle());
         return rowIdx;
+    }
+
+    private void writeDataCell(Row row, int columnIndex, Object rawValue, ReportColumn column, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+        if (column != null && "right".equalsIgnoreCase(column.align())) {
+            Long numeric = parseGermanInteger(rawValue);
+            if (numeric != null) {
+                cell.setCellValue(numeric);
+                cell.setCellStyle(styles.numberStyle());
+                return;
+            }
+            cell.setCellValue(valueToString(rawValue));
+            cell.setCellStyle(styles.rightAlignedStyle());
+            return;
+        }
+        cell.setCellValue(valueToString(rawValue));
+        cell.setCellStyle(styles.textStyle());
+    }
+
+    private Long parseGermanInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        String raw = value.toString().trim();
+        if (raw.isEmpty()) {
+            return null;
+        }
+        try {
+            return INT_FMT.parse(raw).longValue();
+        } catch (ParseException ex) {
+            return null;
+        }
+    }
+
+    private void autoSizeColumns(Sheet sheet, int columnCount) {
+        int maxWidth = 45 * 256;
+        for (int i = 0; i < columnCount; i++) {
+            sheet.autoSizeColumn(i);
+            if (sheet.getColumnWidth(i) > maxWidth) {
+                sheet.setColumnWidth(i, maxWidth);
+            }
+        }
+    }
+
+    private ExcelStyles createExcelStyles(Workbook workbook) {
+        DataFormat dataFormat = workbook.createDataFormat();
+
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 12);
+
+        Font boldFont = workbook.createFont();
+        boldFont.setBold(true);
+
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFont);
+        titleStyle.setVerticalAlignment(VerticalAlignment.TOP);
+
+        CellStyle labelStyle = workbook.createCellStyle();
+        labelStyle.setFont(boldFont);
+        labelStyle.setVerticalAlignment(VerticalAlignment.TOP);
+
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFont(boldFont);
+        headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setAlignment(HorizontalAlignment.LEFT);
+        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        applyBorder(headerStyle);
+
+        CellStyle textStyle = workbook.createCellStyle();
+        textStyle.setAlignment(HorizontalAlignment.LEFT);
+        textStyle.setVerticalAlignment(VerticalAlignment.TOP);
+        textStyle.setWrapText(true);
+        applyBorder(textStyle);
+
+        CellStyle rightAlignedStyle = workbook.createCellStyle();
+        rightAlignedStyle.cloneStyleFrom(textStyle);
+        rightAlignedStyle.setAlignment(HorizontalAlignment.RIGHT);
+
+        CellStyle numberStyle = workbook.createCellStyle();
+        numberStyle.cloneStyleFrom(rightAlignedStyle);
+        numberStyle.setDataFormat(dataFormat.getFormat("#,##0"));
+
+        return new ExcelStyles(titleStyle, labelStyle, headerStyle, textStyle, rightAlignedStyle, numberStyle);
+    }
+
+    private void applyBorder(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
     }
 
     private void appendSupportEndRangeClause(StringBuilder sql, Map<String, Object> params, ReportFilter filter) {
@@ -496,7 +542,7 @@ public class ReportService {
     }
 
     /**
-     * Formats values for CSV output, with numeric formatting for numbers.
+     * Formats values for presentation/export, with numeric formatting for numbers.
      *
      * @param value value to format.
      * @return string representation suitable for export.
@@ -521,66 +567,12 @@ public class ReportService {
         return Long.parseLong(value.toString().trim());
     }
 
-    private List<String> buildPdfLines(ReportResponse report) {
-        List<String> lines = new LinkedList<>();
-        String caption = report.table() != null ? valueToString(report.table().caption()) : "";
-        lines.add("LifeX Report: " + caption);
-        lines.add("Generated at: " + valueToString(report.generatedAt()));
-        lines.add("");
-
-        if (report.summary() != null) {
-            lines.add("Summary");
-            lines.add("Total deployments: " + report.summary().totalDeployments());
-            lines.add("Overdue: " + report.summary().overdue());
-            lines.add("Due in 30 days: " + report.summary().dueIn30Days());
-            lines.add("Due in 90 days: " + report.summary().dueIn90Days());
-            lines.add("Distinct accounts: " + report.summary().distinctAccounts());
-            lines.add("Distinct sites: " + report.summary().distinctSites());
-            lines.add("");
-        }
-
-        if (report.table() == null || report.table().columns().isEmpty()) {
-            return lines;
-        }
-
-        List<ReportColumn> columns = report.table().columns();
-        lines.add(columns.stream().map(ReportColumn::label).collect(Collectors.joining(" | ")));
-        for (Map<String, Object> row : report.table().rows()) {
-            String line = columns.stream()
-                    .map(col -> valueToString(row.get(col.key())))
-                    .collect(Collectors.joining(" | "));
-            lines.add(line);
-        }
-        return lines;
-    }
-
-    private String sanitizePdf(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return " ";
-        }
-        String compact = raw.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
-        String ascii = compact.replaceAll("[^\\x20-\\x7E]", "?");
-        if (ascii.length() > 120) {
-            return ascii.substring(0, 120);
-        }
-        return ascii;
-    }
-
-    /**
-     * Escapes the CSV for safe output.
-     *
-     * @param value value.
-     * @return the computed result.
-     */
-    private String escapeCsv(String value) {
-        if (value == null) {
-            return "";
-        }
-        boolean needsQuotes = value.contains(";") || value.contains("\n") || value.contains("\"");
-        String escaped = value.replace("\"", "\"\"");
-        if (needsQuotes) {
-            return '"' + escaped + '"';
-        }
-        return escaped;
-    }
+    private record ExcelStyles(
+            CellStyle titleStyle,
+            CellStyle labelStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle,
+            CellStyle rightAlignedStyle,
+            CellStyle numberStyle
+    ) {}
 }

@@ -3,6 +3,7 @@ package at.htlle.freq.web;
 import at.htlle.freq.application.report.ReportResponse;
 import at.htlle.freq.application.report.ReportSummary;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,8 @@ class ReportControllerMaintenanceIntegrationTest {
         ResponseEntity<ByteArrayResource> pdf = reportController.exportPdf(null, null, "next90", "account-risk");
         assertThat(pdf.getBody()).isNotNull();
         assertThat(pdf.getBody().contentLength()).isGreaterThan(0);
+        assertThat(pdf.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(pdf.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
 
         ResponseEntity<ByteArrayResource> xlsx = reportController.exportXlsx(null, null, "next90", "account-risk");
         assertThat(xlsx.getBody()).isNotNull();

@@ -8,7 +8,7 @@ Mission: capture static master data (accounts, projects, sites, hardware, softwa
 ## Key Features
 - Data model in H2 (in-memory) covering accounts, projects, sites, hardware, software, and contracts.
 - REST API with dedicated controllers per entity plus a generic table CRUD API.
-- Reporting for software support end dates with CSV export.
+- Reporting for software support end dates with PDF and Excel export.
 - Lucene 8 full-text search with smart query parsing, field filters, and autocomplete suggestions.
 - Apache Camel routes for scheduled reindexing and single-entity indexing.
 - Static HTML/CSS/JS frontend (no build tool required).
@@ -81,7 +81,6 @@ Indexing:
 Reporting:
 - `GET /api/reports/data?from=&to=&preset=&view=` report data (`support-end`, `lifecycle-status`, `account-risk`)
 - `GET /api/reports/summary?from=&to=&preset=` KPI summary (deployments, overdue, due windows, accounts, sites)
-- `GET /api/reports/export/csv?from=&to=&preset=&view=` CSV export
 - `GET /api/reports/export/pdf?from=&to=&preset=&view=` PDF export
 - `GET /api/reports/export/xlsx?from=&to=&preset=&view=` Excel export
 
@@ -105,7 +104,7 @@ Site-specific helpers:
 - `index.html` Dashboard (global search, shortcuts, table preview, index progress)
 - `create.html` Record creation wizard with validation and dependent dropdowns
 - `details.html` Generic detail view with linked entities
-- `reports.html` Reporting center with multi-view analysis, KPI summary, and CSV/PDF/XLSX export
+- `reports.html` Reporting center with multi-view analysis, KPI summary, and PDF/XLSX export
 
 All assets live under `src/main/resources/static/`.
 
@@ -146,7 +145,6 @@ Quick checks:
 - [x] Shortcut UI (editable)
 - [x] Create wizard
 - [x] Autocomplete suggestions
-- [x] CSV export via REST (`/api/reports/export/csv`)
 - [x] PDF export via REST (`/api/reports/export/pdf`)
 - [x] Excel export via REST (`/api/reports/export/xlsx`)
 - [x] Backend API authentication (HTTP Basic with preset credentials)

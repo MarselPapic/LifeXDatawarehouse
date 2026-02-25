@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -99,40 +98,6 @@ public class ReportController {
      */
     public ReportSummary getSummary(String from, String to, String preset) {
         return getSummary(from, to, preset, null);
-    }
-
-    /**
-     * Exports the report as a CSV file.
-     *
-     * <p>Path: {@code GET /api/reports/export/csv}</p>
-     * <p>Query parameters match {@link #getReportData(String, String, String, String)}.</p>
-     *
-     * @return 200 OK with a CSV file ({@code text/csv}).
-     */
-    @GetMapping("/export/csv")
-    public ResponseEntity<ByteArrayResource> exportCsv(@RequestParam(name = "from", required = false) String from,
-                                                       @RequestParam(name = "to", required = false) String to,
-                                                       @RequestParam(name = "preset", required = false) String preset,
-                                                       @RequestParam(name = "view", required = false) String view,
-                                                       @RequestParam(name = "archiveState", required = false) String archiveStateRaw) {
-        ReportFilter filter = buildFilter(preset, from, to, archiveStateRaw);
-        ReportView reportView = resolveView(view);
-        ReportResponse response = reportService.getReport(reportView, filter);
-        String csv = reportService.renderCsv(response);
-        byte[] data = csv.getBytes(StandardCharsets.UTF_8);
-        ByteArrayResource resource = new ByteArrayResource(data);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + buildFileName(reportView, "csv"))
-                .contentType(MediaType.parseMediaType("text/csv"))
-                .contentLength(data.length)
-                .body(resource);
-    }
-
-    /**
-     * Backwards-compatible overload without archive-state parameter.
-     */
-    public ResponseEntity<ByteArrayResource> exportCsv(String from, String to, String preset, String view) {
-        return exportCsv(from, to, preset, view, null);
     }
 
     /**
@@ -276,7 +241,7 @@ public class ReportController {
     /**
      * Builds the export file name for the report.
      *
-     * @param extension file extension such as {@code csv}.
+     * @param extension file extension such as {@code pdf}.
      * @return formatted file name including timestamp.
      */
     private String buildFileName(ReportView view, String extension) {
