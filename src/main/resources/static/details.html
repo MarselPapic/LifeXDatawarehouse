@@ -346,7 +346,87 @@
         if(normalized === 'softwareassignments') return false;
         if(normalized === 'archivedby') return false;
         if(normalized === 'archivedat') return isArchivedRecord(row);
+        if(normalized === 'isarchived' || normalized === 'archived') return false;
         return true;
+    }
+    /* -------- FK-to-entity resolution for detail view -------- */
+    const DETAIL_FK_SUFFIXES = [
+        ['deploymentvariantguid', 'deploymentvariant'],
+        ['deploymentvariantid',   'deploymentvariant'],
+        ['servicecontractguid',   'servicecontract'],
+        ['servicecontractid',     'servicecontract'],
+        ['contractguid',          'servicecontract'],
+        ['contractid',            'servicecontract'],
+        ['projectguid',           'project'],
+        ['projectid',             'project'],
+        ['addressguid',           'address'],
+        ['addressid',             'address'],
+        ['accountguid',           'account'],
+        ['accountid',             'account'],
+        ['siteguid',              'site'],
+        ['siteid',                'site'],
+        ['assignedclientguid',    'client'],
+        ['assignedclientid',      'client'],
+        ['clientguid',            'client'],
+        ['clientid',              'client'],
+        ['softwareguid',          'software'],
+        ['softwareid',            'software'],
+        ['countrycode',           'country'],
+        ['countryid',             'country'],
+        ['cityid',                'city'],
+        ['radioid',               'radio'],
+        ['radioguid',             'radio'],
+        ['serverid',              'server'],
+        ['serverguid',            'server'],
+        ['upgradeplanid',         'upgradeplan'],
+        ['upgradeplanguid',       'upgradeplan'],
+    ];
+    function resolveFkEntityType(key) {
+        const normalized = normalizeFieldKey(key);
+        for (const [suffix, type] of DETAIL_FK_SUFFIXES) {
+            if (normalized === suffix || normalized.endsWith(suffix)) {
+                return type;
+            }
+        }
+        return null;
+    }
+    function looksLikeEntityId(value) {
+        if (value === null || value === undefined) return false;
+        const str = String(value).trim();
+        if (!str) return false;
+        if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str)) return true;
+        if (/^[A-Z]{2,3}$/.test(str)) return true;
+        return false;
+    }
+    async function enrichDetailFKFields(kvTableEl) {
+        if (!kvTableEl) return;
+        const links = [...kvTableEl.querySelectorAll('a.detail-fk-link[data-entity-type][data-entity-id]')];
+        if (!links.length) return;
+        const fetchMap = new Map();
+        links.forEach(link => {
+            const type = link.dataset.entityType;
+            const id   = link.dataset.entityId;
+            if (!type || !id) return;
+            const mapKey = `${type}|${id}`;
+            if (!fetchMap.has(mapKey)) {
+                const tbl = tableForType(type);
+                const url = `/row/${encodeURIComponent(tbl)}/${encodeURIComponent(id)}`;
+                fetchMap.set(mapKey, fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+            }
+        });
+        const results = new Map();
+        await Promise.all([...fetchMap.entries()].map(async ([k, p]) => {
+            results.set(k, await p);
+        }));
+        links.forEach(link => {
+            if (link.dataset.selfRef === 'true') return;
+            const type = link.dataset.entityType;
+            const id   = link.dataset.entityId;
+            const row  = results.get(`${type}|${id}`);
+            if (!row) return;
+            const name = labelFor(type, row);
+            if (name) link.innerHTML = `<span class="id-chip">${escapeHtml(name)}</span>`;
+        });
     }
     function shortId(value){
         const str = (value ?? '').toString().trim();
@@ -2151,7 +2231,16 @@
               if(normalizedKey === 'lifecyclestatus'){
                   cellHtml = renderLifecycleStatusBadge(v);
               }else{
-                cellHtml = v === null || v === undefined ? '' : escapeHtml(String(v));
+                const fkType = resolveFkEntityType(k);
+                const currentPk = currentTable ? PKS[currentTable] : null;
+                const isOwnPk = !!currentPk && normalizeFieldKey(k) === normalizeFieldKey(currentPk);
+                if (fkType && looksLikeEntityId(v)) {
+                    const fkHref = `/details.html?type=${encodeURIComponent(fkType)}&id=${encodeURIComponent(String(v))}`;
+                    const selfRefAttr = isOwnPk ? ' data-self-ref="true"' : '';
+                    cellHtml = `<a class="detail-fk-link" href="${escapeAttr(fkHref)}" data-entity-type="${escapeAttr(fkType)}" data-entity-id="${escapeAttr(String(v))}"${selfRefAttr}>${formatIdChip(String(v))}</a>`;
+                } else {
+                    cellHtml = v === null || v === undefined ? '' : escapeHtml(String(v));
+                }
             }
             return `<tr><th scope="row" class="key">${keyLabel}</th><td>${cellHtml}</td></tr>`;
         }).join('');
@@ -2170,6 +2259,7 @@
         }
 
         detailBodyEl.innerHTML = tableHtml;
+        enrichDetailFKFields(document.getElementById('kv')).catch(() => {});
 
         if(isSiteDetail){
             if(siteSoftwareOverviewBody){

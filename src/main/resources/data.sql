@@ -567,3 +567,53 @@ INSERT INTO ServiceContract (ContractID, AccountID, ProjectID, SiteID, ContractN
     ('d90fe3cc-a772-4aba-9510-100000000027', 'f36faeb1-e56c-4151-8bc9-040000000027', '0e142027-760b-4bb5-85e5-070000000027', '72910968-9d5b-4b3c-9298-080000000044', 'SC-2025-027', 'InProgress', DATEADD('DAY', -168, CURRENT_DATE), DATEADD('DAY', 197, CURRENT_DATE)),
     ('81358593-dc26-436d-bc6d-100000000028', 'd863f5af-c7b9-48ef-b064-040000000028', '0fb7a91d-1f21-45e9-9907-070000000028', '91ca8b42-39ee-486c-b022-080000000045', 'SC-2025-028', 'Done', DATEADD('DAY', -171, CURRENT_DATE), DATEADD('DAY', 194, CURRENT_DATE))
 ;
+
+-- Archived test data: mark selected records as archived across several entity types
+-- This demonstrates the archived row styling (gray) in table and detail views.
+
+UPDATE Account
+    SET IsArchived = TRUE,
+        ArchivedAt = DATEADD('DAY', -8, CURRENT_DATE),
+        ArchivedBy = 'admin'
+    WHERE AccountID IN (
+        '75fc7752-d81c-4398-aa1f-040000000004',  -- Sentinel Network 04
+        '1f5b9498-4591-4cc3-927b-040000000005'   -- Vertex Network 05
+    );
+
+UPDATE Project
+    SET IsArchived = TRUE,
+        ArchivedAt = DATEADD('DAY', -6, CURRENT_DATE),
+        ArchivedBy = 'admin'
+    WHERE ProjectID IN (
+        '57403bed-15b0-4146-aad4-070000000004',  -- Project Delta 04 (EOL)
+        '6d518293-b4d1-4dca-9866-070000000008'   -- Project Harbor 08 (EOL)
+    );
+
+UPDATE Site
+    SET IsArchived = TRUE,
+        ArchivedAt = DATEADD('DAY', -5, CURRENT_DATE),
+        ArchivedBy = 'admin'
+    WHERE SiteID IN (
+        'fcde8ce1-ab84-404a-8fc7-080000000007',  -- Delta 04 Hub 1
+        '7b77662c-09b5-4b48-a3fd-080000000008',  -- Delta 04 Hub 2
+        'a474481c-e010-46ff-8b18-080000000015',  -- Harbor 08 Hub 1
+        '59ced102-d984-47dd-823b-080000000016'   -- Harbor 08 Hub 2
+    );
+
+UPDATE Server
+    SET IsArchived = TRUE,
+        ArchivedAt = DATEADD('DAY', -4, CURRENT_DATE),
+        ArchivedBy = 'admin'
+    WHERE ServerID IN (
+        'd1d8df1e-205b-464c-a0a8-090000000007',  -- SRV-106 at Delta 04 Hub 1
+        'ed6a3be9-5506-40b9-b1a0-090000000008'   -- SRV-107 at Delta 04 Hub 2
+    );
+
+UPDATE Clients
+    SET IsArchived = TRUE,
+        ArchivedAt = DATEADD('DAY', -3, CURRENT_DATE),
+        ArchivedBy = 'admin'
+    WHERE ClientID IN (
+        '24a50209-bfd9-4509-bc86-0A0000000007',  -- Operator Console 007 (Delta 04 Hub 1)
+        '4383a273-390c-4e16-9d6e-0A0000000008'   -- Operator Console 008 (Delta 04 Hub 2)
+    );

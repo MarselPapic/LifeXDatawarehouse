@@ -429,6 +429,21 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 .table-id-link:hover .id-chip{
     box-shadow:0 0 0 1px rgba(0,58,112,.35) inset;
 }
+.detail-fk-link{
+    display:inline-flex;
+    align-items:center;
+    gap:.25rem;
+    text-decoration:none;
+    color:inherit;
+}
+.detail-fk-link:focus-visible{
+    outline:2px solid #003a70;
+    outline-offset:2px;
+    border-radius:6px;
+}
+.detail-fk-link:hover .id-chip{
+    box-shadow:0 0 0 1px rgba(0,58,112,.35) inset;
+}
 
 /* ===============  Detail view  =============== */
 #back{display:inline-block;margin-bottom:1.2rem;color:#fff;background:#003a70;

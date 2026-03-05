@@ -90,6 +90,10 @@ function isArchivedAtColumn(name) {
 function isArchivedByColumn(name) {
     return normalizeColumnKeyName(name) === 'archivedby';
 }
+function isArchivedFlagColumn(name) {
+    const n = normalizeColumnKeyName(name);
+    return n === 'isarchived' || n === 'archived';
+}
 function parseArchiveFlagValue(value) {
     if (typeof value === 'boolean') {
         return value;
@@ -1549,6 +1553,9 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
             if (isArchivedByColumn(column)) {
                 return false;
             }
+            if (isArchivedFlagColumn(column)) {
+                return false;
+            }
             if (isArchivedAtColumn(column)) {
                 return rows.some(isArchivedRow);
             }
@@ -1600,6 +1607,7 @@ async function renderSiteTableWithSummary(rows, baseColumns, tableTypeInfo, tabl
                     <tr>${hdr}</tr>${body}
                 </table>
             </div>`;
+        enrichTableIdCells(resultArea);
     } finally {
         setBusy(resultArea, false);
     }
@@ -1627,7 +1635,9 @@ function renderTableCell(tableName, columnName, value, row) {
         if (columnDetailType) {
             const href = `/details.html?type=${encodeURIComponent(columnDetailType)}&id=${encodeURIComponent(raw)}`;
             const hrefAttr = escapeHtml(href);
-            return `<td title="${titleAttr}"><a class="table-id-link" href="${hrefAttr}">${rendered.inner}</a></td>`;
+            const isSelfRef = columnDetailType === tableTypeInfo.detailType;
+            const selfRefAttr = isSelfRef ? ' data-self-ref="true"' : '';
+            return `<td title="${titleAttr}"><a class="table-id-link" href="${hrefAttr}" data-entity-type="${escapeHtml(columnDetailType)}" data-entity-id="${escapeHtml(raw)}"${selfRefAttr}>${rendered.inner}</a></td>`;
         }
         return `<td title="${titleAttr}">${rendered.inner}</td>`;
     }
@@ -1642,6 +1652,61 @@ function renderTableCell(tableName, columnName, value, row) {
     return `<td>${escapeHtml(raw)}</td>`;
 }
 
+/* ===================== Name enrichment for ID cells ===================== */
+function labelForEntityRow(type, row) {
+    const t = (type || '').toLowerCase();
+    switch (t) {
+        case 'account':           return val(row, 'AccountName') || null;
+        case 'project':           return val(row, 'ProjectName') || null;
+        case 'site':              return val(row, 'SiteName') || null;
+        case 'server':            return val(row, 'ServerName') || null;
+        case 'client':            return val(row, 'ClientName') || null;
+        case 'radio':             return val(row, 'RadioBrand') || null;
+        case 'audio':             return val(row, 'AudioDeviceBrand') || null;
+        case 'phone':             return val(row, 'PhoneBrand') || null;
+        case 'country':           return val(row, 'CountryName') || val(row, 'CountryCode') || null;
+        case 'city':              return val(row, 'CityName') || null;
+        case 'address':           return val(row, 'Street') || null;
+        case 'deploymentvariant': return val(row, 'VariantName') || null;
+        case 'software':          return val(row, 'Name') || null;
+        case 'upgradeplan':       return null;
+        case 'servicecontract':   return val(row, 'ContractNumber') || null;
+        default:                  return null;
+    }
+}
+
+async function enrichTableIdCells(container) {
+    if (!container) return;
+    const links = [...container.querySelectorAll('a.table-id-link[data-entity-type][data-entity-id]')];
+    if (!links.length) return;
+    // Deduplicate: one fetch per unique type+id
+    const fetchMap = new Map();
+    links.forEach(link => {
+        const type = link.dataset.entityType;
+        const id   = link.dataset.entityId;
+        if (!type || !id) return;
+        const key = `${type}|${id}`;
+        if (!fetchMap.has(key)) {
+            const table = tableForType(type);
+            const url = `/row/${encodeURIComponent(table)}/${encodeURIComponent(id)}`;
+            fetchMap.set(key, fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+        }
+    });
+    const results = new Map();
+    await Promise.all([...fetchMap.entries()].map(async ([k, p]) => {
+        results.set(k, await p);
+    }));
+    links.forEach(link => {
+        if (link.dataset.selfRef === 'true') return;
+        const type = link.dataset.entityType;
+        const id   = link.dataset.entityId;
+        const row  = results.get(`${type}|${id}`);
+        if (!row) return;
+        const name = labelForEntityRow(type, row);
+        if (name) link.innerHTML = `<span class="id-chip">${escapeHtml(name)}</span>`;
+    });
+}
+
 async function showTable(name) {
     try {
         setBusy(resultArea, true);
@@ -1651,6 +1716,9 @@ async function showTable(name) {
 
         const cols = Object.keys(rows[0]).filter(column => {
             if (isArchivedByColumn(column)) {
+                return false;
+            }
+            if (isArchivedFlagColumn(column)) {
                 return false;
             }
             if (isArchivedAtColumn(column)) {
@@ -1682,6 +1750,7 @@ async function showTable(name) {
            <tr>${hdr}</tr>${body}
          </table>
        </div>`;
+        enrichTableIdCells(resultArea);
     } catch (e) {
         resultArea.innerHTML = `<p id="error" role="alert">Error: ${e}</p>`;
     } finally {
