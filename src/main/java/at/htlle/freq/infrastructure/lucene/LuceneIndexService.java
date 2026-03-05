@@ -133,4 +133,12 @@ public interface LuceneIndexService {
      */
     void indexUpgradePlan(String upgradePlanId, String siteId, String softwareId, String plannedWindowStart, String plannedWindowEnd,
                           String status, String createdAt, String createdBy);
+
+    /**
+     * Re-indexes a single entity identified by its database table name and primary-key string.
+     * Called immediately after an archive or restore operation so the Lucene index reflects
+     * the new {@code IsArchived} state without waiting for the next periodic reindex timer.
+     * No-op when the table has no Lucene mapping or the entity cannot be found.
+     */
+    void reindexByTableAndId(String table, String rawId);
 }

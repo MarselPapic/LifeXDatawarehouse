@@ -1,5 +1,7 @@
 package at.htlle.freq.application;
 
+import at.htlle.freq.infrastructure.lucene.LuceneIndexService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,9 @@ public class ArchiveService {
     private final NamedParameterJdbcTemplate jdbc;
     private final Map<String, Meta> metadata;
 
+    @Autowired(required = false)
+    private LuceneIndexService luceneIndexService;
+
     public ArchiveService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
         this.metadata = buildMetadata();
@@ -56,7 +61,9 @@ public class ArchiveService {
         if (!exists(meta, id)) {
             return false;
         }
-        archiveRecursive(meta, id, normalizeActor(actor), new HashSet<>());
+        Set<String> visited = new HashSet<>();
+        archiveRecursive(meta, id, normalizeActor(actor), visited);
+        triggerReindex(visited);
         return true;
     }
 
@@ -75,12 +82,27 @@ public class ArchiveService {
         if (!exists(meta, id)) {
             return false;
         }
-        restoreRecursive(meta, id, normalizeActor(actor), new HashSet<>());
+        Set<String> visited = new HashSet<>();
+        restoreRecursive(meta, id, normalizeActor(actor), visited);
+        triggerReindex(visited);
         return true;
     }
 
     public boolean supports(String tableAlias) {
         return metadata.containsKey(normalizeAlias(tableAlias));
+    }
+
+    private void triggerReindex(Set<String> visited) {
+        if (luceneIndexService == null) {
+            return;
+        }
+        for (String key : visited) {
+            // key format: "A|TableName|id" or "R|TableName|id"
+            String[] parts = key.split("\\|", 3);
+            if (parts.length == 3) {
+                luceneIndexService.reindexByTableAndId(parts[1], parts[2]);
+            }
+        }
     }
 
     public String tableFor(String tableAlias) {

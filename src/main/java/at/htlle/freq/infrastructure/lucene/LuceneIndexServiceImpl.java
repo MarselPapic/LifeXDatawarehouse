@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 /*
@@ -1324,6 +1325,155 @@ public class LuceneIndexServiceImpl implements LuceneIndexService {
     public void indexUpgradePlan(String upgradePlanId, String siteId, String softwareId, String plannedWindowStart, String plannedWindowEnd,
                                  String status, String createdAt, String createdBy) {
         indexDocument(upgradePlanId, TYPE_UPGRADE_PLAN, status, plannedWindowStart, plannedWindowEnd, createdAt, createdBy, siteId, softwareId);
+    }
+
+    /**
+     * Re-indexes the single entity identified by its DB table name and raw primary-key string.
+     * Fetches the current entity state (including the updated IsArchived flag) from the JPA
+     * repository and writes the Lucene document immediately, bypassing the periodic timer.
+     */
+    @Override
+    public void reindexByTableAndId(String table, String rawId) {
+        if (table == null || rawId == null || rawId.isBlank()) {
+            return;
+        }
+        try {
+            switch (table) {
+                case "Account" -> {
+                    if (accountRepository != null) {
+                        accountRepository.findById(UUID.fromString(rawId)).ifPresent(a ->
+                                indexAccount(toStringOrNull(a.getAccountID()), a.getAccountName(),
+                                        a.getCountry(), a.getContactEmail()));
+                    }
+                }
+                case "Address" -> {
+                    if (addressRepository != null) {
+                        addressRepository.findById(UUID.fromString(rawId)).ifPresent(a ->
+                                indexAddress(toStringOrNull(a.getAddressID()), a.getStreet(), a.getCityID()));
+                    }
+                }
+                case "AudioDevice" -> {
+                    if (audioDeviceRepository != null) {
+                        audioDeviceRepository.findById(UUID.fromString(rawId)).ifPresent(d ->
+                                indexAudioDevice(toStringOrNull(d.getAudioDeviceID()), toStringOrNull(d.getClientID()),
+                                        d.getAudioDeviceBrand(), d.getDeviceSerialNr(), d.getAudioDeviceFirmware(),
+                                        d.getDeviceType(), d.getDirection()));
+                    }
+                }
+                case "City" -> {
+                    if (cityRepository != null) {
+                        cityRepository.findById(rawId).ifPresent(c ->
+                                indexCity(c.getCityID(), c.getCityName(), c.getCountryCode()));
+                    }
+                }
+                case "Clients" -> {
+                    if (clientsRepository != null) {
+                        clientsRepository.findById(UUID.fromString(rawId)).ifPresent(c ->
+                                indexClient(toStringOrNull(c.getClientID()), toStringOrNull(c.getSiteID()),
+                                        c.getClientName(), c.getClientBrand(), c.getClientOS(),
+                                        c.getInstallType(), c.getWorkingPositionType(), c.getOtherInstalledSoftware()));
+                    }
+                }
+                case "Country" -> {
+                    if (countryRepository != null) {
+                        countryRepository.findById(rawId).ifPresent(c ->
+                                indexCountry(c.getCountryCode(), c.getCountryName()));
+                    }
+                }
+                case "DeploymentVariant" -> {
+                    if (deploymentVariantRepository != null) {
+                        deploymentVariantRepository.findById(UUID.fromString(rawId)).ifPresent(v ->
+                                indexDeploymentVariant(toStringOrNull(v.getVariantID()), v.getVariantCode(),
+                                        v.getVariantName(), v.getDescription(), v.isActive()));
+                    }
+                }
+                case "InstalledSoftware" -> {
+                    if (installedSoftwareRepository != null) {
+                        installedSoftwareRepository.findById(UUID.fromString(rawId)).ifPresent(s ->
+                                indexInstalledSoftware(toStringOrNull(s.getInstalledSoftwareID()),
+                                        toStringOrNull(s.getSiteID()), toStringOrNull(s.getSoftwareID()),
+                                        s.getStatus(), s.getOfferedDate(), s.getInstalledDate(),
+                                        s.getRejectedDate(), s.getOutdatedDate()));
+                    }
+                }
+                case "PhoneIntegration" -> {
+                    if (phoneIntegrationRepository != null) {
+                        phoneIntegrationRepository.findById(UUID.fromString(rawId)).ifPresent(p ->
+                                indexPhoneIntegration(toStringOrNull(p.getPhoneIntegrationID()),
+                                        toStringOrNull(p.getSiteID()), p.getPhoneType(), p.getPhoneBrand(),
+                                        p.getInterfaceName(), p.getCapacity(), p.getPhoneFirmware()));
+                    }
+                }
+                case "Project" -> {
+                    if (projectRepository != null) {
+                        projectRepository.findById(UUID.fromString(rawId)).ifPresent(p ->
+                                indexProject(toStringOrNull(p.getProjectID()), p.getProjectSAPID(),
+                                        p.getProjectName(), toStringOrNull(p.getDeploymentVariantID()),
+                                        p.getBundleType(),
+                                        p.getLifecycleStatus() != null ? p.getLifecycleStatus().name() : null,
+                                        toStringOrNull(p.getAccountID()), toStringOrNull(p.getAddressID()),
+                                        p.getSpecialNotes()));
+                    }
+                }
+                case "Radio" -> {
+                    if (radioRepository != null) {
+                        radioRepository.findById(UUID.fromString(rawId)).ifPresent(r ->
+                                indexRadio(toStringOrNull(r.getRadioID()), toStringOrNull(r.getSiteID()),
+                                        toStringOrNull(r.getAssignedClientID()), r.getRadioBrand(),
+                                        r.getRadioSerialNr(), r.getMode(), r.getDigitalStandard()));
+                    }
+                }
+                case "Server" -> {
+                    if (serverRepository != null) {
+                        serverRepository.findById(UUID.fromString(rawId)).ifPresent(s ->
+                                indexServer(toStringOrNull(s.getServerID()), toStringOrNull(s.getSiteID()),
+                                        s.getServerName(), s.getServerBrand(), s.getServerSerialNr(),
+                                        s.getServerOS(), s.getPatchLevel(), s.getVirtualPlatform(),
+                                        s.getVirtualVersion()));
+                    }
+                }
+                case "ServiceContract" -> {
+                    if (serviceContractRepository != null) {
+                        serviceContractRepository.findById(UUID.fromString(rawId)).ifPresent(c ->
+                                indexServiceContract(toStringOrNull(c.getContractID()),
+                                        toStringOrNull(c.getAccountID()), toStringOrNull(c.getProjectID()),
+                                        toStringOrNull(c.getSiteID()), c.getContractNumber(), c.getStatus(),
+                                        toStringOrNull(c.getStartDate()), toStringOrNull(c.getEndDate())));
+                    }
+                }
+                case "Site" -> {
+                    if (siteRepository != null) {
+                        siteRepository.findById(UUID.fromString(rawId)).ifPresent(s ->
+                                indexSite(toStringOrNull(s.getSiteID()),
+                                        s.getProjectID() != null ? List.of(s.getProjectID().toString()) : List.of(),
+                                        toStringOrNull(s.getAddressID()), s.getSiteName(), s.getFireZone(),
+                                        s.getTenantCount(), s.getRedundantServers(), s.isHighAvailability()));
+                    }
+                }
+                case "Software" -> {
+                    if (softwareRepository != null) {
+                        softwareRepository.findById(UUID.fromString(rawId)).ifPresent(s ->
+                                indexSoftware(toStringOrNull(s.getSoftwareID()), s.getName(), s.getRelease(),
+                                        s.getVersion(), s.getRevision(), s.getSupportPhase(), s.getLicenseModel(),
+                                        s.isThirdParty(), s.getEndOfSalesDate(), s.getSupportStartDate(),
+                                        s.getSupportEndDate()));
+                    }
+                }
+                case "UpgradePlan" -> {
+                    if (upgradePlanRepository != null) {
+                        upgradePlanRepository.findById(UUID.fromString(rawId)).ifPresent(p ->
+                                indexUpgradePlan(toStringOrNull(p.getUpgradePlanID()),
+                                        toStringOrNull(p.getSiteID()), toStringOrNull(p.getSoftwareID()),
+                                        toStringOrNull(p.getPlannedWindowStart()),
+                                        toStringOrNull(p.getPlannedWindowEnd()), p.getStatus(),
+                                        toStringOrNull(p.getCreatedAt()), p.getCreatedBy()));
+                    }
+                }
+                default -> log.debug("reindexByTableAndId: no Lucene mapping for table '{}'", table);
+            }
+        } catch (Exception ex) {
+            log.warn("reindexByTableAndId failed for table={} id={}: {}", table, rawId, ex.getMessage(), ex);
+        }
     }
 
     private static class LicenseReadingException extends RuntimeException {
