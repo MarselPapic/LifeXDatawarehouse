@@ -361,22 +361,22 @@ INSERT INTO Clients (ClientID, SiteID, ClientName, ClientBrand, ClientSerialNr, 
 
 -- Radios (site-assigned devices and modes)
 INSERT INTO Radio (RadioID, SiteID, AssignedClientID, RadioBrand, RadioSerialNr, Mode, DigitalStandard) VALUES
-    ('35993a79-bb85-450a-b9df-0B0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '166830fd-808b-46d2-ba03-0A0000000001', 'Motorola', 'RD-0300', 'Analog', 'Motorola'),
+    ('35993a79-bb85-450a-b9df-0B0000000001', '9356ae01-fce4-4d24-84ca-080000000001', '166830fd-808b-46d2-ba03-0A0000000001', 'Motorola', 'RD-0300', 'Analog', NULL),
     ('4cb763dc-529d-45eb-a42b-0B0000000002', '7e723334-3ac1-454c-8e6d-080000000002', NULL, 'Airbus', 'RD-0301', 'Digital', 'Airbus'),
     ('39ac3788-d983-45af-aecb-0B0000000003', 'c5314a99-d4d0-4939-8f0f-080000000003', 'f047feae-dee3-4ea9-ae79-0A0000000003', 'Kenwood', 'RD-0302', 'Digital', 'P25'),
-    ('7bb7c748-02f6-4904-b4e5-0B0000000004', '572031c7-2b2b-4914-b228-080000000004', NULL, 'Hytera', 'RD-0303', 'Analog', 'Tetra'),
+    ('7bb7c748-02f6-4904-b4e5-0B0000000004', '572031c7-2b2b-4914-b228-080000000004', NULL, 'Hytera', 'RD-0303', 'Analog', NULL),
     ('af7cef23-12ef-457a-bb79-0B0000000005', '7c82162b-ef58-4f14-96db-080000000005', '88795830-95d4-4be7-b831-0A0000000005', 'Motorola', 'RD-0304', 'Digital', NULL),
     ('db003729-c789-439c-b9a3-0B0000000006', '65a3be41-4d28-4276-a711-080000000006', NULL, 'Airbus', 'RD-0305', 'Digital', 'Motorola'),
-    ('1d340d54-7af5-4b31-b690-0B0000000007', 'fcde8ce1-ab84-404a-8fc7-080000000007', '24a50209-bfd9-4509-bc86-0A0000000007', 'Kenwood', 'RD-0306', 'Analog', 'Airbus'),
+    ('1d340d54-7af5-4b31-b690-0B0000000007', 'fcde8ce1-ab84-404a-8fc7-080000000007', '24a50209-bfd9-4509-bc86-0A0000000007', 'Kenwood', 'RD-0306', 'Analog', NULL),
     ('188ed049-4995-443c-b5d2-0B0000000008', '7b77662c-09b5-4b48-a3fd-080000000008', NULL, 'Hytera', 'RD-0307', 'Digital', 'P25'),
     ('10e93660-cff0-4e8d-99c8-0B0000000009', '95ae3b4a-058a-4412-9302-080000000009', 'c28d637f-f7b4-4f73-9248-0A0000000009', 'Motorola', 'RD-0308', 'Digital', 'Tetra'),
     ('e5ca389a-4f27-4b0f-bd97-0B0000000010', '9f40a081-9821-4962-a5d7-080000000010', NULL, 'Airbus', 'RD-0309', 'Analog', NULL),
     ('c41b0636-3b62-4f52-8725-0B0000000011', 'f0227786-e7a8-4612-bb1a-080000000011', '1ba96d57-e9a5-4239-b69c-0A0000000011', 'Kenwood', 'RD-0310', 'Digital', 'Motorola'),
     ('2d771fd0-9bcc-41dd-98d0-0B0000000012', '5542cc53-724f-4d4f-85fd-080000000012', NULL, 'Hytera', 'RD-0311', 'Digital', 'Airbus'),
-    ('67454060-cd65-44e4-9753-0B0000000013', '65aec290-3c78-4380-aaa8-080000000013', '3b3045f5-383d-42a6-850b-0A0000000013', 'Motorola', 'RD-0312', 'Analog', 'P25'),
+    ('67454060-cd65-44e4-9753-0B0000000013', '65aec290-3c78-4380-aaa8-080000000013', '3b3045f5-383d-42a6-850b-0A0000000013', 'Motorola', 'RD-0312', 'Analog', NULL),
     ('61c00979-ea25-4389-8d1e-0B0000000014', '2e4e3983-fe01-4281-b33d-080000000014', NULL, 'Airbus', 'RD-0313', 'Digital', 'Tetra'),
     ('51338123-3c50-4024-8c60-0B0000000015', 'a474481c-e010-46ff-8b18-080000000015', '895ebd27-7950-4724-b280-0A0000000015', 'Kenwood', 'RD-0314', 'Digital', NULL),
-    ('6d9c55e6-cc79-41ea-a696-0B0000000016', '59ced102-d984-47dd-823b-080000000016', NULL, 'Hytera', 'RD-0315', 'Analog', 'Motorola'),
+    ('6d9c55e6-cc79-41ea-a696-0B0000000016', '59ced102-d984-47dd-823b-080000000016', NULL, 'Hytera', 'RD-0315', 'Analog', NULL),
     ('d9d63fa3-fb99-4385-95f2-0B0000000017', 'a78012f5-46a9-4623-bc92-080000000017', '49024d1b-c1b4-4531-bf83-0A0000000017', 'Motorola', 'RD-0316', 'Digital', 'Airbus'),
     ('429e50e0-ca17-4752-8b53-0B0000000018', 'e76c819e-ec72-4aa4-b67a-080000000018', NULL, 'Airbus', 'RD-0317', 'Digital', 'P25')
 ;

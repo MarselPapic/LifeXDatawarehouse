@@ -454,7 +454,6 @@ public class SiteController {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no site archived");
             }
             audit.archived(TABLE, Map.of("SiteID", id), Map.of("actor", actor));
-            audit.deleted(TABLE, Map.of("SiteID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("SiteID", id), ex.getReason(), null);
             throw ex;

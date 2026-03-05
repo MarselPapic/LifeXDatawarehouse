@@ -213,7 +213,6 @@ public class ServerController {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no server archived");
             }
             audit.archived(TABLE, Map.of("ServerID", id), Map.of("actor", actor));
-            audit.deleted(TABLE, Map.of("ServerID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("ServerID", id), ex.getReason(), null);
             throw ex;

@@ -67,7 +67,7 @@ public class ClientController {
     public List<Clients> findBySite(@RequestParam(required = false) UUID siteId,
                                     @RequestParam(required = false, name = "archiveState") String archiveStateRaw) {
         ArchiveState archiveState = parseArchiveState(archiveStateRaw);
-        if (archiveState == ArchiveState.ACTIVE || jdbc == null) {
+        if (jdbc == null) {
             if (siteId == null) {
                 return service.findAll();
             }

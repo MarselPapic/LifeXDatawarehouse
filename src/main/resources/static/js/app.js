@@ -810,6 +810,14 @@ const COLUMN_DETAIL_TYPE_OVERRIDE_SUFFIXES = [
     ['countrycode', 'country'],
     ['countryid', 'country'],
     ['cityid', 'city'],
+    ['radioid', 'radio'],
+    ['radioguid', 'radio'],
+    ['serverid', 'server'],
+    ['serverguid', 'server'],
+    ['upgradeplanid', 'upgradeplan'],
+    ['upgradeplanguid', 'upgradeplan'],
+    ['installedsoftwareid', 'installedsoftware'],
+    ['installedsoftwareguid', 'installedsoftware'],
 ];
 
 function resolveColumnDetailType(columnName, fallbackDetailType) {

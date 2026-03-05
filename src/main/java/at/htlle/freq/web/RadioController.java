@@ -206,7 +206,6 @@ public class RadioController {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no radio archived");
             }
             audit.archived(TABLE, Map.of("RadioID", id), Map.of("actor", actor));
-            audit.deleted(TABLE, Map.of("RadioID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("RadioID", id), ex.getReason(), null);
             throw ex;

@@ -261,7 +261,6 @@ public class PhoneController {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no phone integration archived");
             }
             audit.archived(TABLE, Map.of("PhoneIntegrationID", id), Map.of("actor", actor));
-            audit.deleted(TABLE, Map.of("PhoneIntegrationID", id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", TABLE, Map.of("PhoneIntegrationID", id), ex.getReason(), null);
             throw ex;

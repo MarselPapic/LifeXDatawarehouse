@@ -107,7 +107,7 @@ public class GenericCrudController {
         c.put("Server", Set.of("ServerID", "SiteID", "ServerName", "ServerBrand", "ServerSerialNr", "ServerOS", "PatchLevel", "VirtualPlatform", "VirtualVersion"));
         c.put("Clients", Set.of("ClientID", "SiteID", "ClientName", "ClientBrand", "ClientSerialNr", "ClientOS", "PatchLevel", "InstallType", "WorkingPositionType", "OtherInstalledSoftware"));
         c.put("Radio", Set.of("RadioID", "SiteID", "AssignedClientID", "RadioBrand", "RadioSerialNr", "Mode", "DigitalStandard"));
-        c.put("AudioDevice", Set.of("AudioDeviceID", "ClientID", "AudioDeviceBrand", "DeviceSerialNr", "AudioDeviceFirmware", "DeviceType"));
+            c.put("AudioDevice", Set.of("AudioDeviceID", "ClientID", "AudioDeviceBrand", "DeviceSerialNr", "AudioDeviceFirmware", "DeviceType", "Direction"));
         c.put("PhoneIntegration", Set.of("PhoneIntegrationID", "SiteID", "PhoneType", "PhoneBrand", "InterfaceName", "Capacity", "PhoneFirmware"));
         c.put("Country", Set.of("CountryCode", "CountryName"));
         c.put("City", Set.of("CityID", "CityName", "CountryCode"));
@@ -413,7 +413,6 @@ public class GenericCrudController {
                     throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record archived");
                 }
                 audit.archived(table, Map.of(PKS.getOrDefault(table, "id"), id), Map.of("actor", actor));
-                audit.deleted(table, Map.of(pk, id));
                 return;
             }
             String sql = "UPDATE " + table + " SET IsArchived = TRUE, ArchivedAt = CURRENT_TIMESTAMP, ArchivedBy = :actor WHERE " + pk + " = :id AND IsArchived = FALSE";
@@ -422,7 +421,6 @@ public class GenericCrudController {
                 throw logAndThrow(HttpStatus.NOT_FOUND, table, "delete", "no record archived");
             }
             audit.archived(table, Map.of(pk, id), Map.of("actor", actor));
-            audit.deleted(table, Map.of(pk, id));
         } catch (ResponseStatusException ex) {
             audit.failed("DELETE", table == null ? name : table, Map.of("id", id), ex.getReason(), null);
             throw ex;

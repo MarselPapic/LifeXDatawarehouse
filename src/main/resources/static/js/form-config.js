@@ -229,7 +229,7 @@
             { id: 'contact', label: 'Contact Person', component: 'input', name: 'ContactName', required: false, hint: 'Optional contact person for the customer account.' },
             { id: 'email', label: 'Email', component: 'input', name: 'ContactEmail', required: false, inputType: 'email', autocomplete: 'email', inputmode: 'email', hint: 'Used for automated notifications.' },
             { id: 'phone', label: 'Phone', component: 'input', name: 'ContactPhone', required: false, inputType: 'tel', pattern: '^[+0-9()\s-]{5,}$', inputmode: 'tel', hint: 'Include the country code if possible.' },
-            { id: 'vat', label: 'VAT ID', component: 'input', name: 'VatNumber', required: false, hint: 'Enter the tax number without spaces.' },
+            { id: 'vat', label: 'VAT ID', component: 'input', name: 'VATNumber', required: false, hint: 'Enter the tax number without spaces.' },
             { id: 'country', label: 'Country', component: 'asyncSelect', source: 'countries', allowManual: false, placeholder: 'Select country', name: 'Country', required: false, hint: 'Select a two-letter ISO country code from the list.' }
         ],
         Address: [
@@ -288,7 +288,7 @@
             { id: 'brand', label: 'Brand', component: 'input', name: 'RadioBrand', required: false },
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'RadioSerialNr', required: false },
             { id: 'mode', label: 'Mode', component: 'select', options: ['Analog','Digital'], name: 'Mode' },
-            { id: 'standard', label: 'Digital Standard', component: 'select', options: ['Airbus','Motorola','ESN','P25','Polycom','Teltronics'], name: 'DigitalStandard', required: false },
+            { id: 'standard', label: 'Digital Standard', component: 'select', options: ['Airbus','Motorola','ESN','P25','Polycom','Teltronics','Tetra'], name: 'DigitalStandard', required: false },
             { id: 'client', label: 'AssignedClientID (UUID)', component: 'asyncSelect', source: 'clients', allowManual: false, name: 'AssignedClientID', required: false, placeholder: 'Select client (optional)', dependsOn: 'siteId' }
         ],
         Server: [

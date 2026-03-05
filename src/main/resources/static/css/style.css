@@ -376,17 +376,18 @@ tr.is-archived td{
 .id-chip{
     display:inline-flex;
     align-items:center;
-    background:#eef4ff;
-    border:1px solid #cfe0ff;
+    background:#eef2ff;
+    border:1px solid #d6dcff;
     border-radius:999px;
-    padding:.1rem .55rem;
-    font-family:monospace;
-    font-size:.85rem;
+    padding:.1rem .45rem;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    font-size:.85em;
     line-height:1.2;
-    color:#003a70;
+    color:#334155;
     white-space:nowrap;
+    vertical-align:middle;
 }
-td .id-chip{vertical-align:middle}
+.id-chip:not(:first-child){margin-left:.35rem}
 table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 #resultArea p{margin:0}
 #error{color:red;margin-top:1rem}
@@ -455,9 +456,6 @@ table caption{text-align:left;font-weight:600;margin-bottom:.4rem}
 #kv{border-collapse:collapse;width:100%}
 #kv th, #kv td{border:1px solid #ddd;padding:.45rem}
 #kv th.key{font-weight:bold;width:180px;background:#f3f7ff;text-align:left}
-.id-chip{display:inline-flex;align-items:center;font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:.85em;
-    color:#334155;background:#eef2ff;border:1px solid #d6dcff;border-radius:999px;padding:.1rem .4rem;line-height:1.2;vertical-align:middle}
-.id-chip:not(:first-child){margin-left:.35rem}
 .detail-header{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
 .detail-header-main{flex:1;min-width:0;position:relative;padding-right:4.5rem}
 .detail-header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}

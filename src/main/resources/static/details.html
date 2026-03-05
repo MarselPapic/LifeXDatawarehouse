@@ -119,7 +119,8 @@
         DeploymentVariant: 'VariantID',
         Software: 'SoftwareID',
         UpgradePlan: 'UpgradePlanID',
-        ServiceContract: 'ContractID'
+        ServiceContract: 'ContractID',
+        InstalledSoftware: 'InstalledSoftwareID'
     };
 
     const LIFECYCLE_STATUS_DISPLAY = {
@@ -380,6 +381,8 @@
         ['serverguid',            'server'],
         ['upgradeplanid',         'upgradeplan'],
         ['upgradeplanguid',       'upgradeplan'],
+        ['installedsoftwareid',   'installedsoftware'],
+        ['installedsoftwareguid', 'installedsoftware'],
     ];
     function resolveFkEntityType(key) {
         const normalized = normalizeFieldKey(key);
