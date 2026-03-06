@@ -590,6 +590,19 @@
         return `<label for="${id}" class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span><select class="detail-input"${selectAttrs}><option value="">${escapeAttr(placeholder)}</option>${optionsHtml}</select></label>`;
     };
 
+    const renderDetailComboboxField = (id, label, choices, opts={}) => {
+        const config = {...opts};
+        if(config.required === undefined) config.required = true;
+        const name = config.name || id;
+        const selectedValue = config.value ?? '';
+        const values = toChoices(choices);
+        const listId = `${id}-datalist`;
+        const optionsHtml = values.map(o => `<option value="${escapeAttr(o.value)}">`).join('');
+        const reqAttr = config.required !== false ? ' required' : '';
+        const vtAttr = config.valueType ? ` data-value-type="${escapeAttr(config.valueType)}"` : '';
+        return `<label for="${escapeAttr(id)}" class="detail-field"><span class="detail-field-label">${escapeHtml(label)}</span><input id="${escapeAttr(id)}" name="${escapeAttr(name)}" class="detail-input" list="${escapeAttr(listId)}" value="${escapeAttr(selectedValue)}" autocomplete="off"${reqAttr}${vtAttr}><datalist id="${escapeAttr(listId)}">${optionsHtml}</datalist></label>`;
+    };
+
     function renderDetailAsyncSelect(id,label,sourceKey,options={}){
         const {required=true, allowManual=true, placeholder='Please select', dependsOn=null, emptyText='No entries available', filter=null, name=null, value=null, multiple=false, valueType='text'} = options;
         detailAsyncSelectConfigs[id]={sourceKey, required, allowManual, placeholder, dependsOn, emptyText, filter, name, initialValue:value, multiple, valueType};
@@ -622,6 +635,8 @@
         }
         if(component==='select'){
             if(!config.valueType) config.valueType='text';
+        }else if(component==='combobox'){
+            if(!config.valueType) config.valueType='text';
         }else if(component==='asyncselect'){
             if(!config.valueType) config.valueType=config.multiple ? 'array' : 'text';
         }else{
@@ -634,6 +649,9 @@
         }
         if(component==='select'){
             return renderSelectField(config.id, config.label, config.options||[], config);
+        }
+        if(component==='combobox'){
+            return renderDetailComboboxField(config.id, config.label, config.options||[], config);
         }
         if(component==='asyncselect'){
             return renderDetailAsyncSelect(config.id, config.label, config.source, {

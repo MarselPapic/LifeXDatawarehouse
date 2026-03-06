@@ -126,6 +126,7 @@ country:germany             # Field search
 
 ## Logs and Troubleshooting
 - Log directory: `logs/` by default. Override with environment variable `LOG_PATH`.
+- Each current log file starts with a one-line header that describes what the file contains.
 - `LiveXDataWarehouse-app.log`: regular application flow (web/API calls, service logic, infrastructure events).
 - `LiveXDataWarehouse-audit.log`: data mutations (`CREATE`, `UPDATE`, `DELETE`, `UPSERT`) including failed write attempts (`result=FAIL`).
 - `LiveXDataWarehouse-ops.log`: operational components (Lucene indexing, Camel routes, index admin operations).

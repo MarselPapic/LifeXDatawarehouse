@@ -189,15 +189,13 @@ CREATE TABLE Server (
                         ServerSerialNr   VARCHAR(100),
                         ServerOS         VARCHAR(100),
                         PatchLevel       VARCHAR(50),
-                        VirtualPlatform  VARCHAR(20),
+                        VirtualPlatform  VARCHAR(50),
                         VirtualVersion   VARCHAR(50),
                         IsArchived       BOOLEAN      NOT NULL DEFAULT FALSE,
                         ArchivedAt       TIMESTAMP,
                         ArchivedBy       VARCHAR(100),
                         CONSTRAINT fk_server_site FOREIGN KEY (SiteID)
-                            REFERENCES Site(SiteID),
-                        CONSTRAINT ck_server_virtualplatform
-                            CHECK (VirtualPlatform IN ('BareMetal','HyperV','vSphere') OR VirtualPlatform IS NULL)
+                            REFERENCES Site(SiteID)
 );
 
 -- =========================================================

@@ -5,6 +5,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.FileAppender;
+import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -46,6 +47,17 @@ class LogbackRoutingIntegrationTest {
             assertThat(appAppender.getFile()).endsWith("LiveXDataWarehouse-app.log");
             assertThat(auditAppender.getFile()).endsWith("LiveXDataWarehouse-audit.log");
             assertThat(opsAppender.getFile()).endsWith("LiveXDataWarehouse-ops.log");
+
+            LayoutWrappingEncoder<?> appEncoder = (LayoutWrappingEncoder<?>) appAppender.getEncoder();
+            LayoutWrappingEncoder<?> auditEncoder = (LayoutWrappingEncoder<?>) auditAppender.getEncoder();
+            LayoutWrappingEncoder<?> opsEncoder = (LayoutWrappingEncoder<?>) opsAppender.getEncoder();
+
+            assertThat(appEncoder.getLayout().getFileHeader())
+                    .contains("regular application flow");
+            assertThat(auditEncoder.getLayout().getFileHeader())
+                    .contains("audit entries for data changes");
+            assertThat(opsEncoder.getLayout().getFileHeader())
+                    .contains("operational events for Lucene indexing");
         } finally {
             context.stop();
         }

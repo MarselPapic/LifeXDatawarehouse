@@ -9,8 +9,11 @@
             <totalSizeCap>3GB</totalSizeCap>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder>
-            <pattern>%d{ISO8601} [APP] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.classic.PatternLayout">
+                <fileHeader>This file stores regular application flow (web/API calls, service logic, infrastructure events).&#10;</fileHeader>
+                <pattern>%d{ISO8601} [APP] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+            </layout>
         </encoder>
     </appender>
 
@@ -22,8 +25,11 @@
             <totalSizeCap>3GB</totalSizeCap>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder>
-            <pattern>%d{ISO8601} [AUDIT] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.classic.PatternLayout">
+                <fileHeader>This file stores audit entries for data changes (CREATE, UPDATE, DELETE, UPSERT) including failed write attempts.&#10;</fileHeader>
+                <pattern>%d{ISO8601} [AUDIT] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+            </layout>
         </encoder>
     </appender>
 
@@ -35,8 +41,11 @@
             <totalSizeCap>3GB</totalSizeCap>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
-        <encoder>
-            <pattern>%d{ISO8601} [OPS] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.classic.PatternLayout">
+                <fileHeader>This file stores operational events for Lucene indexing, Camel routes, and index administration.&#10;</fileHeader>
+                <pattern>%d{ISO8601} [OPS] [%X{requestId:-N/A}] [%X{user:-anonymous}] [%X{httpMethod:-N/A}] [%X{path:-N/A}] [%X{status:-N/A}] [%X{durationMs:-N/A}ms] %-5level %logger - %msg%n</pattern>
+            </layout>
         </encoder>
     </appender>
 

@@ -298,7 +298,7 @@
             { id: 'serial', label: 'Serial Number', component: 'input', name: 'ServerSerialNr', required: false },
             { id: 'os', label: 'Operating System', component: 'input', name: 'ServerOS', required: false },
             { id: 'patch', label: 'Patch Level', component: 'input', name: 'PatchLevel', required: false },
-            { id: 'vplat', label: 'Virtual Platform', component: 'select', options: ['BareMetal','HyperV','vSphere'], name: 'VirtualPlatform' },
+            { id: 'vplat', label: 'Virtual Platform', component: 'combobox', options: ['BareMetal','HyperV','vSphere'], name: 'VirtualPlatform' },
             { id: 'vver', label: 'Virtual Version', component: 'input', name: 'VirtualVersion', required: false }
         ],
         ServiceContract: [

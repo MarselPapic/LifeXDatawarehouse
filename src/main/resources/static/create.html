@@ -1269,6 +1269,19 @@
         return def.defaultValue;
     }
 
+    function renderComboboxField(id, label, choices, opts={}){
+        const config={...opts};
+        if(config.required===undefined) config.required=true;
+        const wrapperClass=config.wrapperClass||'form-field';
+        const name=config.name||id;
+        const values=Array.isArray(choices)?toChoices(choices):toChoices([]);
+        const selectedValue=config.value??'';
+        const listId=`${id}-datalist`;
+        const optionsHtml=values.map(o=>`<option value="${escapeAttr(o.value)}">`).join('');
+        const reqAttr=config.required!==false?' required':'';
+        return `<label class="${wrapperClass}" for="${escapeAttr(id)}"><span class="form-field__label">${escapeHtml(label)}</span><input id="${escapeAttr(id)}" name="${escapeAttr(name)}" list="${escapeAttr(listId)}" value="${escapeAttr(selectedValue)}" autocomplete="off"${reqAttr}><datalist id="${escapeAttr(listId)}">${optionsHtml}</datalist></label>`;
+    }
+
     function renderFieldFromConfig(def, overrides={}){
         if(!def) return '';
         const config={...def,...overrides};
@@ -1282,6 +1295,14 @@
                 wrapperClass: config.wrapperClass||'form-field'
             };
             return addSel(config.id, config.label, config.options||[], opts);
+        }
+        if(component==='combobox'){
+            return renderComboboxField(config.id, config.label, config.options||[], {
+                required: config.required!==false,
+                name: config.name,
+                value: config.value,
+                wrapperClass: config.wrapperClass||'form-field'
+            });
         }
         if(component==='softwarelist'){
             return renderSoftwareListField(config);
