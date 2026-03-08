@@ -41,6 +41,11 @@ public class ArchiveService {
     @Autowired(required = false)
     private LuceneIndexService luceneIndexService;
 
+    /**
+     * Creates the archive service with JDBC access to the application tables.
+     *
+     * @param jdbc JDBC template used for archive and restore updates.
+     */
     public ArchiveService(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
         this.metadata = buildMetadata();
@@ -88,6 +93,12 @@ public class ArchiveService {
         return true;
     }
 
+    /**
+     * Checks whether the given table alias is supported by the archive metadata model.
+     *
+     * @param tableAlias table alias to resolve.
+     * @return {@code true} if the alias is supported; otherwise {@code false}.
+     */
     public boolean supports(String tableAlias) {
         return metadata.containsKey(normalizeAlias(tableAlias));
     }
@@ -105,6 +116,12 @@ public class ArchiveService {
         }
     }
 
+    /**
+     * Resolves the physical table name for a supported archive alias.
+     *
+     * @param tableAlias table alias to resolve.
+     * @return physical table name used in SQL statements.
+     */
     public String tableFor(String tableAlias) {
         return resolve(tableAlias).table;
     }

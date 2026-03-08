@@ -18,10 +18,20 @@ public enum ReportView {
         this.title = title;
     }
 
+    /**
+     * Returns the query parameter value used by the HTTP API.
+     *
+     * @return stable query token for this report view.
+     */
     public String queryValue() {
         return queryValue;
     }
 
+    /**
+     * Returns the human-readable title of the report view.
+     *
+     * @return display title shown in the reporting UI and exports.
+     */
     public String title() {
         return title;
     }

@@ -2093,8 +2093,8 @@
         archiveActionButtonEl.hidden = false;
         archiveActionButtonEl.disabled = false;
         archiveActionButtonEl.classList.toggle('is-restore', archived);
-        archiveActionButtonEl.textContent = archived ? 'Entarchivieren' : 'Archivieren';
-        archiveActionButtonEl.title = archived ? 'Dieses Objekt entarchivieren' : 'Dieses Objekt archivieren';
+        archiveActionButtonEl.textContent = archived ? 'Restore' : 'Archive';
+        archiveActionButtonEl.title = archived ? 'Restore this record' : 'Archive this record';
     }
 
     async function toggleArchiveState(){

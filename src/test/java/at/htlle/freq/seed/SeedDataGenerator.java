@@ -60,6 +60,11 @@ public final class SeedDataGenerator {
     private SeedDataGenerator() {
     }
 
+    /**
+     * Generates the demo seed file from the command line.
+     *
+     * @param args application arguments.
+     */
     public static void main(String[] args) throws IOException {
         new SeedDataGenerator().run();
     }
@@ -737,7 +742,7 @@ public final class SeedDataGenerator {
     private void appendInsert(StringBuilder sb, String table, List<String> columns, List<String> rows) {
         sb.append("-- ").append(table).append("\n");
         if (rows.isEmpty()) {
-            sb.append("-- (keine Daten)\n\n");
+            sb.append("-- (no data)\n\n");
             return;
         }
         sb.append("INSERT INTO ").append(table).append(" (")

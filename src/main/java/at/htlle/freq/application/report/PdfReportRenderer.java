@@ -52,6 +52,9 @@ public class PdfReportRenderer {
     private final String template;
     private final String stylesheet;
 
+    /**
+     * Loads the bundled HTML template and stylesheet used for PDF rendering.
+     */
     public PdfReportRenderer() {
         this.template = loadResource("report/pdf/report-template.html");
         this.stylesheet = loadResource("report/pdf/report.css");

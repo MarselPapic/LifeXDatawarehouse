@@ -62,6 +62,6 @@ Raw artifacts:
 - Req `2.1.03` load expectation evidence status: `CONDITIONAL` with comments.
 
 Comments:
-- Die 10s-SLA fuer Search und Reports ist in allen Profilen deutlich unterschritten.
-- Die Volumenwerte sind gegen den aktuellen Demo-Seed (`docs/data-volume-plan.md`) erhoben und dokumentiert.
-- Falls fuer die Abnahme explizit ein hoeheres Lastziel (z. B. 200/200/1000) gefordert wird, muss ein zusaetzlicher Seed + erneuter Lauf erfolgen.
+- The 10-second SLA for search and reports is comfortably met in every profile.
+- The measured volume values are based on the current demo seed documented in `docs/data-volume-plan.md`.
+- If acceptance explicitly requires a higher load target (for example `200/200/1000`), an expanded seed and a repeated test run are still required.

@@ -191,6 +191,9 @@ class LoggingContextFilterTest {
             this.capturedUser = capturedUser;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void doFilter(ServletRequest request, ServletResponse response) throws IOException, ServletException {
             capturedUser.set(MDC.get("user"));

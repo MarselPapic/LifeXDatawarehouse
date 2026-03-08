@@ -76,6 +76,9 @@ class UnifiedIndexingRoutesTest extends CamelTestSupport {
             "IndexSingleUpgradePlan"
     );
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isUseAdviceWith() {
         return true;
@@ -89,6 +92,9 @@ class UnifiedIndexingRoutesTest extends CamelTestSupport {
         context.start();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected RouteBuilder createRouteBuilder() {
         return new UnifiedIndexingRoutes(
